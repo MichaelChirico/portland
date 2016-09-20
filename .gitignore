@@ -1,0 +1,4 @@
+#R files to ignore
+.Rhistory
+.Rproj.user
+*.Rproj
