@@ -21,6 +21,7 @@ library(foreign)
 #for loading and manipulating geospatial objects
 library(maptools)
 library(rgeos)
+library(spatstat)
 
 #Create an R Project in your local directory, and all of 
 #  these relative paths will work out of the box
@@ -104,6 +105,27 @@ rec_grid = function(n_div)
     proj4string = prj), "SpatialPolygons"), 
     gUnaryUnion(portland), byid = TRUE)
 
+grd50 = rec_grid(50)
+grd50 = 
+  SpatialPolygonsDataFrame(
+    grd50, data = data.frame(ID = 1:length(grd50),
+      row.names = sapply(grd50@polygons, slot, "ID")))
+grd50@data = setDT(grd50@data)
+
 plot(portland, col = "red", border = "black")
-plot(rec_grid(150), border = "yellow", add = TRUE)
+plot(grd_50, border = "yellow", add = TRUE)
 plot(crimes_map2, add = TRUE)
+
+crimes_map2@data$year = with(crimes_map2@data, year(occ_date))
+
+cols = colorRampPalette(c("green", "red"))(10)
+
+par(mfrow = c(2, 3))
+for (yr in sort(unique(crimes_map2@data$year))) {
+  new_var = "crimes" %+% yr
+  grd50@data[grd50@data[ , 
+    .SD[(crimes_map2[crimes_map2$year == yr, ] %over% grd50), on = "ID"][ , .N, ID]],
+    (new_var) := i.N, on = "ID"][is.na(get(new_var)), (new_var) := 0]
+  plot(grd50, col = grd50@data[ , cols[ceiling(10*ecdf(get(new_var))(get(new_var)))]],
+       main = yr)
+}
