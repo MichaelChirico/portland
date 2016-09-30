@@ -14,8 +14,6 @@ library(data.table)
 #Michael Chirico's package of convenience functions;
 #  devtools::install_github("MichaelChirico/funchir")
 library(funchir)
-#for web scraping
-library(rvest) 
 #for reading .dbf files
 library(foreign)
 #for loading and manipulating geospatial objects
@@ -26,28 +24,6 @@ library(spatstat)
 #Create an R Project in your local directory, and all of 
 #  these relative paths will work out of the box
 wds = c(data = "./data")
-
-# Official Contest Data
-URL = "http://www.nij.gov/funding/Pages/" %+% 
-  "fy16-crime-forecasting-challenge.aspx"
-
-data_links = read_html(URL) %>% 
-  #Get all <a href=...> tags, convert to text
-  html_nodes(xpath = "//a/@href") %>% html_text() %>%
-  #All data files end in .zip
-  grep("\\.zip$", ., value = TRUE) %>% 
-  #URLS are internal to the nij.gov site, so prepend
-  `%+%`("www.nij.gov", .)
-
-#Download data
-for (uu in data_links) {
-  tmp = tempfile()
-  # method = "auto" -> method = "internal" was
-  #  returning an error (?)
-  download.file(uu, tmp, method = "curl")
-  unzip(tmp, exdir = wds["data"])
-  unlink(tmp)
-}
 
 #Crime shapefiles' data
 crimes = rbindlist(lapply(lapply(list.files(
@@ -105,7 +81,16 @@ rec_grid = function(n_div)
     proj4string = prj), "SpatialPolygons"), 
     gUnaryUnion(portland), byid = TRUE)
 
-grd50 = rec_grid(50)
+rec_grid2 = function(n_div)
+  #generate a gridding of Portland bounding box which divides both
+  #  x & y directions n_div number of times equally
+  SpatialGrid(GridTopology(
+    cellcentre.offset = lims[ , "min"],
+    cellsize = apply(lims, 1L, diff)/n_div,
+    cells.dim = c(n_div, n_div)), 
+    proj4string = prj)
+
+grd50 = rec_grid(100)
 grd50 = 
   SpatialPolygonsDataFrame(
     grd50, data = data.frame(ID = 1:length(grd50),
@@ -120,6 +105,7 @@ crimes_map2@data$year = with(crimes_map2@data, year(occ_date))
 
 cols = colorRampPalette(c("green", "red"))(10)
 
+pdf("~/Desktop/by_year.pdf")
 par(mfrow = c(2, 3))
 for (yr in sort(unique(crimes_map2@data$year))) {
   new_var = "crimes" %+% yr
@@ -129,3 +115,9 @@ for (yr in sort(unique(crimes_map2@data$year))) {
   plot(grd50, col = grd50@data[ , cols[ceiling(10*ecdf(get(new_var))(get(new_var)))]],
        main = yr)
 }
+dev.off()
+
+pdf("~/Desktop/all_points.pdf")
+plot(portland, col = "coral")
+plot(crimes_map2, add = TRUE)
+dev.off()
