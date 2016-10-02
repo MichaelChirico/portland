@@ -12,16 +12,12 @@ output:
 (see source file for code)
 
 ```{r setup, include = FALSE}
-set.seed(922574) #from random.org
-rm(list = ls(all = TRUE))
-gc()
-
-#Development version 1.9.7 -- try
-#  install.packages("data.table", type = "source",
-#                   repos = "http://Rdatatable.github.io")
-library(data.table)
 #Michael Chirico's package of convenience functions;
 #  devtools::install_github("MichaelChirico/funchir")
+funchir::clean_slate()
+
+set.seed(922574) #from random.org
+
 library(funchir)
 #for reading .dbf files
 library(foreign)
@@ -29,6 +25,10 @@ library(foreign)
 library(maptools)
 library(rgeos)
 library(spatstat)
+#Development version 1.9.7 -- try
+#  install.packages("data.table", type = "source",
+#                   repos = "http://Rdatatable.github.io")
+library(data.table)
 
 #Create an R Project in your local directory, and all of 
 #  these relative paths will work out of the box
@@ -43,6 +43,9 @@ crimes = rbindlist(lapply(lapply(list.files(
   )[!is.na(occ_date)]
 setnames(crimes, tolower(names(crimes)))
 crimes[ , occ_date := as.IDate(occ_date)]
+crimes[ , occ_year := quick_year(occ_date)]
+crimes[ , occ_wday := quick_wday(occ_date)]
+crimes[ , occ_quarter := quarter(occ_date)]
 
 #From cross-referencing the project page,
 #  spatialreference.org, and prj2epsg.org,
@@ -56,3 +59,28 @@ crimes_map =
     proj4string = prj)]
 ```
 
+# Basic Descriptives
+
+## Time Trends
+
+### Seasonality
+```{r desc_time_series, echo = FALSE, results = "hide"}
+crimes[ , .N, keyby = month(occ_date)
+        ][ , plot(month, N, type = "l", lwd = 3L,
+                  xlab = "Month", ylab = "", las = 1L,
+                  main = "Count of All Crimes by Month")]
+
+crimes[ , .N, keyby = .(category, month(occ_date))
+        ][ , dcast(.SD, month ~ category, value.var = "N"
+                   )[ , {
+                     matplot(month, 
+                             dat <- log10(.SD[ , !"month", with = FALSE]),
+                             type = "l", lwd = 3L, xlab = "Month", 
+                             ylab = "", las = 1L, lty = 1L,
+                             main = "(Log) Count of All Crimes\n" %+% 
+                               "by Category, Month")
+                     labs = unlist(dat[month == 12, ])
+                     text(12, labs+.1, names(labs), pos = 2L)}]]
+```
+
+## Spatial Trends
