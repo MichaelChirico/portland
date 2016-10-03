@@ -29,6 +29,8 @@ library(spatstat)
 #  install.packages("data.table", type = "source",
 #                   repos = "http://Rdatatable.github.io")
 library(data.table)
+#for printing HTML tables
+library(xtable)
 
 #Create an R Project in your local directory, and all of 
 #  these relative paths will work out of the box
@@ -46,6 +48,7 @@ crimes[ , occ_date := as.IDate(occ_date)]
 crimes[ , occ_year := quick_year(occ_date)]
 crimes[ , occ_wday := quick_wday(occ_date)]
 crimes[ , occ_quarter := quarter(occ_date)]
+crimes[ , occ_month := month(occ_date)]
 
 #From cross-referencing the project page,
 #  spatialreference.org, and prj2epsg.org,
@@ -61,26 +64,79 @@ crimes_map =
 
 # Basic Descriptives
 
+## Basics
+
+Cross-tabs of the `category` and `call_group` columns of the main data. Burglary and motor vehicle theft make up only a small portion of total crimes. `OTHER` crimes are all over the place.
+
+```{r plain, echo = FALSE, results = "asis"}
+invisible(crimes[ , print(xtable(table(category, call_group)), type = "html")])
+```
+
 ## Time Trends
 
+### Overall Crime Time Series
+
+```{r time_series, echo = FALSE, results = "hide", warning = FALSE, message = FALSE}
+dcast(crimes, occ_year ~ category
+      )[ , {
+        par(mar = c(5.1, 4.1, 4.1, 6.1))
+        matplot(occ_year, sdx <- .SD[ , .(OTHER, `STREET CRIMES`)],
+                type = "b", lty = 1L, axes = FALSE, col = "black",
+                lwd = 3L, ylab = "", xlab = "", pch = c(0L, 1L),
+                main = "Crime Counts by Year, Category")
+        dput(range(sdx))
+        axis(side = 2L, at = seq(nx.mlt(min(sdx), 5000),
+                                 nx.mlt(max(sdx), 5000),
+                                 length.out = 5))
+        mtext("More-Frequent Crimes", side = 2L, line = 2.5)
+        
+        text(occ_year[1L], sdx[1L] + 10000,
+             c("Other", "Street Crimes"), pos = 4L)
+        
+        par(new = TRUE)
+        matplot(occ_year, sdx <- .SD[ , .(BURGLARY, `MOTOR VEHICLE THEFT`)],
+                type = "b", lty = 1L, lwd = 3L, col = "red",
+                xlab = "", ylab = "", axes = FALSE, pch = c(0L, 1L))
+        axis(side = 4L, col = "red", col.axis = "red", las = 1L)
+        mtext("Less-Frequent Crimes", side = 4L,
+              line = 3.5, col = "red")
+        
+        text(occ_year[1L], sdx[1L] + 100, col = "red",
+             labels = c("Burglary", "Vehicle Theft"), pos = 4L)
+        
+        axis(side = 1L)
+        box()}]
+
+dcast(crimes, occ_year ~ category
+      )[ , {
+        matplot(occ_year, sapply(.SD, function(x) x/x[1L]),
+                xlab = "Year", main = "Relative Evolution of Crimes",
+                ylab = "Frequency Relative to " %+% occ_year[1L],
+                col = cols <- as.factor(names(.SD)),
+                lty = 1L, type = "b", pch = 1L, las = 1L, lwd = 3L)
+        abline(h = 1, col = "cornflowerblue")
+        legend("bottomleft", legend = names(.SD), col = cols,
+               lwd = 3L, pch = 1L)
+        }, .SDcols = -1L]
+```
+
 ### Seasonality
-```{r desc_time_series, echo = FALSE, results = "hide"}
+```{r seasonality, echo = FALSE, results = "hide", warning = FALSE, message = FALSE}
 crimes[ , .N, keyby = month(occ_date)
         ][ , plot(month, N, type = "l", lwd = 3L,
                   xlab = "Month", ylab = "", las = 1L,
                   main = "Count of All Crimes by Month")]
 
-crimes[ , .N, keyby = .(category, month(occ_date))
-        ][ , dcast(.SD, month ~ category, value.var = "N"
-                   )[ , {
-                     matplot(month, 
-                             dat <- log10(.SD[ , !"month", with = FALSE]),
-                             type = "l", lwd = 3L, xlab = "Month", 
-                             ylab = "", las = 1L, lty = 1L,
-                             main = "(Log) Count of All Crimes\n" %+% 
-                               "by Category, Month")
-                     labs = unlist(dat[month == 12, ])
-                     text(12, labs+.1, names(labs), pos = 2L)}]]
+dcast(crimes, occ_month ~ category
+      )[ , {
+        matplot(occ_month, 
+                dat <- log10(.SD[ , !"occ_month", with = FALSE]),
+                type = "l", lwd = 3L, xlab = "Month", 
+                ylab = "", las = 1L, lty = 1L,
+                main = "(Log) Count of All Crimes\n" %+% 
+                  "by Category, Month")
+        labs = unlist(dat[occ_month == 12, ])
+        text(12, labs+.1, names(labs), pos = 2L)}]
 ```
 
 ## Spatial Trends
