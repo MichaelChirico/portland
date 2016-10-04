@@ -12,6 +12,9 @@ output:
 (see source file for code)
 
 ```{r setup, include = FALSE}
+# Adding Pau's code for KDE & K-function
+knitr::read_chunk("kde.R")
+
 #Michael Chirico's package of convenience functions;
 #  devtools::install_github("MichaelChirico/funchir")
 funchir::clean_slate()
@@ -25,6 +28,7 @@ library(foreign)
 library(maptools)
 library(rgeos)
 library(spatstat)
+library(GISTools)
 #Development version 1.9.7 -- try
 #  install.packages("data.table", type = "source",
 #                   repos = "http://Rdatatable.github.io")
@@ -55,7 +59,7 @@ crimes[ , occ_month := month(occ_date)]
 #  determined the following common CRS for
 #  all project-associated shapefiles
 prj = CRS("+init=epsg:2913")
-crimes_map = 
+crimes.map = 
   crimes[ , SpatialPointsDataFrame(
     coords = cbind(x_coordina, y_coordina),
     data = .SD[ , !(c("x", "y") %+% "_coordina"), with = FALSE],
@@ -145,3 +149,8 @@ dcast(crimes, occ_month ~ category
 ```
 
 ## Spatial Trends
+
+```{r paus_plots}
+<<geospatial>>
+```
+

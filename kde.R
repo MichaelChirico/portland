@@ -56,6 +56,7 @@ crimes.map = with(crimes,
                     proj4string = prj
                   ))
 
+# @knitr geospatial
 # Working on a more manageable subsample of crimes for now
 N = NROW(crimes.map)
 crimes.map = crimes.map[sample(N, 0.1*N),]
