@@ -76,6 +76,8 @@ invisible(crimes[ , print(xtable(table(category, call_group)), type = "html")])
 
 ### Overall Crime Time Series
 
+There was a sort of spike in crime in 2015. Perhaps they had new coding protocols? Worth trying to understand better.
+
 ```{r time_series, echo = FALSE, results = "hide", warning = FALSE, message = FALSE}
 dcast(crimes, occ_year ~ category
       )[ , {
@@ -121,6 +123,9 @@ dcast(crimes, occ_year ~ category
 ```
 
 ### Seasonality
+
+Most crime occurs in the summer, but there doesn't appear to be much of a time trend for burglary or motor vehicle theft.
+
 ```{r seasonality, echo = FALSE, results = "hide", warning = FALSE, message = FALSE}
 crimes[ , .N, keyby = month(occ_date)
         ][ , plot(month, N, type = "l", lwd = 3L,
