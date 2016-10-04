@@ -30,32 +30,6 @@ setwd('~/Dropbox/0_Penn/Research/crime_prediction/portland/')
 wds = c(data = "./data")
 
 # ============================================================================
-# DOWNLOAD DATA
-# ============================================================================
-
-# # Official Contest Data
-# URL = "http://www.nij.gov/funding/Pages/" %+%
-#   "fy16-crime-forecasting-challenge.aspx"
-# 
-# data_links = read_html(URL) %>%
-#   #Get all <a href=...> tags, convert to text
-#   html_nodes(xpath = "//a/@href") %>% html_text() %>%
-#   #All data files end in .zip
-#   grep("\\.zip$", ., value = TRUE) %>%
-#   #URLS are internal to the nij.gov site, so prepend
-#   `%+%`("www.nij.gov", .)
-# 
-# #Download data
-# for (uu in data_links) {
-#   tmp = tempfile()
-#   # method = "auto" -> method = "internal" was
-#   #  returning an error (?)
-#   download.file(uu, tmp, method = "curl")
-#   unzip(tmp, exdir = wds["data"])
-#   unlink(tmp)
-# }
-
-# ============================================================================
 # LOAD DATA AND CREATE GEO DATAFRAMES
 # ============================================================================
 
@@ -152,8 +126,8 @@ plot(portland, add=TRUE)
 # K-FUNCTIONS
 # ============================================================================
 # for spatstats functions, need to convert to ppp data format:
-# ppp objects are defined by a set of coordinates and a window object.
-# in this case the window is the border of portland.
+# ppp objects are defined by a set of coordinates and a window object, and (optionaly) a vector of marks
+# in this case the window is the border of portland and the marks is crime category.
 win <- as.owin(gUnaryUnion(portland, id=NULL))
 crimes.ppp <- as.ppp(coordinates(crimes.map), W = win)
 marks(crimes.ppp) <- as.factor(crimes.map$category)
