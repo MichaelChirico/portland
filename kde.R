@@ -190,9 +190,8 @@ ck.vehicleOther <- Lcross(crimes.ppp, i='MOTOR VEHICLE THEFT', j='OTHER', correc
 plot(ck.vehicleOther, main = "Car Theft & Other Crimes")
 
 ck.streetOther <- Lcross(crimes.ppp, i='STREET CRIMES', j='OTHER', correction='border')
-<<<<<<< HEAD
+
 plot(ck.streetOther, main = "Street Crimes & Other Crimes")
-=======
 plot(ck.streetOther)
 
 # ============================================================================
@@ -222,4 +221,3 @@ int.res <- gIntersection(int.layer, portland.bdy, byid = TRUE)
 
 plot(int.res)
 plot(portland, add=TRUE)
->>>>>>> 594f2a730328b623ad94cd629ea4afec0f6a6655
