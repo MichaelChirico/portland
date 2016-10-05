@@ -2,3 +2,7 @@
 .Rhistory
 .Rproj.user
 *.Rproj
+
+#knitr cache -- ignore
+*_cache
+*_files

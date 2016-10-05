@@ -26,7 +26,6 @@ library(GISTools)
 
 #Create an R Project in your local directory, and all of
 #  these relative paths will work out of the box
-setwd('~/Dropbox/0_Penn/Research/crime_prediction/portland/')
 wds = c(data = "./data")
 
 # ============================================================================
@@ -56,7 +55,7 @@ crimes.map = with(crimes,
                     proj4string = prj
                   ))
 
-# @knitr geospatial
+# @knitr kdesetup
 # Working on a more manageable subsample of crimes for now
 N = NROW(crimes.map)
 crimes.map = crimes.map[sample(N, 0.1*N),]
@@ -74,6 +73,7 @@ crimes.map = crimes.map[!is.na(crimes.map$precinct), ]
 # ============================================================================
 # KDE PLOTS
 # ============================================================================
+# @knitr kde
 
 # some styling palettes:
 norm_palette <- colorRampPalette(c("white","red"))
@@ -86,7 +86,7 @@ pal_trans[1] <- "#FFFFFF00" #was originally "#FFFFFF"
 
 # TOTAL CRIMES:
 crimes.map.dens <- kde.points(crimes.map, lims=portland)
-plot(crimes.map.dens, col=pal_opaque)
+plot(crimes.map.dens, col=pal_opaque, main = "All Crimes")
 masker <- poly.outer(crimes.map.dens, portland, extend=100)
 add.masking(masker)
 plot(portland, add=TRUE)
@@ -94,7 +94,7 @@ plot(portland, add=TRUE)
 # BURGLARY:
 crimes.burglary <- crimes.map[crimes.map$category=='BURGLARY',]
 crimes.burglary.dens <- kde.points(crimes.burglary, lims=portland)
-plot(crimes.burglary.dens, col=pal_opaque)
+plot(crimes.burglary.dens, col=pal_opaque, main = "Burglary")
 masker <- poly.outer(crimes.burglary.dens, portland, extend=100)
 add.masking(masker)
 plot(portland, add=TRUE)
@@ -102,7 +102,7 @@ plot(portland, add=TRUE)
 # MOTOR VEHICLE THEFT:
 crimes.vehicle <- crimes.map[crimes.map$category=='MOTOR VEHICLE THEFT',]
 crimes.vehicle.dens <- kde.points(crimes.vehicle, lims=portland)
-plot(crimes.vehicle.dens, col=pal_opaque)
+plot(crimes.vehicle.dens, col=pal_opaque, main = "Car Theft")
 masker <- poly.outer(crimes.vehicle.dens, portland, extend=100)
 add.masking(masker)
 plot(portland, add=TRUE)
@@ -110,7 +110,7 @@ plot(portland, add=TRUE)
 # STREET CRIMES:
 crimes.street <- crimes.map[crimes.map$category=='STREET CRIMES',]
 crimes.street.dens <- kde.points(crimes.street, lims=portland)
-plot(crimes.street.dens, col=pal_opaque)
+plot(crimes.street.dens, col=pal_opaque, main = "Street Crimes")
 masker <- poly.outer(crimes.street.dens, portland, extend=100)
 add.masking(masker)
 plot(portland, add=TRUE)
@@ -118,7 +118,7 @@ plot(portland, add=TRUE)
 # OTHER:
 crimes.other <- crimes.map[crimes.map$category=='OTHER',]
 crimes.other.dens <- kde.points(crimes.other, lims=portland)
-plot(crimes.other.dens, col=pal_opaque)
+plot(crimes.other.dens, col=pal_opaque, main = "Other Crimes")
 masker <- poly.outer(crimes.other.dens, portland, extend=100)
 add.masking(masker)
 plot(portland, add=TRUE)
@@ -129,6 +129,7 @@ plot(portland, add=TRUE)
 # for spatstats functions, need to convert to ppp data format:
 # ppp objects are defined by a set of coordinates and a window object, and (optionaly) a vector of marks
 # in this case the window is the border of portland and the marks is crime category.
+# @knitr kfunction
 win <- as.owin(gUnaryUnion(portland, id=NULL))
 crimes.ppp <- as.ppp(coordinates(crimes.map), W = win)
 marks(crimes.ppp) <- as.factor(crimes.map$category)
@@ -136,51 +137,52 @@ marks(crimes.ppp) <- as.factor(crimes.map$category)
 par(mfrow=c(1,1))
 kf.all <- Kest(crimes.ppp, correction='border') 
 # kf.all.env <- envelope(crimes.ppp, Kest, correction='border')
-plot(kf.all)
+plot(kf.all, main = "All Crimes")
 # plot(kf.all.env)
 
 crimes.ppp.burglary <- crimes.ppp[crimes.map$category=='BURGLARY']
 kf.burglary <- Kest(crimes.ppp.burglary, correction='border') 
 # kf.burglary.env <- envelope(crimes.ppp.burglary, Kest, correction='border')
-plot(kf.burglary)
+plot(kf.burglary, main = "Burglary")
 # plot(kf.burglary.env)
 
 crimes.ppp.vehicle <- crimes.ppp[crimes.map$category=='MOTOR VEHICLE THEFT']
 kf.vehicle <- Kest(crimes.ppp.vehicle, correction='border') 
 # kf.vehicle.env <- envelope(crimes.ppp.vehicle, Kest, correction='border')
-plot(kf.vehicle)
+plot(kf.vehicle, main = "Car Theft")
 # plot(kf.vehicle.env)
 
 crimes.ppp.street <- crimes.ppp[crimes.map$category=='STREET CRIMES']
 kf.street <- Kest(crimes.ppp.street, correction='border') 
 # kf.street.env <- envelope(crimes.ppp.street, Kest, correction='border')
-plot(kf.street)
+plot(kf.street, main = "Street Crimes")
 # plot(kf.street.env)
 
 crimes.ppp.other <- crimes.ppp[crimes.map$category=='OTHER']
 kf.other <- Kest(crimes.ppp.other, correction='border') 
 # kf.other.env <- envelope(crimes.ppp.other, Kest, correction='border')
-plot(kf.other)
+plot(kf.other, main = "Other Crimes")
 # plot(kf.other.env)
 
 # ============================================================================
 # CROSS L-FUNCTIONS
 # ============================================================================
+# @knitr crossl
 
 ck.burglaryStreet <- Lcross(crimes.ppp, i='BURGLARY', j='STREET CRIMES', correction='border')
-plot(ck.burglaryStreet)
+plot(ck.burglaryStreet, main = "Burglary & Street Crimes")
 
 ck.burglaryVehicle <- Lcross(crimes.ppp, i='BURGLARY', j='MOTOR VEHICLE THEFT', correction='border')
-plot(ck.burglaryVehicle)
+plot(ck.burglaryVehicle, main = "Burglary & Car Theft")
 
 ck.burglaryOther <- Lcross(crimes.ppp, i='BURGLARY', j='OTHER', correction='border')
-plot(ck.burglaryOther)
+plot(ck.burglaryOther, main = "Burglary & Other Crimes")
 
 ck.vehicleStreet <- Lcross(crimes.ppp, i='MOTOR VEHICLE THEFT', j='STREET CRIMES', correction='border')
-plot(ck.vehicleStreet)
+plot(ck.vehicleStreet, main = "Car Theft & Street Crimes")
 
 ck.vehicleOther <- Lcross(crimes.ppp, i='MOTOR VEHICLE THEFT', j='OTHER', correction='border')
-plot(ck.vehicleOther)
+plot(ck.vehicleOther, main = "Car Theft & Other Crimes")
 
 ck.streetOther <- Lcross(crimes.ppp, i='STREET CRIMES', j='OTHER', correction='border')
-plot(ck.streetOther)
+plot(ck.streetOther, main = "Street Crimes & Other Crimes")

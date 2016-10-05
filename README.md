@@ -11,3 +11,6 @@ Forecasting Crime in Portland
 * Advantages of Hexagonal vs. Rectangular gridding: [1](http://gis.stackexchange.com/questions/82362/what-are-the-benefits-of-hexagonal-sampling-polygons), [2](http://strimas.com/spatial/hexagonal-grids/)
 
 * [Portland and Oregon open data](http://www.civicapps.org/datasets)
+
+* [Spatial Correlograms in R](https://www.r-bloggers.com/spatial-correlograms-in-r-a-mini-overview/)
+
