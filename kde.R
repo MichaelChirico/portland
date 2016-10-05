@@ -194,8 +194,8 @@ plot(ck.streetOther)
 # ============================================================================
 
 bb <- bbox(portland)
-cell.sizex <- 2000
-cell.sizey <- 2000
+cell.sizex <- 1500
+cell.sizey <- 1500
 cell.dimx <- round((bb[1,2] - bb[1,1])/cell.sizex)
 cell.dimy <- round((bb[2,2] - bb[2,1])/cell.sizey)
 
@@ -205,14 +205,22 @@ grd <- GridTopology(cellcentre.offset = c(bb[1,1], bb[2,1]),
 
 # turn grid to SpatialPolygonsDataFrame:
 nb.cells = cell.dimx * cell.dimy
-int.layer <- SpatialPolygonsDataFrame(as.SpatialPolygons.GridTopology(grd),
+grd.layer <- SpatialPolygonsDataFrame(as.SpatialPolygons.GridTopology(grd),
                                       data = data.frame(c(1:nb.cells)),
                                       match.ID = FALSE)
-names(int.layer) <- "ID"
-proj4string(int.layer) <- proj4string(crimes.map)
+names(grd.layer) <- "ID"
+proj4string(grd.layer) <- proj4string(crimes.map)
 
 # intersect grid with boundaries of Portland:
-int.res <- gIntersection(int.layer, portland.bdy, byid = TRUE)
 
-plot(int.res)
-plot(portland, add=TRUE)
+# Should work but doesn't:
+# int.res <- gIntersection(int.layer, portland.bdy, byid = TRUE)
+
+# alternative from http://stackoverflow.com/questions/15881455/how-to-clip-worldmap-with-polygon-in-r
+grd.index <- gIntersects(grd.layer, portland.bdy, byid = TRUE)
+grd <- grd.layer[which(grd.index), ]
+
+plot(grd)
+plot(portland.bdy, add=TRUE)
+
+crimes.count <- poly.counts(crimes.map, grd)
