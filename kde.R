@@ -23,6 +23,7 @@ library(maptools)
 library(rgeos)
 library(spatstat)
 library(GISTools)
+library(sp)
 
 #Create an R Project in your local directory, and all of
 #  these relative paths will work out of the box
@@ -49,6 +50,7 @@ crimes[ , occ_date := as.IDate(occ_date)]
 #  all project-associated shapefiles
 
 prj = CRS("+init=epsg:2913")
+# prj <- CRS("+proj=longlat +datum=WGS84")
 crimes.map = with(crimes,
                   SpatialPointsDataFrame(
                     coords=cbind(x_coordina, y_coordina),
@@ -60,8 +62,10 @@ crimes.map = with(crimes,
 N = NROW(crimes.map)
 crimes.map = crimes.map[sample(N, 0.1*N),]
 
-portland = readShapePoly("./data/Portland_Police_Districts.shp", 
+portland <- readShapePoly("./data/Portland_Police_Districts.shp", 
                          proj4string = prj)
+
+portland.bdy <- gUnaryUnion(portland)
 
 # Spatial join -- find the district associated with each crime
 crimes.map@data[ , c("district", "precinct")] = 
@@ -133,6 +137,7 @@ crimes.ppp <- as.ppp(coordinates(crimes.map), W = win)
 marks(crimes.ppp) <- as.factor(crimes.map$category)
 
 par(mfrow=c(1,1))
+par(mar = c(4.2,4.2,4.2,4.2))
 kf.all <- Kest(crimes.ppp, correction='border') 
 # kf.all.env <- envelope(crimes.ppp, Kest, correction='border')
 plot(kf.all)
@@ -183,3 +188,31 @@ plot(ck.vehicleOther)
 
 ck.streetOther <- Lcross(crimes.ppp, i='STREET CRIMES', j='OTHER', correction='border')
 plot(ck.streetOther)
+
+# ============================================================================
+# GRID
+# ============================================================================
+
+bb <- bbox(portland)
+cell.sizex <- 2000
+cell.sizey <- 2000
+cell.dimx <- round((bb[1,2] - bb[1,1])/cell.sizex)
+cell.dimy <- round((bb[2,2] - bb[2,1])/cell.sizey)
+
+grd <- GridTopology(cellcentre.offset = c(bb[1,1], bb[2,1]),
+                    cellsize = c(cell.sizex, cell.sizey),
+                    cells.dim = c(cell.dimx, cell.dimy))
+
+# turn grid to SpatialPolygonsDataFrame:
+nb.cells = cell.dimx * cell.dimy
+int.layer <- SpatialPolygonsDataFrame(as.SpatialPolygons.GridTopology(grd),
+                                      data = data.frame(c(1:nb.cells)),
+                                      match.ID = FALSE)
+names(int.layer) <- "ID"
+proj4string(int.layer) <- proj4string(crimes.map)
+
+# intersect grid with boundaries of Portland:
+int.res <- gIntersection(int.layer, portland.bdy, byid = TRUE)
+
+plot(int.res)
+plot(portland, add=TRUE)
