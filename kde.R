@@ -31,6 +31,30 @@ setwd('~/Dropbox/0_Penn/Research/crime_prediction/portland/')
 wds = c(data = "./data")
 
 # ============================================================================
+# USEFUL FUNCTIONS
+# ============================================================================
+
+to.map <- function(df, crs="+init=epsg:2913", pct=1){
+  prj = CRS("+init=epsg:2913")
+  map = with(df,
+             SpatialPointsDataFrame(
+               coords=cbind(x_coordina, y_coordina),
+               data = df[, -c('x_coordina','y_coordina'), with=FALSE],
+               proj4string = prj
+             ))
+  N = NROW(map)
+  map <- map[sample(N, pct*N),]
+  map
+}
+
+to.data.table <- function(sp){
+  coords <- coordinates(sp)
+  dt <- data.table(data.frame(sp))
+  cbind(dt, coords)
+}
+
+
+# ============================================================================
 # LOAD DATA AND CREATE GEO DATAFRAMES
 # ============================================================================
 
@@ -44,6 +68,17 @@ crimes = rbindlist(lapply(lapply(list.files(
 setnames(crimes, tolower(names(crimes)))
 crimes[ , occ_date := as.IDate(occ_date)]
 
+setnames(crimes, tolower(names(crimes)))
+crimes[ , occ_date := as.IDate(occ_date)]
+crimes[ , occ_year := quick_year(occ_date)]
+crimes[ , occ_wday := quick_wday(occ_date)]
+crimes[ , occ_quarter := quarter(occ_date)]
+crimes[ , occ_month := month(occ_date)]
+#First-of-the-month containing occ_date
+crimes[ , occ_mo_1st := occ_date - mday(occ_date) + 1L]
+#Wednesday of the week containing occ_date
+crimes[ , occ_wed := occ_date - occ_wday + 4L]
+
 #From cross-referencing the project page,
 #  spatialreference.org, and prj2epsg.org,
 #  determined the following common CRS for
@@ -51,16 +86,18 @@ crimes[ , occ_date := as.IDate(occ_date)]
 
 prj = CRS("+init=epsg:2913")
 # prj <- CRS("+proj=longlat +datum=WGS84")
-crimes.map = with(crimes,
-                  SpatialPointsDataFrame(
-                    coords=cbind(x_coordina, y_coordina),
-                    data = crimes[, -c('x_coordina','y_coordina'), with=FALSE],
-                    proj4string = prj
-                  ))
+# crimes.map = with(crimes,
+#                   SpatialPointsDataFrame(
+#                     coords=cbind(x_coordina, y_coordina),
+#                     data = crimes[, -c('x_coordina','y_coordina'), with=FALSE],
+#                     proj4string = prj
+#                   ))
+
+crimes.map <- to.map(crimes, pct=1)
 
 # Working on a more manageable subsample of crimes for now
-N = NROW(crimes.map)
-crimes.map = crimes.map[sample(N, 0.1*N),]
+# N = NROW(crimes.map)
+# crimes.map = crimes.map[sample(N, 0.1*N),]
 
 portland <- readShapePoly("./data/Portland_Police_Districts.shp", 
                          proj4string = prj)
@@ -87,8 +124,13 @@ pal_trans[1] <- "#FFFFFF00" #was originally "#FFFFFF"
 # define a bandwidth:
 # h <- sd(crimes.map$x_coordina)*(2/(3*length(crimes.map)))^(1/6)
 
+
 # TOTAL CRIMES:
 crimes.map.dens <- kde.points(crimes.map, lims=portland)
+
+# units to counts:
+N = nrow(crimes.map.dens)
+crimes.map.dens@data <- crimes.map.dens@data * N
 plot(crimes.map.dens, col=pal_opaque)
 masker <- poly.outer(crimes.map.dens, portland, extend=100)
 add.masking(masker)
@@ -138,7 +180,7 @@ marks(crimes.ppp) <- as.factor(crimes.map$category)
 
 par(mfrow=c(1,1))
 par(mar = c(4.2,4.2,4.2,4.2))
-kf.all <- Kest(crimes.ppp, correction='border') 
+kf.all <- Lest(crimes.ppp, correction='border') 
 # kf.all.env <- envelope(crimes.ppp, Kest, correction='border')
 plot(kf.all)
 # plot(kf.all.env)
@@ -194,8 +236,8 @@ plot(ck.streetOther)
 # ============================================================================
 
 bb <- bbox(portland)
-cell.sizex <- 1500
-cell.sizey <- 1500
+cell.sizex <- 600
+cell.sizey <- 600
 cell.dimx <- round((bb[1,2] - bb[1,1])/cell.sizex)
 cell.dimy <- round((bb[2,2] - bb[2,1])/cell.sizey)
 
@@ -214,13 +256,102 @@ proj4string(grd.layer) <- proj4string(crimes.map)
 # intersect grid with boundaries of Portland:
 
 # Should work but doesn't:
-# int.res <- gIntersection(int.layer, portland.bdy, byid = TRUE)
+grd <- gIntersection(grd.layer, portland.bdy, byid = TRUE)
 
 # alternative from http://stackoverflow.com/questions/15881455/how-to-clip-worldmap-with-polygon-in-r
-grd.index <- gIntersects(grd.layer, portland.bdy, byid = TRUE)
-grd <- grd.layer[which(grd.index), ]
+# grd.index <- gIntersects(grd.layer, portland.bdy, byid = TRUE)
+# grd <- grd.layer[which(grd.index), ]
+
+grd.bdy <- gUnaryUnion(grd)
+areas <- poly.areas(grd)
+areas.total <- gArea(grd)
+
+# turn grid to SpatialPointsDataFrame with data=id
+tmp <- strsplit(names(grd), " ")
+grd.id <- sapply(tmp, "[[", 1)
+grd.id <- data.frame(data.frame(grd.id))
+grd <- SpatialPolygonsDataFrame(grd, data = grd.id, match.ID = FALSE)
 
 plot(grd)
 plot(portland.bdy, add=TRUE)
 
-crimes.count <- poly.counts(crimes.map, grd)
+# crimes.count <- poly.counts(crimes.map, grd)
+
+# ============================================================================
+# SPATIO-TEMPORAL HISTOGRAMS
+# ============================================================================
+# 1. assign each crime to a grid cell
+# 2. group by weeks and category
+# 3. count crimes per cell
+
+# overlay crimes with grid:
+idx <- over(crimes.map, grd)
+crimes.map$grd.id <- idx$grd.id
+
+# check:
+plot(grd[grd$grd.id == crimes.map[1, ]$grd.id, ])
+plot(crimes.map[1, ], add=TRUE)
+
+# generate counts by week and grid cell:
+crimes <- to.data.table(crimes.map)
+counts <- crimes[, .(count = .N), by = .(occ_wed, grd.id, category)]
+counts <- dcast(counts, occ_wed + grd.id ~ category, fill=0, value.var = 'count')
+
+# add sum of all crimes per week and grid cell:
+counts[, all := rowSums(.SD), by = .(occ_wed, grd.id), 
+       .SDcols = c('BURGLARY','MOTOR VEHICLE THEFT','OTHER','STREET CRIMES')]
+setnames(counts, sub("\\s", "_", names(counts)))
+
+# number of empty cells per week:
+counts[, week_zeros := nrow(grd) - .N, by=.(occ_wed)]
+counts[, week_count := .N, by=.(occ_wed)]
+
+# create data.table of weekly zero cell counts:
+week.zeros <- counts[, .SD[1, week_zeros], by=occ_wed]
+setnames(week.zeros, sub('V1','count', names(week_zeros)))
+zeros.total <- week_zeros[, sum(count)]
+
+add.zeros <- function(tab,  zeros.total) {
+  # add counts of
+  if ('0' %in% names(tab)) {
+    tab[1] <- tab[1] + zeros.total
+    
+  } else {
+    tab <- c(0, tab)
+    names(tab)[1] <- 0
+    tab[1] <- tab[1] + zeros.total
+  }
+  tab
+}
+
+tab.counts <- function(dt, variable, from=NULL, to=NULL){
+  date.min <- dt[, min(occ_wed)]
+  date.max <- dt[, max(occ_wed)]
+  
+  if (is.null(from) | is.null(to)){
+    from <- date.min
+    to <- date.max
+  }
+  dt <- dt[occ_wed>=from & occ_wed<=to]
+  tab <- dt[, table(get(variable))]
+  
+  # count number of weekly zero cells:
+  week.zeros <- dt[, .SD[1, week.zeros], by=occ_wed]
+  setnames(week.zeros, sub('V1','count', names(week.zeros)))
+  zeros.total <- week.zeros[, sum(count)]
+  
+  tab <- add.zeros(tab, zeros.total)
+  tab
+}
+
+# counts for all categories:
+date.from <- '2016-02-01'
+date.to <- '2016-02-08' 
+
+tab.all <- tab.counts(counts, variable = 'all', from = date.from, to = date.to)
+tab.burglaries <- tab.counts(counts, variable = 'BURGLARY', from = date.from, to = date.to)
+tab.vehicle <- tab.counts(counts, variable = 'MOTOR_VEHICLE_THEFT', from = date.from, to = date.to)
+tab.other <- tab.counts(counts, variable = 'OTHER', from = date.from, to = date.to)
+tab.street <- tab.counts(counts, variable = 'STREET_CRIMES', from = date.from, to = date.to)
+
+
