@@ -300,7 +300,7 @@ counts <- dcast(counts, occ_wed + grd.id ~ category, fill=0, value.var = 'count'
 # add sum of all crimes per week and grid cell:
 counts[, all := rowSums(.SD), by = .(occ_wed, grd.id), 
        .SDcols = c('BURGLARY','MOTOR VEHICLE THEFT','OTHER','STREET CRIMES')]
-setnames(counts, sub("\\s", "_", names(counts)))
+setnames(counts, gsub("\\s+", "_", names(counts)))
 
 # number of empty cells per week:
 counts[, week_zeros := nrow(grd) - .N, by=.(occ_wed)]
@@ -308,11 +308,11 @@ counts[, week_count := .N, by=.(occ_wed)]
 
 # create data.table of weekly zero cell counts:
 week.zeros <- counts[, .SD[1, week_zeros], by=occ_wed]
-setnames(week.zeros, sub('V1','count', names(week_zeros)))
-zeros.total <- week_zeros[, sum(count)]
+setnames(week.zeros, sub('V1','count', names(week.zeros)))
+zeros.total <- week.zeros[, sum(count)]
 
 add.zeros <- function(tab,  zeros.total) {
-  # add counts of
+  # inflate zeros in table according to number of cells without any crime.
   if ('0' %in% names(tab)) {
     tab[1] <- tab[1] + zeros.total
     
@@ -336,7 +336,7 @@ tab.counts <- function(dt, variable, from=NULL, to=NULL){
   tab <- dt[, table(get(variable))]
   
   # count number of weekly zero cells:
-  week.zeros <- dt[, .SD[1, week.zeros], by=occ_wed]
+  week.zeros <- dt[, .SD[1, week_zeros], by=occ_wed]
   setnames(week.zeros, sub('V1','count', names(week.zeros)))
   zeros.total <- week.zeros[, sum(count)]
   
@@ -345,6 +345,7 @@ tab.counts <- function(dt, variable, from=NULL, to=NULL){
 }
 
 # counts for all categories:
+# First week of February:
 date.from <- '2016-02-01'
 date.to <- '2016-02-08' 
 
@@ -354,4 +355,73 @@ tab.vehicle <- tab.counts(counts, variable = 'MOTOR_VEHICLE_THEFT', from = date.
 tab.other <- tab.counts(counts, variable = 'OTHER', from = date.from, to = date.to)
 tab.street <- tab.counts(counts, variable = 'STREET_CRIMES', from = date.from, to = date.to)
 
+# first twoo weeks of February:
+date.from <- '2016-02-01'
+date.to <- '2016-02-15' 
 
+tab.all.2 <- tab.counts(counts, variable = 'all', from = date.from, to = date.to)
+tab.burglaries.2 <- tab.counts(counts, variable = 'BURGLARY', from = date.from, to = date.to)
+tab.vehicle.2 <- tab.counts(counts, variable = 'MOTOR_VEHICLE_THEFT', from = date.from, to = date.to)
+tab.other.2 <- tab.counts(counts, variable = 'OTHER', from = date.from, to = date.to)
+tab.street.2 <- tab.counts(counts, variable = 'STREET_CRIMES', from = date.from, to = date.to)
+
+# month of February:
+date.from <- '2016-02-01'
+date.to <- '2016-03-01' 
+
+tab.all.month <- tab.counts(counts, variable = 'all', from = date.from, to = date.to)
+tab.burglaries.month <- tab.counts(counts, variable = 'BURGLARY', from = date.from, to = date.to)
+tab.vehicle.month <- tab.counts(counts, variable = 'MOTOR_VEHICLE_THEFT', from = date.from, to = date.to)
+tab.other.month <- tab.counts(counts, variable = 'OTHER', from = date.from, to = date.to)
+tab.street.month <- tab.counts(counts, variable = 'STREET_CRIMES', from = date.from, to = date.to)
+
+# 2 months:
+date.from <- '2016-02-01'
+date.to <- '2016-04-01' 
+
+tab.all.2month <- tab.counts(counts, variable = 'all', from = date.from, to = date.to)
+tab.burglaries.2month <- tab.counts(counts, variable = 'BURGLARY', from = date.from, to = date.to)
+tab.vehicle.2month <- tab.counts(counts, variable = 'MOTOR_VEHICLE_THEFT', from = date.from, to = date.to)
+tab.other.2month <- tab.counts(counts, variable = 'OTHER', from = date.from, to = date.to)
+tab.street.2month <- tab.counts(counts, variable = 'STREET_CRIMES', from = date.from, to = date.to)
+
+# 3 months:
+date.from <- '2016-02-01'
+date.to <- '2016-05-01' 
+
+tab.all.3month <- tab.counts(counts, variable = 'all', from = date.from, to = date.to)
+tab.burglaries.3month <- tab.counts(counts, variable = 'BURGLARY', from = date.from, to = date.to)
+tab.vehicle.3month <- tab.counts(counts, variable = 'MOTOR_VEHICLE_THEFT', from = date.from, to = date.to)
+tab.other.3month <- tab.counts(counts, variable = 'OTHER', from = date.from, to = date.to)
+tab.street.3month <- tab.counts(counts, variable = 'STREET_CRIMES', from = date.from, to = date.to)
+
+## Turn into data frames for presentation:
+library(plyr)
+pad.zeros <- function(array, len){
+  # add zeros to array from the right to make it have length len.
+  zeros.to.add <- max(0, len - length(array))
+  c(array, rep(0, zeros.to.add))
+}
+
+df.table <- function(ls){
+  # turn a list of tables into a dataframe, one col for each table.
+  len.ls <- sapply(ls, length)
+  len.ls.max <- max(len.ls)
+  df <- data.frame(llply(ls, pad.zeros, len.ls.max))
+  colnames(df) <- c('w1','w2','m1','m2','m3')
+  df
+}
+
+# create lists of tables:
+tab.all.list <- list(tab.all, tab.all.2, tab.all.month, tab.all.3month, tab.all.3month)
+tab.burglaries.list <- list(tab.burglaries, tab.burglaries.2, tab.burglaries.month, tab.burglaries.3month, tab.burglaries.3month)
+tab.vehicle.list <- list(tab.vehicle, tab.vehicle.2, tab.vehicle.month, tab.vehicle.3month, tab.vehicle.3month)
+tab.street.list <- list(tab.street, tab.street.2, tab.street.month, tab.street.3month, tab.street.3month)
+tab.other.list <- list(tab.other, tab.other.2, tab.other.month, tab.other.3month, tab.other.3month)
+
+# make dataframes:
+df.table(tab.all.list)
+df.table(tab.burglaries.list)
+df.table(tab.vehicle.list)
+df.table(tab.street.list)
+df.table(tab.other.list)
