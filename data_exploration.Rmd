@@ -121,8 +121,9 @@ dcast(crimes, occ_year ~ category
         axis(side = 1L)
         box()}]
 
+
 dcast(crimes, occ_year ~ category
-      )[ , {
+      )[ , {print(lapply(.SD, function(x) x/x[1L]))
         matplot(occ_year, sapply(.SD, function(x) x/x[1L]),
                 xlab = "Year", main = "Relative Evolution of Crimes",
                 ylab = "Frequency Relative to " %+% occ_year[1L],
