@@ -48,12 +48,12 @@ to.map <- function(df, crs="+init=epsg:2913", pct=1){
 
 to.data.table <- function(sp){
   coords <- coordinates(sp)
-  dt <- data.table(data.frame(sp))
-  cbind(dt, coords)
+  as.data.table(sp@data)[ , c("x_coordina", "y_coordina") := 
+                            .(coords[ , 1L], coords[ , 2L])][]
 }
 
 
-# ============================================================================
+# ============================================================================ 
 # LOAD DATA AND CREATE GEO DATAFRAMES
 # ============================================================================
 
@@ -301,54 +301,29 @@ counts <- crimes[, .(count = .N), by = .(occ_wed, grd.id, category)]
 counts <- dcast(counts, occ_wed + grd.id ~ category, fill=0, value.var = 'count')
 
 # add sum of all crimes per week and grid cell:
-counts[, all := rowSums(.SD), by = .(occ_wed, grd.id), 
-       .SDcols = c('BURGLARY','MOTOR VEHICLE THEFT','OTHER','STREET CRIMES')]
 setnames(counts, gsub("\\s+", "_", names(counts)))
+counts[, all := `BURGLARY` + `MOTOR_VEHICLE_THEFT` + 
+         `OTHER` + `STREET_CRIMES`, by = .(occ_wed, grd.id)]
 
-# number of empty cells per week:
-counts[, week_zeros := nrow(grd) - .N, by=.(occ_wed)]
-counts[, week_count := .N, by=.(occ_wed)]
-
-# create data.table of weekly zero cell counts:
-week.zeros <- counts[, .SD[1, week_zeros], by=occ_wed]
-setnames(week.zeros, sub('V1','count', names(week.zeros)))
-zeros.total <- week.zeros[, sum(count)]
-
-add.zeros <- function(tab,  zeros.total) {
-  # inflate zeros in table according to number of cells without any crime.
-  if ('0' %in% names(tab)) {
-    tab[1] <- tab[1] + zeros.total
-    
-  } else {
-    tab <- c(0, tab)
-    names(tab)[1] <- 0
-    tab[1] <- tab[1] + zeros.total
-  }
-  tab
-}
+counts = counts[CJ(occ_wed, grd$grd.id, unique = TRUE), lapply(.SD, function(x) {
+  if (any(idx <- is.na(x))) x[idx] = 0
+  x})]
 
 tab.counts <- function(dt, variable, from=NULL, to=NULL){
   # create spatio-temporal counts at weekly frequency from date.min to 
   # date.max. If not dates are provided it will use the full range in the data.
   # Returns a table with the counts.
-  date.min <- dt[, min(occ_wed)]
-  date.max <- dt[, max(occ_wed)]
-  
+
   if (is.null(from) | is.null(to)){
-    from <- date.min
-    to <- date.max
+    rng = dt[ , range(occ_wed)]
+    from <- rng[1L]
+    to <- rng[2L]
   }
-  dt <- dt[occ_wed>=from & occ_wed<=to]
-  tab <- dt[, table(get(variable))]
-  
-  # count number of weekly zero cells:
-  week.zeros <- dt[, .SD[1, week_zeros], by=occ_wed]
-  setnames(week.zeros, sub('V1','count', names(week.zeros)))
-  zeros.total <- week.zeros[, sum(count)]
-  
-  # inflate number of zeros to take into account cells without crimes:
-  tab <- add.zeros(tab, zeros.total)
-  tab
+  dt[occ_wed %between% c(from, to), 
+     table(cut(get(variable), 
+               breaks = c(0, 1, 2, 5, 10, 100),
+               labels = c("0", "1", "2-4", "5-9", "10+"),
+               right = FALSE))]
 }
 
 # counts for all categories:
@@ -361,6 +336,27 @@ tab.burglaries <- tab.counts(counts, variable = 'BURGLARY', from = date.from, to
 tab.vehicle <- tab.counts(counts, variable = 'MOTOR_VEHICLE_THEFT', from = date.from, to = date.to)
 tab.other <- tab.counts(counts, variable = 'OTHER', from = date.from, to = date.to)
 tab.street <- tab.counts(counts, variable = 'STREET_CRIMES', from = date.from, to = date.to)
+
+pdf("~/Desktop/spatiohists.pdf")
+par(mfrow = c(2,2))
+barplot(log10(tab.all), yaxt = "n", main = "All Crimes", col = "blue")
+axis(side = 2L, at = (ys <- 0:ceiling(par('usr')[4L])), 
+     labels = prettyNum(10^ys, big.mark = ","), las = 1L)
+
+barplot({y <- log10(tab.burglaries); y[is.infinite(y)] = 0; y},
+        yaxt = "n", main = "Burglaries", col = "blue")
+axis(side = 2L, at = (ys <- 0:ceiling(par('usr')[4L])),
+     labels = prettyNum(10^ys, big.mark = ","), las = 1L)
+
+barplot({y <- log10(tab.vehicle); y[is.infinite(y)] = 0; y}, 
+        yaxt = "n", main = "Vehicle", col = "blue")
+axis(side = 2L, at = (ys <- 0:ceiling(par('usr')[4L])), 
+     labels = prettyNum(10^ys, big.mark = ","), las = 1L)
+
+barplot(log10(tab.street), yaxt = "n", main = "Street", col = "blue")
+axis(side = 2L, at = (ys <- 0:ceiling(par('usr')[4L])), 
+     labels = prettyNum(10^ys, big.mark = ","), las = 1L)
+dev.off()
 
 # first twoo weeks of February:
 date.from <- '2016-02-01'
