@@ -325,6 +325,9 @@ add.zeros <- function(tab,  zeros.total) {
 }
 
 tab.counts <- function(dt, variable, from=NULL, to=NULL){
+  # create spatio-temporal counts at weekly frequency from date.min to 
+  # date.max. If not dates are provided it will use the full range in the data.
+  # Returns a table with the counts.
   date.min <- dt[, min(occ_wed)]
   date.max <- dt[, max(occ_wed)]
   
@@ -340,6 +343,7 @@ tab.counts <- function(dt, variable, from=NULL, to=NULL){
   setnames(week.zeros, sub('V1','count', names(week.zeros)))
   zeros.total <- week.zeros[, sum(count)]
   
+  # inflate number of zeros to take into account cells without crimes:
   tab <- add.zeros(tab, zeros.total)
   tab
 }
@@ -396,7 +400,7 @@ tab.other.3month <- tab.counts(counts, variable = 'OTHER', from = date.from, to 
 tab.street.3month <- tab.counts(counts, variable = 'STREET_CRIMES', from = date.from, to = date.to)
 
 ## Turn into data frames for presentation:
-library(plyr)
+
 pad.zeros <- function(array, len){
   # add zeros to array from the right to make it have length len.
   zeros.to.add <- max(0, len - length(array))
@@ -407,21 +411,34 @@ df.table <- function(ls){
   # turn a list of tables into a dataframe, one col for each table.
   len.ls <- sapply(ls, length)
   len.ls.max <- max(len.ls)
-  df <- data.frame(llply(ls, pad.zeros, len.ls.max))
+  df <- data.frame(lapply(ls, pad.zeros, len.ls.max))
   colnames(df) <- c('w1','w2','m1','m2','m3')
   df
 }
 
 # create lists of tables:
-tab.all.list <- list(tab.all, tab.all.2, tab.all.month, tab.all.3month, tab.all.3month)
-tab.burglaries.list <- list(tab.burglaries, tab.burglaries.2, tab.burglaries.month, tab.burglaries.3month, tab.burglaries.3month)
-tab.vehicle.list <- list(tab.vehicle, tab.vehicle.2, tab.vehicle.month, tab.vehicle.3month, tab.vehicle.3month)
-tab.street.list <- list(tab.street, tab.street.2, tab.street.month, tab.street.3month, tab.street.3month)
-tab.other.list <- list(tab.other, tab.other.2, tab.other.month, tab.other.3month, tab.other.3month)
+tab.all.list <- list(tab.all, tab.all.2, tab.all.month, tab.all.2month, tab.all.3month)
+tab.burglaries.list <- list(tab.burglaries, tab.burglaries.2, tab.burglaries.month, tab.burglaries.2month, tab.burglaries.3month)
+tab.vehicle.list <- list(tab.vehicle, tab.vehicle.2, tab.vehicle.month, tab.vehicle.2month, tab.vehicle.3month)
+tab.street.list <- list(tab.street, tab.street.2, tab.street.month, tab.street.2month, tab.street.3month)
+tab.other.list <- list(tab.other, tab.other.2, tab.other.month, tab.other.2month, tab.other.3month)
 
 # make dataframes:
-df.table(tab.all.list)
-df.table(tab.burglaries.list)
-df.table(tab.vehicle.list)
-df.table(tab.street.list)
-df.table(tab.other.list)
+df.all <- df.table(tab.all.list)
+df.all
+df.burglaries <- df.table(tab.burglaries.list)
+df.burglaries
+df.vehicle <- df.table(tab.vehicle.list)
+df.vehicle
+df.street <- df.table(tab.street.list)
+df.street
+df.other <- df.table(tab.other.list)
+df.other
+
+# HTML tables:
+library(stargazer)
+stargazer(df.all, type = 'html')
+stargazer(df.burglaries, type = 'html')
+stargazer(df.vehicle, type = 'html')
+stargazer(df.street, type = 'html')
+stargazer(df.other, type = 'html')
