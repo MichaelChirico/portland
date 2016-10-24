@@ -24,6 +24,7 @@ library(rgeos)
 library(spatstat)
 library(GISTools)
 library(sp)
+library(raster)
 
 #Create an R Project in your local directory, and all of
 #  these relative paths will work out of the box
@@ -64,6 +65,7 @@ crimes = rbindlist(lapply(lapply(list.files(
   read.dbf, as.is = TRUE), setDT)
   #also, some missing data snuck in on one line
 )[!is.na(occ_date)]
+
 setnames(crimes, tolower(names(crimes)))
 crimes[ , occ_date := as.IDate(occ_date)]
 
@@ -128,8 +130,6 @@ pal_trans[1] <- "#FFFFFF00" #was originally "#FFFFFF"
 
 # TOTAL CRIMES:
 crimes.map.dens <- kde.points(crimes.map, lims=portland)
-N = nrow(crimes.map.dens)
-crimes.map.dens@data <- crimes.map.dens@data * N
 plot(crimes.map.dens, col=pal_opaque)
 masker <- poly.outer(crimes.map.dens, portland, extend=100)
 add.masking(masker)
@@ -244,13 +244,13 @@ cell.sizey <- 600
 cell.dimx <- round((bb[1,2] - bb[1,1])/cell.sizex)
 cell.dimy <- round((bb[2,2] - bb[2,1])/cell.sizey)
 
-grd <- GridTopology(cellcentre.offset = c(bb[1,1], bb[2,1]),
+grd.grdtop <- GridTopology(cellcentre.offset = c(bb[1,1], bb[2,1]),
                     cellsize = c(cell.sizex, cell.sizey),
                     cells.dim = c(cell.dimx, cell.dimy))
 
 # turn grid to SpatialPolygonsDataFrame:
 nb.cells = cell.dimx * cell.dimy
-grd.layer <- SpatialPolygonsDataFrame(as.SpatialPolygons.GridTopology(grd),
+grd.layer <- SpatialPolygonsDataFrame(as.SpatialPolygons.GridTopology(grd.grdtop),
                                       data = data.frame(c(1:nb.cells)),
                                       match.ID = FALSE)
 names(grd.layer) <- "ID"
@@ -338,7 +338,7 @@ tab.other <- tab.counts(counts, variable = 'OTHER', from = date.from, to = date.
 tab.street <- tab.counts(counts, variable = 'STREET_CRIMES', from = date.from, to = date.to)
 
 pdf("~/Desktop/spatiohists.pdf")
-par(mfrow = c(2,2))
+par(mfrow = c(1,1)) ; par(mfrow = c(2,2))
 barplot(log10(tab.all), yaxt = "n", main = "All Crimes", col = "blue")
 axis(side = 2L, at = (ys <- 0:ceiling(par('usr')[4L])), 
      labels = prettyNum(10^ys, big.mark = ","), las = 1L)
@@ -441,3 +441,419 @@ stargazer(df.burglaries, type = 'html')
 stargazer(df.vehicle, type = 'html')
 stargazer(df.street, type = 'html')
 stargazer(df.other, type = 'html')
+
+
+# ============================================================================
+# NO CRIME ZONES
+# ============================================================================
+
+pdf("~/Desktop/nocrimes.pdf")
+par(mfrow=c(1,1)); par(mfrow = c(2,2))
+# all crimes:
+crime.cells <- crimes[occ_month %between% c(0,3), unique(grd.id)]
+nocrimes <- !(grd$grd.id %in% crime.cells)
+plot(grd[nocrimes,], col='red', main='All', lwd=0.1)
+plot(grd[!nocrimes,], col='green', add=TRUE, lwd=0.1)
+
+# burglaries:
+crime.cells <- crimes[occ_month %between% c(0,3) & category=='BURGLARY', unique(grd.id)]
+nocrimes <- !(grd$grd.id %in% crime.cells)
+plot(grd[nocrimes,], col='red', main='Burglaries', lwd=0.1)
+plot(grd[!nocrimes,], col='green', add=TRUE, lwd=0.1)
+
+# street:
+crime.cells <- crimes[occ_month %between% c(0,3) & category=='STREET CRIMES', unique(grd.id)]
+nocrimes <- !(grd$grd.id %in% crime.cells)
+plot(grd[nocrimes,], col='red', main='Street', lwd=0.1)
+plot(grd[!nocrimes,], col='green', add=TRUE, lwd=0.1)
+
+# burglaries:
+crime.cells <- crimes[occ_month %between% c(0,3) & category=='MOTOR VEHICLE THEFT', unique(grd.id)]
+nocrimes <- !(grd$grd.id %in% crime.cells)
+plot(grd[nocrimes,], col='red', main='Vehicle', lwd=0.1)
+plot(grd[!nocrimes,], col='green', add=TRUE, lwd=0.1)
+dev.off()
+
+crime.cells <- crimes[occ_month %between% c(2,4) & occ_year==2016 & category=='MOTOR VEHICLE THEFT', unique(grd.id)]
+grd.burglary <- grd[grd$grd.id %in% crime.cells, ]
+plot(grd.burglary)
+gArea(grd.burglary)
+
+# ============================================================================
+# KDE ESTIMATES
+# ============================================================================
+library(splancs) # very fast kde, a bit picky in the form of the inputs
+
+## get outer bounds of Portland (http://stackoverflow.com/questions/12663263/dissolve-holes-in-polygon-in-r)
+outerRings <- Filter(function(f){f@ringDir==1}, portland.bdy@polygons[[1]]@Polygons)
+outerBounds <- SpatialPolygons(list(Polygons(outerRings,ID=1)))
+portland.chull <- gConvexHull(portland.bdy)
+
+## simplified portlan boundary (got here by trial and error; portland.bdy consist of 5 polys)
+portland.bdy.simp <- SpatialPolygons(list(Polygons(list(outerBounds@polygons[[1]]@Polygons[[5]]),ID=1)))
+
+bw = 2400 # band width in feet (I guess)
+
+## compute kernels:
+
+compute.kdes <- function(df, grd.grdtop, bw){
+  # compute KDEs for all crime types in df using grid grd. Uses library splancs.
+  # note: grd needs to be a GridTopology object
+  #       df needs to be a SpatialPointsDataFrame
+  
+  kde.all <- spkernel2d(pts = df, 
+                        poly = portland.bdy.simp@polygons[[1]]@Polygons[[1]]@coords, 
+                        h0 = bw, 
+                        grd = grd.grdtop)
+  kde.street <- spkernel2d(pts = df[df$category=='STREET CRIMES', ], 
+                           poly = portland.bdy.simp@polygons[[1]]@Polygons[[1]]@coords, 
+                           h0 = bw, 
+                           grd = grd.grdtop)
+  kde.burglary <- spkernel2d(pts = df[df$category=='BURGLARY', ], 
+                             poly = portland.bdy.simp@polygons[[1]]@Polygons[[1]]@coords, 
+                             h0 = bw, 
+                             grd = grd.grdtop)
+  kde.vehicle <- spkernel2d(pts = df[df$category=='MOTOR VEHICLE THEFT', ], 
+                            poly = portland.bdy.simp@polygons[[1]]@Polygons[[1]]@coords, 
+                            h0 = bw, 
+                            grd = grd.grdtop)
+  # for some reason kdes don't sum to 1; I normalize them so that they do
+  list(all=kde.all/sum(kde.all, na.rm=TRUE), 
+       street=kde.street/sum(kde.street, na.rm=TRUE), 
+       burglary=kde.burglary/sum(kde.burglary, na.rm=TRUE), 
+       vehicle=kde.vehicle/sum(kde.vehicle, na.rm=TRUE))
+}
+## temporal selection:
+crimes.map.feb16 <- crimes.map[crimes.map$occ_year==2016 & crimes.map$occ_month==2, ]
+
+kdes = compute.kdes(df=crimes.map.feb16, grd.grdtop = grd.grdtop, bw=bw)
+kde.all.feb16 <- kdes$all
+kde.street.feb16 <- kdes$street
+kde.burglary.feb16 <- kdes$burglary
+kde.vehicle.feb16 <- kdes$vehicle
+
+# save kdes into dataframe:
+df.feb16 = data.frame(all=kde.all.feb16, street=kde.street.feb16, burglary=kde.burglary.feb16, vehicle=kde.vehicle.feb16)
+kernels <- SpatialGridDataFrame(grd.grdtop, data=df.feb16)
+
+pdf('tex/figures/kde_bycategory.pdf')
+spplot(kernels, checkEmptyRC=FALSE, col.regions=terrain.colors(16), cuts=15,
+       main=paste('KDE for Feb 2016, bandwidth =', bw, ', cell size =', cell.sizex, 'x', cell.sizey, sep = " "))
+dev.off()
+
+## plot individually:
+spplot(obj = SpatialGridDataFrame(grd.grdtop, data = df.feb16['all']), col.regions=terrain.colors(16), cuts=15, 
+       main=list(label="All, Feb 2016",cex=2))
+spplot(obj = SpatialGridDataFrame(grd.grdtop, data = df.feb16['street']), col.regions=terrain.colors(16), cuts=15,
+       main=list(label="Street Crimes, Feb 2016",cex=2))
+spplot(obj = SpatialGridDataFrame(grd.grdtop, data = df.feb16['burglary']), col.regions=terrain.colors(16), cuts=15,
+       main=list(label="Burglaries, Feb 2016",cex=2))
+spplot(obj = SpatialGridDataFrame(grd.grdtop, data = df.feb16['vehicle']), col.regions=terrain.colors(16), cuts=15,
+       main=list(label="Vehicle Theft, Feb 2016",cex=2))
+
+# ============================================================================
+# SCATTER PLOTS
+# ============================================================================
+
+# Compute kernels for different forecasting horizons:
+## 1st week of Feb
+crimes.map.w116 <- crimes.map[crimes.map$occ_wed %between% c("2016-03-02","2016-03-09"),]
+kdes <- compute.kdes(df=crimes.map.w116, grd.grdtop = grd.grdtop, bw=bw)
+kde.all.w116 <- kdes$all
+kde.street.w116 <- kdes$street
+kde.burglary.w116 <- kdes$burglary
+kde.vehicle.w116 <- kdes$vehicle
+
+# scatter plots:
+pdf('tex/figures/scatter_kde_1w.pdf')
+par(mfrow=c(2,2),
+    mar=c(2.4,2.4,3,2.4),
+    oma=c(0,0,2,0))
+plot(kde.all.feb16, kde.all.w116, main='All')
+plot(kde.street.feb16, kde.street.w116, main='Street')
+plot(kde.burglary.feb16, kde.burglary.w116, main='Burglaries')
+plot(kde.vehicle.feb16, kde.vehicle.w116, main='Vehicle')
+title("Density Feb 2016 vs. 1st week of Mar", outer=TRUE)
+dev.off()
+
+# 2 weeks of Feb
+crimes.map.w216 <- crimes.map[crimes.map$occ_wed %between% c("2016-03-02","2016-03-16"),]
+kdes <- compute.kdes(df=crimes.map.w216, grd.grdtop = grd.grdtop, bw=bw)
+kde.all.w216 <- kdes$all
+kde.street.w216 <- kdes$street
+kde.burglary.w216 <- kdes$burglary
+kde.vehicle.w216 <- kdes$vehicle
+
+# scatter plots:
+par(mfrow=c(2,2),
+    mar=c(2.4,2.4,3,2.4),
+    oma=c(0,0,2,0))
+plot(kde.all.feb16, kde.all.w216, main='All')
+plot(kde.street.feb16, kde.street.w216, main='Street')
+plot(kde.burglary.feb16, kde.burglary.w216, main='Burglaries')
+plot(kde.vehicle.feb16, kde.vehicle.w216, main='Vehicle')
+title("Density Feb 2016 vs. 2 weeks of Mar", outer=TRUE)
+
+
+# 1 Month
+crimes.map.m116 <- crimes.map[crimes.map$occ_year==2016 & crimes.map$occ_month==3,]
+kdes = compute.kdes(df=crimes.map.m116, grd.grdtop = grd.grdtop, bw=bw)
+kde.all.m116 <- kdes$all
+kde.street.m116 <- kdes$street
+kde.burglary.m116 <- kdes$burglary
+kde.vehicle.m116 <- kdes$vehicle
+
+# scatter plots:
+par(mfrow=c(2,2),
+    mar=c(2.4,2.4,3,2.4),
+    oma=c(0,0,2,0))
+plot(kde.all.feb16, kde.all.m116, main='All')
+plot(kde.street.feb16, kde.street.m116, main='Street')
+plot(kde.burglary.feb16, kde.burglary.m116, main='Burglaries')
+plot(kde.vehicle.feb16, kde.vehicle.m116, main='Vehicle')
+title("Density Feb 2016 vs. Month of March", outer=TRUE)
+
+# 2 Months
+crimes.map.m216 <- crimes.map[crimes.map$occ_year==2016 & crimes.map$occ_month %in% c(3,4),]
+kdes <- compute.kdes(df=crimes.map.m216, grd.grdtop = grd.grdtop, bw=bw)
+kde.all.m216 <- kdes$all
+kde.street.m216 <- kdes$street
+kde.burglary.m216 <- kdes$burglary
+kde.vehicle.m216 <- kdes$vehicle
+
+# scatter plots:
+par(mfrow=c(2,2),
+    mar=c(2.4,2.4,3,2.4),
+    oma=c(0,0,2,0))
+plot(kde.all.feb16, kde.all.m216, main='All')
+plot(kde.street.feb16, kde.street.m216, main='Street')
+plot(kde.burglary.feb16, kde.burglary.m216, main='Burglaries')
+plot(kde.vehicle.feb16, kde.vehicle.m216, main='Vehicle')
+title("Density Feb 2016 vs. Months of Mar and Apr 2016", outer=TRUE)
+
+# 3 Months
+crimes.map.m316 <- crimes.map[crimes.map$occ_year==2016 & crimes.map$occ_month %in% c(3,4,5),]
+kdes <- compute.kdes(df=crimes.map.m316, grd.grdtop = grd.grdtop, bw=bw)
+kde.all.m316 <- kdes$all
+kde.street.m316 <- kdes$street
+kde.burglary.m316 <- kdes$burglary
+kde.vehicle.m316 <- kdes$vehicle
+
+# scatter plots:
+pdf('tex/figures/scatter_kde_3m.pdf')
+par(mfrow=c(2,2),
+    mar=c(2.4,2.4,3,2.4),
+    oma=c(0,0,2,0))
+plot(kde.all.feb16, kde.all.m316, main='All')
+plot(kde.street.feb16, kde.street.m316, main='Street')
+plot(kde.burglary.feb16, kde.burglary.m316, main='Burglaries')
+plot(kde.vehicle.feb16, kde.vehicle.m316, main='Vehicle')
+title("Density Feb 2016 vs. Months of Mar, Apr and May 2016", outer=TRUE)
+dev.off()
+
+# ============================================================================
+# SPEARMAN CORRELATIONS
+# ============================================================================
+
+spearman.all = rep(NA, 5)
+spearman.all[1] <- cor(kde.all.feb16, kde.all.w116, method = 'spearman', use='pairwise.complete.obs')
+spearman.all[2] <- cor(kde.all.feb16, kde.all.w216, method = 'spearman', use='pairwise.complete.obs')
+spearman.all[3] <- cor(kde.all.feb16, kde.all.m116, method = 'spearman', use='pairwise.complete.obs')
+spearman.all[4] <- cor(kde.all.feb16, kde.all.m216, method = 'spearman', use='pairwise.complete.obs')
+spearman.all[5] <- cor(kde.all.feb16, kde.all.m316, method = 'spearman', use='pairwise.complete.obs')
+
+spearman.street = rep(NA, 5)
+spearman.street[1] <- cor(kde.street.feb16, kde.street.w116, method = 'spearman', use='pairwise.complete.obs')
+spearman.street[2] <- cor(kde.street.feb16, kde.street.w216, method = 'spearman', use='pairwise.complete.obs')
+spearman.street[3] <- cor(kde.street.feb16, kde.street.m116, method = 'spearman', use='pairwise.complete.obs')
+spearman.street[4] <- cor(kde.street.feb16, kde.street.m216, method = 'spearman', use='pairwise.complete.obs')
+spearman.street[5] <- cor(kde.street.feb16, kde.street.m316, method = 'spearman', use='pairwise.complete.obs')
+
+spearman.burglary = rep(NA, 5)
+spearman.burglary[1] <- cor(kde.burglary.feb16, kde.burglary.w116, method = 'spearman', use='pairwise.complete.obs')
+spearman.burglary[2] <- cor(kde.burglary.feb16, kde.burglary.w216, method = 'spearman', use='pairwise.complete.obs')
+spearman.burglary[3] <- cor(kde.burglary.feb16, kde.burglary.m116, method = 'spearman', use='pairwise.complete.obs')
+spearman.burglary[4] <- cor(kde.burglary.feb16, kde.burglary.m216, method = 'spearman', use='pairwise.complete.obs')
+spearman.burglary[5] <- cor(kde.burglary.feb16, kde.burglary.m316, method = 'spearman', use='pairwise.complete.obs')
+
+spearman.vehicle = rep(NA, 5)
+spearman.vehicle[1] <- cor(kde.vehicle.feb16, kde.vehicle.w116, method = 'spearman', use='pairwise.complete.obs')
+spearman.vehicle[2] <- cor(kde.vehicle.feb16, kde.vehicle.w216, method = 'spearman', use='pairwise.complete.obs')
+spearman.vehicle[3] <- cor(kde.vehicle.feb16, kde.vehicle.m116, method = 'spearman', use='pairwise.complete.obs')
+spearman.vehicle[4] <- cor(kde.vehicle.feb16, kde.vehicle.m216, method = 'spearman', use='pairwise.complete.obs')
+spearman.vehicle[5] <- cor(kde.vehicle.feb16, kde.vehicle.m316, method = 'spearman', use='pairwise.complete.obs')
+
+# display results in a dataframe:
+spearman <- data.frame(list(all=spearman.all, street=spearman.street, burglary=spearman.burglary, vehicle=spearman.vehicle))
+rownames(spearman) <- c('w1','w2','m1','m2','m3')
+stargazer(spearman, float = FALSE, summary=FALSE, type = 'text', out='tex/tables/spearman.tex',
+          title = 'Spearman Rank Correlations')
+
+# ============================================================================
+# GRID DATAFRAME
+# ============================================================================
+# append kernel densities to the grd.layer SpatialPoligonsDataFrame
+grd.layer$kde.all.feb16 <- kde.all.feb16
+grd.layer$kde.street.feb16 <- kde.street.feb16
+grd.layer$kde.burglary.feb16 <- kde.burglary.feb16
+grd.layer$kde.vehicle.feb16 <- kde.vehicle.feb16
+
+grd.layer$kde.all.w116 <- kde.all.w116
+grd.layer$kde.all.w216 <- kde.all.w216
+grd.layer$kde.all.m116 <- kde.all.m116
+grd.layer$kde.all.m216 <- kde.all.m216
+grd.layer$kde.all.m316 <- kde.all.m316
+
+grd.layer$kde.street.w116 <- kde.street.w116
+grd.layer$kde.street.w216 <- kde.street.w216
+grd.layer$kde.street.m116 <- kde.street.m116
+grd.layer$kde.street.m216 <- kde.street.m216
+grd.layer$kde.street.m316 <- kde.street.m316
+
+grd.layer$kde.burglary.w116 <- kde.burglary.w116
+grd.layer$kde.burglary.w216 <- kde.burglary.w216
+grd.layer$kde.burglary.m116 <- kde.burglary.m116
+grd.layer$kde.burglary.m216 <- kde.burglary.m216
+grd.layer$kde.burglary.m316 <- kde.burglary.m316
+
+grd.layer$kde.vehicle.w116 <- kde.vehicle.w116
+grd.layer$kde.vehicle.w216 <- kde.vehicle.w216
+grd.layer$kde.vehicle.m116 <- kde.vehicle.m116
+grd.layer$kde.vehicle.m216 <- kde.vehicle.m216
+grd.layer$kde.vehicle.m316 <- kde.vehicle.m316
+
+# ============================================================================
+# FORECASTING WITH feb16 DENSITIES
+# ============================================================================
+area.min <- 6969600 # in squared feet
+area.max <- 2.0909e+7 # in squared feet
+area.cell <- prod(grd.grdtop@cellsize)
+min.cells <- floor(area.min/area.cell)
+max.cells <- floor(area.max/area.cell)
+
+pdf('tex/figures/max_areas.pdf')
+par(mfrow=c(1,1)); par(mfrow=c(2,2), mar=c(1,1,1,1))
+rank.all <- order(grd.layer$kde.all.feb16, decreasing = TRUE)
+plot(portland.bdy.simp, main='All')
+plot(grd.layer[rank.all,][1:max.cells, ], add=TRUE, col='red', lwd=0.3)
+
+rank.street <- order(grd.layer$kde.street.feb16, decreasing = TRUE)
+plot(portland.bdy.simp, main='Street')
+plot(grd.layer[rank.street,][1:max.cells, ], add=TRUE, col='red', lwd=0.3)
+
+rank.burglary <- order(grd.layer$kde.burglary.feb16, decreasing = TRUE)
+plot(portland.bdy.simp, main='Burglary')
+plot(grd.layer[rank.burglary,][1:max.cells, ], add=TRUE, col='red', lwd=0.3)
+
+rank.vehicle <- order(grd.layer$kde.vehicle.feb16, decreasing = TRUE)
+plot(portland.bdy.simp, main='Vehicle')
+plot(grd.layer[rank.vehicle,][1:max.cells, ], add=TRUE, col='red', lwd=0.3)
+
+mtext('Maximum Forecasted Areas, cell size 600x600', outer = TRUE, cex = 1)
+dev.off()
+par(mfrow=c(1,1))
+
+# ============================================================================
+# ZOOMED IN FORECAST
+# ============================================================================
+
+# select crimes in feb16 within bbox of hotspot cells:
+rank.all <- order(grd.layer$kde.all.feb16, decreasing = TRUE)
+forecast.all <- grd.layer[rank.all,][1:max.cells, ]
+forecast.all.bbox <- bbox(forecast.all)
+forecast.all.bbox.poly <- as(extent(forecast.all.bbox), 'SpatialPolygons')
+forecast.all.bbox.poly.buf <- buffer(forecast.all.bbox.poly, 2000)
+proj4string(forecast.all.bbox.poly) <- CRS(proj4string(crimes.map))
+select.all <- gIntersection(crimes.map[crimes.map$occ_year==2016 & crimes.map$occ_month %in% c(2), ], 
+                            forecast.all.bbox.poly.buf)
+
+# create SpatialGridDataFrame with data from grd.layer (kdes) in order to create a raster layer:
+grd.grddf <- SpatialGridDataFrame(grd.grdtop, data = grd.layer@data, 
+                                  proj4string = CRS(proj4string(crimes.map)))
+grd.ras <- raster(grd.grddf)
+grd.ras[] <- grd.layer$kde.all.feb16
+grd.ras <- crop(grd.ras, forecast.all.bbox.poly.buf)
+
+pdf2('tex/figures/hotspot_all.pdf')
+c(mfrow=c(1,1), mar=c(3,3,3,3))
+plot(grd.ras)
+plot(forecast.all.bbox.poly.buf, add=TRUE)
+plot(forecast.all, add=TRUE, border='red', lwd=2)
+plot(select.all, add=TRUE)
+title('Hotspot for All Crimes, Feb 2016', outer = FALSE)
+dev.off2()
+
+
+
+# # ============================================================================
+# # MINIMUM AREAS
+# # ============================================================================
+# # week 1:
+# par(mfrow=c(1,1)); par(mfrow=c(5,4), mar=c(2,3,1,1))
+# plot(kde.all.w116[order(-kde.all.w116)], type='l', xlim=c(0,1000),
+#      main='All', ylab='w1')
+# abline(v=c(min.cells, max.cells), col='red')
+# 
+# plot(kde.street.w116[order(-kde.street.w116)], type='l', xlim=c(0,1000),
+#      main='Street')
+# abline(v=c(min.cells, max.cells), col='red')
+# 
+# plot(kde.burglary.w116[order(-kde.burglary.w116)], type='l', xlim=c(0,1000),
+#      main='Burglary')
+# abline(v=c(min.cells, max.cells), col='red')
+# 
+# plot(kde.vehicle.w116[order(-kde.vehicle.w116)], type='l', xlim=c(0,1000),
+#      main='Vehicle')
+# abline(v=c(min.cells, max.cells), col='red')
+# 
+# # week 2
+# plot(kde.all.w216[order(-kde.all.w216)], type='l', xlim=c(0,1000))
+# abline(v=c(min.cells, max.cells), col='red')
+# 
+# plot(kde.street.w216[order(-kde.street.w216)], type='l', xlim=c(0,1000))
+# abline(v=c(min.cells, max.cells), col='red')
+# 
+# plot(kde.burglary.w216[order(-kde.burglary.w216)], type='l', xlim=c(0,1000))
+# abline(v=c(min.cells, max.cells), col='red')
+# 
+# plot(kde.vehicle.w216[order(-kde.vehicle.w216)], type='l', xlim=c(0,1000))
+# abline(v=c(min.cells, max.cells), col='red')
+# 
+# # month 1:
+# plot(kde.all.m116[order(-kde.all.m116)], type='l', xlim=c(0,1000))
+# abline(v=c(min.cells, max.cells), col='red')
+# 
+# plot(kde.street.m116[order(-kde.street.m116)], type='l', xlim=c(0,1000))
+# abline(v=c(min.cells, max.cells), col='red')
+# 
+# plot(kde.burglary.m116[order(-kde.burglary.m116)], type='l', xlim=c(0,1000))
+# abline(v=c(min.cells, max.cells), col='red')
+# 
+# plot(kde.vehicle.m116[order(-kde.vehicle.m116)], type='l', xlim=c(0,1000))
+# abline(v=c(min.cells, max.cells), col='red')
+# 
+# # month 2:
+# plot(kde.all.m216[order(-kde.all.m216)], type='l', xlim=c(0,1000))
+# abline(v=c(min.cells, max.cells), col='red')
+# 
+# plot(kde.street.m216[order(-kde.street.m216)], type='l', xlim=c(0,1000))
+# abline(v=c(min.cells, max.cells), col='red')
+# 
+# plot(kde.burglary.m216[order(-kde.burglary.m216)], type='l', xlim=c(0,1000))
+# abline(v=c(min.cells, max.cells), col='red')
+# 
+# plot(kde.vehicle.m216[order(-kde.vehicle.m216)], type='l', xlim=c(0,1000))
+# abline(v=c(min.cells, max.cells), col='red')
+# 
+# # month 3:
+# plot(kde.all.m316[order(-kde.all.m316)], type='l', xlim=c(0,1000))
+# abline(v=c(min.cells, max.cells), col='red')
+# 
+# plot(kde.street.m316[order(-kde.street.m316)], type='l', xlim=c(0,1000))
+# abline(v=c(min.cells, max.cells), col='red')
+# 
+# plot(kde.burglary.m316[order(-kde.burglary.m316)], type='l', xlim=c(0,1000))
+# abline(v=c(min.cells, max.cells), col='red')
+# 
+# plot(kde.vehicle.m316[order(-kde.vehicle.m316)], type='l', xlim=c(0,1000))
+# abline(v=c(min.cells, max.cells), col='red')
