@@ -53,6 +53,36 @@ to.data.table <- function(sp){
                             .(coords[ , 1L], coords[ , 2L])][]
 }
 
+# create spatio-temporal counts at weekly frequency from 'from' to 'to'.
+  # If no dates are provided it will use the full range in the data.
+  # Returns a table with the counts.
+tab.counts <- function(dt, variable, from = NULL, to = NULL){
+if (is.null(from) || is.null(to)){
+    rng = dt[ , range(occ_wed)]
+    from <- rng[1L]
+    to <- rng[2L]
+  }
+  dt[occ_wed %between% c(from, to), 
+     table(cut(get(variable), 
+               breaks = c(0, 1, 2, 5, 10, 100),
+               labels = c("0", "1", "2-4", "5-9", "10+"),
+               right = FALSE))]
+}
+
+# add zeros to array from the right to make it have length len.
+pad.zeros <- function(array, len){
+  zeros.to.add <- max(0, len - length(array))
+  c(array, rep(0, zeros.to.add))
+}
+
+# turn a list of tables into a dataframe, one col for each table.
+df.table <- function(ls){
+  len.ls <- sapply(ls, length)
+  len.ls.max <- max(len.ls)
+  df <- data.frame(lapply(ls, pad.zeros, len.ls.max))
+  colnames(df) <- c('w1','w2','m1','m2','m3')
+  df
+}
 
 # ============================================================================ 
 # LOAD DATA AND CREATE GEO DATAFRAMES
@@ -241,27 +271,31 @@ plot(ck.streetOther)
 bb <- bbox(portland)
 cell.sizex <- 600
 cell.sizey <- 600
-cell.dimx <- round((bb[1,2] - bb[1,1])/cell.sizex)
-cell.dimy <- round((bb[2,2] - bb[2,1])/cell.sizey)
+cell.dimx <- round(diff(bb["x", ])/cell.sizex)
+cell.dimy <- round(diff(bb["y", ])/cell.sizey)
 
-grd.grdtop <- GridTopology(cellcentre.offset = c(bb[1,1], bb[2,1]),
+grd.grdtop <- GridTopology(cellcentre.offset = bb[ , "min"],
                     cellsize = c(cell.sizex, cell.sizey),
                     cells.dim = c(cell.dimx, cell.dimy))
 
 # turn grid to SpatialPolygonsDataFrame:
 nb.cells = cell.dimx * cell.dimy
-grd.layer <- SpatialPolygonsDataFrame(as.SpatialPolygons.GridTopology(grd.grdtop),
-                                      data = data.frame(1:nb.cells),
-                                      match.ID = FALSE)
+grd.layer <- 
+  SpatialPolygonsDataFrame(
+    Sr = as.SpatialPolygons.GridTopology(
+      grd.grdtop, proj4string = CRS(proj4string(crimes.map))
+    ),
+    data = data.frame(id = integer(nb.cells)),
+    match.ID = FALSE
+  )
 names(grd.layer) <- "ID"
-proj4string(grd.layer) <- proj4string(crimes.map)
 
 # intersect grid with boundaries of Portland:
 
 # Should work but doesn't:
 grd <- gIntersection(grd.layer, portland.bdy, byid = TRUE)
 
-# alternative from http://stackoverflow.com/questions/15881455/how-to-clip-worldmap-with-polygon-in-r
+# alternative from http://stackoverflow.com/questions/15881455/
 # grd.index <- gIntersects(grd.layer, portland.bdy, byid = TRUE)
 # grd <- grd.layer[which(grd.index), ]
 
@@ -270,10 +304,11 @@ areas <- poly.areas(grd)
 areas.total <- gArea(grd)
 
 # turn grid to SpatialPointsDataFrame with data=id
-tmp <- strsplit(names(grd), " ")
-grd.id <- sapply(tmp, "[[", 1)
-grd.id <- data.frame(data.frame(grd.id))
-grd <- SpatialPolygonsDataFrame(grd, data = grd.id, match.ID = FALSE)
+grd <- 
+  SpatialPolygonsDataFrame(
+    grd, data = data.frame(gsub("\\s.*", "", names(grd))), 
+    match.ID = FALSE
+  )
 
 plot(grd)
 plot(portland.bdy, add=TRUE)
@@ -309,23 +344,6 @@ counts = counts[CJ(occ_wed, grd$grd.id, unique = TRUE),
                 lapply(.SD, function(x) {
                   if (any(idx <- is.na(x))) x[idx] = 0
                   x})]
-
-tab.counts <- function(dt, variable, from=NULL, to=NULL){
-  # create spatio-temporal counts at weekly frequency from 'from' to 'to'.
-  # If no dates are provided it will use the full range in the data.
-  # Returns a table with the counts.
-
-  if (is.null(from) || is.null(to)){
-    rng = dt[ , range(occ_wed)]
-    from <- rng[1L]
-    to <- rng[2L]
-  }
-  dt[occ_wed %between% c(from, to), 
-     table(cut(get(variable), 
-               breaks = c(0, 1, 2, 5, 10, 100),
-               labels = c("0", "1", "2-4", "5-9", "10+"),
-               right = FALSE))]
-}
 
 # counts for all categories:
 # First week of February:
@@ -400,21 +418,6 @@ tab.other.3month <- tab.counts(counts, variable = 'OTHER', from = date.from, to 
 tab.street.3month <- tab.counts(counts, variable = 'STREET_CRIMES', from = date.from, to = date.to)
 
 ## Turn into data frames for presentation:
-
-pad.zeros <- function(array, len){
-  # add zeros to array from the right to make it have length len.
-  zeros.to.add <- max(0, len - length(array))
-  c(array, rep(0, zeros.to.add))
-}
-
-df.table <- function(ls){
-  # turn a list of tables into a dataframe, one col for each table.
-  len.ls <- sapply(ls, length)
-  len.ls.max <- max(len.ls)
-  df <- data.frame(lapply(ls, pad.zeros, len.ls.max))
-  colnames(df) <- c('w1','w2','m1','m2','m3')
-  df
-}
 
 # create lists of tables:
 tab.all.list <- list(tab.all, tab.all.2, tab.all.month, tab.all.2month, tab.all.3month)
