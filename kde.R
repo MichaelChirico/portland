@@ -677,14 +677,14 @@ grd.layer@data[ls(pattern = "^kde.*16$")] <- mget(ls(pattern = "^kde.*16$"))
 # ============================================================================
 # FORECASTING WITH feb16 DENSITIES
 # ============================================================================
-area.min <- 6969600 # in squared feet
-area.max <- 2.0909e+7 # in squared feet
+area.min <- 6969600 # in square feet
+area.max <- 2.0909e+7 # in square feet
 area.cell <- prod(grd.grdtop@cellsize)
 min.cells <- floor(area.min/area.cell)
 max.cells <- floor(area.max/area.cell)
 
 pdf('tex/figures/max_areas.pdf')
-par(mfrow=c(1,1)); par(mfrow=c(2,2), mar=c(1,1,1,1))
+par(mfrow=c(2,2), mar=c(1,1,1,1))
 rank.all <- order(grd.layer$kde.all.feb16, decreasing = TRUE)
 plot(portland.bdy.simp, main='All')
 plot(grd.layer[rank.all,][1:max.cells, ], add=TRUE, col='red', lwd=0.3)
@@ -703,7 +703,6 @@ plot(grd.layer[rank.vehicle,][1:max.cells, ], add=TRUE, col='red', lwd=0.3)
 
 mtext('Maximum Forecasted Areas, cell size 600x600', outer = TRUE, cex = 1)
 dev.off()
-par(mfrow=c(1,1))
 
 # ============================================================================
 # ZOOMED IN FORECAST
@@ -716,7 +715,7 @@ forecast.all.bbox <- bbox(forecast.all)
 forecast.all.bbox.poly <- as(extent(forecast.all.bbox), 'SpatialPolygons')
 forecast.all.bbox.poly.buf <- buffer(forecast.all.bbox.poly, 2000)
 proj4string(forecast.all.bbox.poly) <- CRS(proj4string(crimes.map))
-select.all <- gIntersection(crimes.map[crimes.map$occ_year==2016 & crimes.map$occ_month %in% c(2), ], 
+select.all <- gIntersection(crimes.map[crimes.map$occ_year==2016 & crimes.map$occ_month == 2, ], 
                             forecast.all.bbox.poly.buf)
 
 # create SpatialGridDataFrame with data from grd.layer (kdes) in order to create a raster layer:
