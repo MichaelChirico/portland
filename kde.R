@@ -35,10 +35,10 @@ wds = c(data = "./data")
 # ============================================================================
 
 to.map <- function(df, crs="+init=epsg:2913", pct=1){
-  prj = CRS("+init=epsg:2913")
+  prj = CRS(crs)
   map = with(df,
              SpatialPointsDataFrame(
-               coords=cbind(x_coordina, y_coordina),
+               coords = cbind(x_coordina, y_coordina),
                data = df[, -c('x_coordina','y_coordina'), with=FALSE],
                proj4string = prj
              ))
@@ -64,7 +64,7 @@ crimes = rbindlist(lapply(lapply(list.files(
   #as.is = TRUE is equivalent to stringsAsFactors = FALSE
   read.dbf, as.is = TRUE), setDT)
   #also, some missing data snuck in on one line
-)[!is.na(occ_date)]
+  )[!is.na(occ_date)]
 
 setnames(crimes, tolower(names(crimes)))
 crimes[ , occ_date := as.IDate(occ_date)]
@@ -122,7 +122,7 @@ crimes.map = crimes.map[!is.na(crimes.map$precinct), ]
 norm_palette <- colorRampPalette(c("white","red"))
 pal_opaque <- norm_palette(15)
 pal_trans <- norm_palette(15)
-pal_trans[1] <- "#FFFFFF00" #was originally "#FFFFFF" 
+pal_trans[1L] <- "#FFFFFF00" #was originally "#FFFFFF" 
 
 # define a bandwidth:
 # h <- sd(crimes.map$x_coordina)*(2/(3*length(crimes.map)))^(1/6)
@@ -251,7 +251,7 @@ grd.grdtop <- GridTopology(cellcentre.offset = c(bb[1,1], bb[2,1]),
 # turn grid to SpatialPolygonsDataFrame:
 nb.cells = cell.dimx * cell.dimy
 grd.layer <- SpatialPolygonsDataFrame(as.SpatialPolygons.GridTopology(grd.grdtop),
-                                      data = data.frame(c(1:nb.cells)),
+                                      data = data.frame(1:nb.cells),
                                       match.ID = FALSE)
 names(grd.layer) <- "ID"
 proj4string(grd.layer) <- proj4string(crimes.map)
@@ -305,16 +305,17 @@ setnames(counts, gsub("\\s+", "_", names(counts)))
 counts[, all := `BURGLARY` + `MOTOR_VEHICLE_THEFT` + 
          `OTHER` + `STREET_CRIMES`, by = .(occ_wed, grd.id)]
 
-counts = counts[CJ(occ_wed, grd$grd.id, unique = TRUE), lapply(.SD, function(x) {
-  if (any(idx <- is.na(x))) x[idx] = 0
-  x})]
+counts = counts[CJ(occ_wed, grd$grd.id, unique = TRUE), 
+                lapply(.SD, function(x) {
+                  if (any(idx <- is.na(x))) x[idx] = 0
+                  x})]
 
 tab.counts <- function(dt, variable, from=NULL, to=NULL){
-  # create spatio-temporal counts at weekly frequency from date.min to 
-  # date.max. If not dates are provided it will use the full range in the data.
+  # create spatio-temporal counts at weekly frequency from 'from' to 'to'.
+  # If no dates are provided it will use the full range in the data.
   # Returns a table with the counts.
 
-  if (is.null(from) | is.null(to)){
+  if (is.null(from) || is.null(to)){
     rng = dt[ , range(occ_wed)]
     from <- rng[1L]
     to <- rng[2L]
@@ -338,7 +339,7 @@ tab.other <- tab.counts(counts, variable = 'OTHER', from = date.from, to = date.
 tab.street <- tab.counts(counts, variable = 'STREET_CRIMES', from = date.from, to = date.to)
 
 pdf("~/Desktop/spatiohists.pdf")
-par(mfrow = c(1,1)) ; par(mfrow = c(2,2))
+par(mfrow = c(1,1), mfrow = c(2,2))
 barplot(log10(tab.all), yaxt = "n", main = "All Crimes", col = "blue")
 axis(side = 2L, at = (ys <- 0:ceiling(par('usr')[4L])), 
      labels = prettyNum(10^ys, big.mark = ","), las = 1L)
@@ -358,7 +359,7 @@ axis(side = 2L, at = (ys <- 0:ceiling(par('usr')[4L])),
      labels = prettyNum(10^ys, big.mark = ","), las = 1L)
 dev.off()
 
-# first twoo weeks of February:
+# first two weeks of February:
 date.from <- '2016-02-01'
 date.to <- '2016-02-15' 
 
@@ -485,8 +486,8 @@ gArea(grd.burglary)
 library(splancs) # very fast kde, a bit picky in the form of the inputs
 
 ## get outer bounds of Portland (http://stackoverflow.com/questions/12663263/dissolve-holes-in-polygon-in-r)
-outerRings <- Filter(function(f){f@ringDir==1}, portland.bdy@polygons[[1]]@Polygons)
-outerBounds <- SpatialPolygons(list(Polygons(outerRings,ID=1)))
+outerRings <- Filter(function(f) f@ringDir==1 , portland.bdy@polygons[[1]]@Polygons)
+outerBounds <- SpatialPolygons(list(Polygons(outerRings, ID=1)))
 portland.chull <- gConvexHull(portland.bdy)
 
 ## simplified portlan boundary (got here by trial and error; portland.bdy consist of 5 polys)
@@ -655,37 +656,15 @@ dev.off()
 # SPEARMAN CORRELATIONS
 # ============================================================================
 
-spearman.all = rep(NA, 5)
-spearman.all[1] <- cor(kde.all.feb16, kde.all.w116, method = 'spearman', use='pairwise.complete.obs')
-spearman.all[2] <- cor(kde.all.feb16, kde.all.w216, method = 'spearman', use='pairwise.complete.obs')
-spearman.all[3] <- cor(kde.all.feb16, kde.all.m116, method = 'spearman', use='pairwise.complete.obs')
-spearman.all[4] <- cor(kde.all.feb16, kde.all.m216, method = 'spearman', use='pairwise.complete.obs')
-spearman.all[5] <- cor(kde.all.feb16, kde.all.m316, method = 'spearman', use='pairwise.complete.obs')
+spearman = setDF(lapply(setNames(
+  nm = c('all', 'street', 'burglary', 'vehicle')),
+  function(type) { ge = .GlobalEnv
+    sapply(mget(ls(pattern = '^kde.' %+% type %+% '.[mw]', 
+                   envir = ge), envir = ge),
+           cor, x = get('kde.' %+% type %+% '.feb16', envir = ge), 
+           method = 'spearman', use = 'pairwise.complete.obs')}),
+  rownames = c('w1','w2','m1','m2','m3'))
 
-spearman.street = rep(NA, 5)
-spearman.street[1] <- cor(kde.street.feb16, kde.street.w116, method = 'spearman', use='pairwise.complete.obs')
-spearman.street[2] <- cor(kde.street.feb16, kde.street.w216, method = 'spearman', use='pairwise.complete.obs')
-spearman.street[3] <- cor(kde.street.feb16, kde.street.m116, method = 'spearman', use='pairwise.complete.obs')
-spearman.street[4] <- cor(kde.street.feb16, kde.street.m216, method = 'spearman', use='pairwise.complete.obs')
-spearman.street[5] <- cor(kde.street.feb16, kde.street.m316, method = 'spearman', use='pairwise.complete.obs')
-
-spearman.burglary = rep(NA, 5)
-spearman.burglary[1] <- cor(kde.burglary.feb16, kde.burglary.w116, method = 'spearman', use='pairwise.complete.obs')
-spearman.burglary[2] <- cor(kde.burglary.feb16, kde.burglary.w216, method = 'spearman', use='pairwise.complete.obs')
-spearman.burglary[3] <- cor(kde.burglary.feb16, kde.burglary.m116, method = 'spearman', use='pairwise.complete.obs')
-spearman.burglary[4] <- cor(kde.burglary.feb16, kde.burglary.m216, method = 'spearman', use='pairwise.complete.obs')
-spearman.burglary[5] <- cor(kde.burglary.feb16, kde.burglary.m316, method = 'spearman', use='pairwise.complete.obs')
-
-spearman.vehicle = rep(NA, 5)
-spearman.vehicle[1] <- cor(kde.vehicle.feb16, kde.vehicle.w116, method = 'spearman', use='pairwise.complete.obs')
-spearman.vehicle[2] <- cor(kde.vehicle.feb16, kde.vehicle.w216, method = 'spearman', use='pairwise.complete.obs')
-spearman.vehicle[3] <- cor(kde.vehicle.feb16, kde.vehicle.m116, method = 'spearman', use='pairwise.complete.obs')
-spearman.vehicle[4] <- cor(kde.vehicle.feb16, kde.vehicle.m216, method = 'spearman', use='pairwise.complete.obs')
-spearman.vehicle[5] <- cor(kde.vehicle.feb16, kde.vehicle.m316, method = 'spearman', use='pairwise.complete.obs')
-
-# display results in a dataframe:
-spearman <- data.frame(list(all=spearman.all, street=spearman.street, burglary=spearman.burglary, vehicle=spearman.vehicle))
-rownames(spearman) <- c('w1','w2','m1','m2','m3')
 stargazer(spearman, float = FALSE, summary=FALSE, type = 'text', out='tex/tables/spearman.tex',
           title = 'Spearman Rank Correlations')
 
@@ -693,34 +672,7 @@ stargazer(spearman, float = FALSE, summary=FALSE, type = 'text', out='tex/tables
 # GRID DATAFRAME
 # ============================================================================
 # append kernel densities to the grd.layer SpatialPoligonsDataFrame
-grd.layer$kde.all.feb16 <- kde.all.feb16
-grd.layer$kde.street.feb16 <- kde.street.feb16
-grd.layer$kde.burglary.feb16 <- kde.burglary.feb16
-grd.layer$kde.vehicle.feb16 <- kde.vehicle.feb16
-
-grd.layer$kde.all.w116 <- kde.all.w116
-grd.layer$kde.all.w216 <- kde.all.w216
-grd.layer$kde.all.m116 <- kde.all.m116
-grd.layer$kde.all.m216 <- kde.all.m216
-grd.layer$kde.all.m316 <- kde.all.m316
-
-grd.layer$kde.street.w116 <- kde.street.w116
-grd.layer$kde.street.w216 <- kde.street.w216
-grd.layer$kde.street.m116 <- kde.street.m116
-grd.layer$kde.street.m216 <- kde.street.m216
-grd.layer$kde.street.m316 <- kde.street.m316
-
-grd.layer$kde.burglary.w116 <- kde.burglary.w116
-grd.layer$kde.burglary.w216 <- kde.burglary.w216
-grd.layer$kde.burglary.m116 <- kde.burglary.m116
-grd.layer$kde.burglary.m216 <- kde.burglary.m216
-grd.layer$kde.burglary.m316 <- kde.burglary.m316
-
-grd.layer$kde.vehicle.w116 <- kde.vehicle.w116
-grd.layer$kde.vehicle.w216 <- kde.vehicle.w216
-grd.layer$kde.vehicle.m116 <- kde.vehicle.m116
-grd.layer$kde.vehicle.m216 <- kde.vehicle.m216
-grd.layer$kde.vehicle.m316 <- kde.vehicle.m316
+grd.layer@data[ls(pattern = "^kde.*16$")] <- mget(ls(pattern = "^kde.*16$"))
 
 # ============================================================================
 # FORECASTING WITH feb16 DENSITIES
