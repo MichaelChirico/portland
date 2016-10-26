@@ -723,14 +723,70 @@ dev.off()
 
 BB = 100L
 
-lapply(integer(BB), function(...) {
-  
-  head(order(grd.layer$kde.all.feb16, decreasing = TRUE),
-                 max.cells)
-})
+df = crimes.map.feb16
+boot.ranks.all = table2(unlist(lapply(integer(BB), function(...) 
+  head(order(spkernel2d(
+    pts = df[sample.int(length(df), replace = TRUE), ], 
+    h0 = bw, grd = grd.grdtop, 
+    poly = portland.bdy.simp@polygons[[1L]]@Polygons[[1L]]@coords),
+    decreasing = TRUE), max.cells))), ord = "dec")
 
+df = crimes.map.feb16[crimes.map.feb16$category == 'STREET CRIMES', ]
+boot.ranks.street = table2(unlist(lapply(integer(BB), function(...) 
+  head(order(spkernel2d(
+    pts = df[sample.int(length(df), replace = TRUE), ], 
+    h0 = bw, grd = grd.grdtop, 
+    poly = portland.bdy.simp@polygons[[1L]]@Polygons[[1L]]@coords),
+    decreasing = TRUE), max.cells))), ord = "dec")
+
+df = crimes.map.feb16[crimes.map.feb16$category == 'BURGLARY', ]
+boot.ranks.burglary = table2(unlist(lapply(integer(BB), function(...) 
+  head(order(spkernel2d(
+    pts = df[sample.int(length(df), replace = TRUE), ], 
+    h0 = bw, grd = grd.grdtop, 
+    poly = portland.bdy.simp@polygons[[1L]]@Polygons[[1L]]@coords),
+    decreasing = TRUE), max.cells))), ord = "dec")
   
+df = crimes.map.feb16[crimes.map.feb16$category == 'MOTOR VEHICLE THEFT', ]
+boot.ranks.vehicle = table2(unlist(lapply(integer(BB), function(...) 
+  head(order(spkernel2d(
+    pts = df[sample.int(length(df), replace = TRUE), ], 
+    h0 = bw, grd = grd.grdtop, 
+    poly = portland.bdy.simp@polygons[[1L]]@Polygons[[1L]]@coords),
+    decreasing = TRUE), max.cells))), ord = "dec")
   
+## Plotting
+pdf2('tex/figures/max_areas_boot.pdf')
+par(mfrow = c(2L, 2L), mar = c(1,1,1,1))
+
+rnk = unique(boot.ranks.all)
+cols = colorRampPalette(c("red", "white"))(length(rnk))
+plot(portland.bdy.simp, main = 'All')
+plot(grd.layer[as.integer(names(boot.ranks.all)), ], add=TRUE,
+     col = cols[match(boot.ranks.all, rnk)], lwd = 0.3)
+
+rnk = unique(boot.ranks.street)
+cols = colorRampPalette(c("red", "white"))(length(rnk))
+plot(portland.bdy.simp, main='Street')
+plot(grd.layer[as.integer(names(boot.ranks.street)), ], add=TRUE,
+     col = cols[match(boot.ranks.street, rnk)], lwd = 0.3)
+
+rnk = unique(boot.ranks.burglary)
+cols = colorRampPalette(c("red", "white"))(length(rnk))
+plot(portland.bdy.simp, main='Street')
+plot(grd.layer[as.integer(names(boot.ranks.burglary)), ], add=TRUE,
+     col = cols[match(boot.ranks.burglary, rnk)], lwd = 0.3)
+
+rnk = unique(boot.ranks.vehicle)
+cols = colorRampPalette(c("red", "white"))(length(rnk))
+plot(portland.bdy.simp, main='Street')
+plot(grd.layer[as.integer(names(boot.ranks.vehicle)), ], add=TRUE,
+     col = cols[match(boot.ranks.vehicle, rnk)], lwd = 0.3)
+
+mtext('Maximum Forecasted Areas, cell size 600x600\n' %+% 
+        'Sensitivity Testing via Bootstrap', outer = TRUE)
+dev.off2()
+
 # ============================================================================
 # ZOOMED IN FORECAST
 # ============================================================================
