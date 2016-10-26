@@ -87,6 +87,8 @@ df.table <- function(ls){
   df
 }
 
+pai = function(a, n, N, A) (n/N)/(a/A)
+
 # =============================================================================
 # LOAD DATA AND CREATE GEO DATAFRAMES
 # ============================================================================
@@ -687,9 +689,9 @@ grd.layer@data[kde.nms] <- mget(kde.nms <- ls(pattern = "^kde.*16$"))
 # FORECASTING WITH feb16 DENSITIES
 # =============================================================================
 area.min <- 6969600 # in square feet
-area.max <- 2.0909e+7 # in square feet
+area.max <- 2.09088e+7 # in square feet
 area.cell <- prod(grd.grdtop@cellsize)
-min.cells <- floor(area.min/area.cell)
+min.cells <- ceiling(area.min/area.cell)
 max.cells <- floor(area.max/area.cell)
 
 pdf('tex/figures/max_areas.pdf')
@@ -773,13 +775,13 @@ plot(grd.layer[as.integer(names(boot.ranks.street)), ], add=TRUE,
 
 rnk = unique(boot.ranks.burglary)
 cols = colorRampPalette(c("red", "white"))(length(rnk))
-plot(portland.bdy.simp, main='Street')
+plot(portland.bdy.simp, main='Burglary')
 plot(grd.layer[as.integer(names(boot.ranks.burglary)), ], add=TRUE,
      col = cols[match(boot.ranks.burglary, rnk)], lwd = 0.3)
 
 rnk = unique(boot.ranks.vehicle)
 cols = colorRampPalette(c("red", "white"))(length(rnk))
-plot(portland.bdy.simp, main='Street')
+plot(portland.bdy.simp, main='Vehicles')
 plot(grd.layer[as.integer(names(boot.ranks.vehicle)), ], add=TRUE,
      col = cols[match(boot.ranks.vehicle, rnk)], lwd = 0.3)
 
@@ -787,7 +789,7 @@ mtext('Maximum Forecasted Areas, cell size 600x600\n' %+%
         'Sensitivity Testing via Bootstrap', outer = TRUE)
 dev.off2()
 
-# ============================================================================
+# =============================================================================
 # ZOOMED IN FORECAST
 # ============================================================================
 
@@ -816,8 +818,6 @@ plot(forecast.all, add=TRUE, border='red', lwd=2)
 plot(select.all, add=TRUE)
 title('Hotspot for All Crimes, Feb 2016', outer = FALSE)
 dev.off2()
-
-
 
 # # ============================================================================
 # # MINIMUM AREAS
@@ -891,3 +891,115 @@ dev.off2()
 # 
 # plot(kde.vehicle.m316[order(-kde.vehicle.m316)], type='l', xlim=c(0,1000))
 # abline(v=c(min.cells, max.cells), col='red')
+
+# =============================================================================
+# Calculating Competition Metric in 2016
+# =============================================================================
+
+## One-Month Horizon
+crimes.mar16 = 
+  crimes.map[with(crimes.map@data, occ_year == 2016 & occ_month == 3), ]
+
+### for _maximum_ forecasted area
+a.all = grd.layer[rank.all, ]
+a.street = grd.layer[rank.street, ]
+a.burglary = grd.layer[rank.burglary, ]
+a.vehicle = grd.layer[rank.vehicle, ]
+
+max.a = c(
+  pai(n = sum(!is.na(`$`(crimes.mar16 %over% a.all, ID))),
+      N = length(crimes.mar16), a = gArea(a.all), A = gArea(portland.bdy)),
+  pai(n = sum(!is.na(`$`(crimes.mar16[crimes.mar16$category ==
+                                        'STREET CRIMES', ] %over% a.all, ID))),
+      N = length(crimes.mar16), a = gArea(a.all), A = gArea(portland.bdy)),
+  pai(n = sum(!is.na(`$`(crimes.mar16[crimes.mar16$category ==
+                                        'BURGLARY', ] %over% a.all, ID))),
+      N = length(crimes.mar16), a = gArea(a.all), A = gArea(portland.bdy)),
+  pai(n = sum(!is.na(`$`(
+    crimes.mar16[crimes.mar16$category ==
+                   'MOTOR VEHICLE THEFT', ] %over% a.all, ID))),
+    N = length(crimes.mar16), a = gArea(a.all), A = gArea(portland.bdy))
+)
+
+### for _minimum_ forecasted area
+a.all = grd.layer[rank.all[1L:min.cells], ]
+a.street = grd.layer[rank.street[1L:min.cells], ]
+a.burglary = grd.layer[rank.burglary[1L:min.cells], ]
+a.vehicle = grd.layer[rank.vehicle[1L:min.cells], ]
+
+min.a = c(
+  pai(n = sum(!is.na(`$`(crimes.mar16 %over% a.all, ID))),
+      N = length(crimes.mar16), a = gArea(a.all), A = gArea(portland.bdy)),
+  pai(n = sum(!is.na(`$`(crimes.mar16[crimes.mar16$category ==
+                                        'STREET CRIMES', ] %over% a.all, ID))),
+      N = length(crimes.mar16), a = gArea(a.all), A = gArea(portland.bdy)),
+  pai(n = sum(!is.na(`$`(crimes.mar16[crimes.mar16$category ==
+                                        'BURGLARY', ] %over% a.all, ID))),
+      N = length(crimes.mar16), a = gArea(a.all), A = gArea(portland.bdy)),
+  pai(n = sum(!is.na(`$`(
+    crimes.mar16[crimes.mar16$category ==
+                   'MOTOR VEHICLE THEFT', ] %over% a.all, ID))),
+    N = length(crimes.mar16), a = gArea(a.all), A = gArea(portland.bdy))
+)
+  
+png("~/Desktop/pai.m1.png")
+barplot(matrix(c(max.a, min.a), nrow = 2L, byrow = TRUE),
+        beside = TRUE, col = c('darkgreen', 'red'),
+        names.arg = c('All', 'Street', 'Burglary', 'Vehicle'),
+        main = 'PAI for One-Month Horizon\n' %+% 
+          'Maximum vs. Minimum Forecasted Area')
+dev.off()
+
+## One-Week Horizon
+crimes.marw1 = 
+  crimes.map[crimes.map$occ_date %between% D('2016-03-01', '2016-03-06'), ]
+
+### for _maximum_ forecasted area
+a.all = grd.layer[rank.all, ]
+a.street = grd.layer[rank.street, ]
+a.burglary = grd.layer[rank.burglary, ]
+a.vehicle = grd.layer[rank.vehicle, ]
+
+max.a = c(
+  pai(n = sum(!is.na(`$`(crimes.marw1 %over% a.all, ID))),
+      N = length(crimes.marw1), a = gArea(a.all), A = gArea(portland.bdy)),
+  pai(n = sum(!is.na(`$`(crimes.marw1[crimes.marw1$category ==
+                                        'STREET CRIMES', ] %over% a.all, ID))),
+      N = length(crimes.marw1), a = gArea(a.all), A = gArea(portland.bdy)),
+  pai(n = sum(!is.na(`$`(crimes.marw1[crimes.marw1$category ==
+                                        'BURGLARY', ] %over% a.all, ID))),
+      N = length(crimes.marw1), a = gArea(a.all), A = gArea(portland.bdy)),
+  pai(n = sum(!is.na(`$`(
+    crimes.marw1[crimes.marw1$category ==
+                   'MOTOR VEHICLE THEFT', ] %over% a.all, ID))),
+    N = length(crimes.marw1), a = gArea(a.all), A = gArea(portland.bdy))
+)
+
+### for _minimum_ forecasted area
+a.all = grd.layer[rank.all[1L:min.cells], ]
+a.street = grd.layer[rank.street[1L:min.cells], ]
+a.burglary = grd.layer[rank.burglary[1L:min.cells], ]
+a.vehicle = grd.layer[rank.vehicle[1L:min.cells], ]
+
+min.a = c(
+  pai(n = sum(!is.na(`$`(crimes.marw1 %over% a.all, ID))),
+      N = length(crimes.marw1), a = gArea(a.all), A = gArea(portland.bdy)),
+  pai(n = sum(!is.na(`$`(crimes.marw1[crimes.marw1$category ==
+                                        'STREET CRIMES', ] %over% a.all, ID))),
+      N = length(crimes.marw1), a = gArea(a.all), A = gArea(portland.bdy)),
+  pai(n = sum(!is.na(`$`(crimes.marw1[crimes.marw1$category ==
+                                        'BURGLARY', ] %over% a.all, ID))),
+      N = length(crimes.marw1), a = gArea(a.all), A = gArea(portland.bdy)),
+  pai(n = sum(!is.na(`$`(
+    crimes.marw1[crimes.marw1$category ==
+                   'MOTOR VEHICLE THEFT', ] %over% a.all, ID))),
+    N = length(crimes.marw1), a = gArea(a.all), A = gArea(portland.bdy))
+)
+  
+png("~/Desktop/pai.w1.png")
+barplot(matrix(c(max.a, min.a), nrow = 2L, byrow = TRUE),
+        beside = TRUE, col = c('darkgreen', 'red'),
+        names.arg = c('All', 'Street', 'Burglary', 'Vehicle'),
+        main = 'PAI for One-Week Horizon\n' %+% 
+          'Maximum vs. Minimum Forecasted Area')
+dev.off()
