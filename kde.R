@@ -25,12 +25,15 @@ library(spatstat)
 library(GISTools)
 library(sp)
 library(raster)
+library(splancs) # very fast kde, a bit picky in the form of the inputs
+#output formatting
+library(stargazer)
 
 #Create an R Project in your local directory, and all of
 #  these relative paths will work out of the box
 wds = c(data = "./data")
 
-# ============================================================================
+# =============================================================================
 # USEFUL FUNCTIONS
 # ============================================================================
 
@@ -84,7 +87,7 @@ df.table <- function(ls){
   df
 }
 
-# ============================================================================ 
+# =============================================================================
 # LOAD DATA AND CREATE GEO DATAFRAMES
 # ============================================================================
 
@@ -143,7 +146,7 @@ crimes.map@data[ , c("district", "precinct")] =
 # Some observations outside the police district boundaries presented
 crimes.map = crimes.map[!is.na(crimes.map$precinct), ]
 
-# ============================================================================
+# =============================================================================
 # KDE PLOTS
 # ============================================================================
 # @knitr kde
@@ -197,7 +200,7 @@ masker <- poly.outer(crimes.other.dens, portland, extend=100)
 add.masking(masker)
 plot(portland, add=TRUE)
 
-# ============================================================================
+# =============================================================================
 # K-FUNCTIONS
 # ============================================================================
 # for spatstats functions, need to convert to ppp data format:
@@ -239,7 +242,7 @@ kf.other <- Kest(crimes.ppp.other, correction='border')
 plot(kf.other, main = "Other Crimes")
 # plot(kf.other.env)
 
-# ============================================================================
+# =============================================================================
 # CROSS L-FUNCTIONS
 # ============================================================================
 # @knitr crossl
@@ -264,7 +267,7 @@ ck.streetOther <- Lcross(crimes.ppp, i='STREET CRIMES', j='OTHER', correction='b
 plot(ck.streetOther, main = "Street Crimes & Other Crimes")
 plot(ck.streetOther)
 
-# ============================================================================
+# =============================================================================
 # GRID
 # ============================================================================
 
@@ -306,7 +309,7 @@ areas.total <- gArea(grd)
 # turn grid to SpatialPointsDataFrame with data=id
 grd <- 
   SpatialPolygonsDataFrame(
-    grd, data = data.frame(gsub("\\s.*", "", names(grd))), 
+    grd, data = data.frame(grd.id = gsub("\\s.*", "", names(grd))), 
     match.ID = FALSE
   )
 
@@ -315,7 +318,7 @@ plot(portland.bdy, add=TRUE)
 
 # crimes.count <- poly.counts(crimes.map, grd)
 
-# ============================================================================
+# =============================================================================
 # SPATIO-TEMPORAL HISTOGRAMS
 # ============================================================================
 # 1. assign each crime to a grid cell
@@ -327,13 +330,13 @@ idx <- over(crimes.map, grd)
 crimes.map$grd.id <- idx$grd.id
 
 # check:
-plot(grd[grd$grd.id == crimes.map[1, ]$grd.id, ])
-plot(crimes.map[1, ], add=TRUE)
+plot(grd[grd$grd.id == crimes.map[1L, ]$grd.id, ])
+plot(crimes.map[1L, ], add=TRUE)
 
 # generate counts by week and grid cell:
 crimes <- to.data.table(crimes.map)
 counts <- crimes[, .(count = .N), by = .(occ_wed, grd.id, category)]
-counts <- dcast(counts, occ_wed + grd.id ~ category, fill=0, value.var = 'count')
+counts <- dcast(counts, occ_wed + grd.id ~ category, fill = 0, value.var = 'count')
 
 # add sum of all crimes per week and grid cell:
 setnames(counts, gsub("\\s+", "_", names(counts)))
@@ -439,7 +442,6 @@ df.other <- df.table(tab.other.list)
 df.other
 
 # HTML tables:
-library(stargazer)
 stargazer(df.all, type = 'html')
 stargazer(df.burglaries, type = 'html')
 stargazer(df.vehicle, type = 'html')
@@ -447,14 +449,14 @@ stargazer(df.street, type = 'html')
 stargazer(df.other, type = 'html')
 
 
-# ============================================================================
+# =============================================================================
 # NO CRIME ZONES
 # ============================================================================
 
 pdf("~/Desktop/nocrimes.pdf")
-par(mfrow=c(1,1)); par(mfrow = c(2,2))
+par(mfrow = c(2L, 2L))
 # all crimes:
-crime.cells <- crimes[occ_month %between% c(0,3), unique(grd.id)]
+crime.cells <- crimes[occ_month %between% c(0L, 3L), unique(grd.id)]
 nocrimes <- !(grd$grd.id %in% crime.cells)
 plot(grd[nocrimes,], col='red', main='All', lwd=0.1)
 plot(grd[!nocrimes,], col='green', add=TRUE, lwd=0.1)
@@ -480,21 +482,25 @@ dev.off()
 
 crime.cells <- crimes[occ_month %between% c(2,4) & occ_year==2016 & category=='MOTOR VEHICLE THEFT', unique(grd.id)]
 grd.burglary <- grd[grd$grd.id %in% crime.cells, ]
-plot(grd.burglary)
+plot(portland.bdy, main = "All Cells with a Car Theft between Feb. and Apr. 2016")
+plot(grd.burglary, add = TRUE, col = "darkgreen")
 gArea(grd.burglary)
 
-# ============================================================================
+# =============================================================================
 # KDE ESTIMATES
-# ============================================================================
-library(splancs) # very fast kde, a bit picky in the form of the inputs
+# =============================================================================
 
-## get outer bounds of Portland (http://stackoverflow.com/questions/12663263/dissolve-holes-in-polygon-in-r)
-outerRings <- Filter(function(f) f@ringDir==1 , portland.bdy@polygons[[1]]@Polygons)
+## get outer bounds of Portland (http://stackoverflow.com/questions/12663263)
+outerRings <- Filter(function(pol) pol@ringDir==1, 
+                     portland.bdy@polygons[[1L]]@Polygons)
 outerBounds <- SpatialPolygons(list(Polygons(outerRings, ID=1)))
 portland.chull <- gConvexHull(portland.bdy)
 
-## simplified portlan boundary (got here by trial and error; portland.bdy consist of 5 polys)
-portland.bdy.simp <- SpatialPolygons(list(Polygons(list(outerBounds@polygons[[1]]@Polygons[[5]]),ID=1)))
+## simplified portlan boundary (got here by trial and error;
+##   portland.bdy consist of 5 polys)
+portland.bdy.simp <- 
+  SpatialPolygons(list(Polygons(list(
+    outerBounds@polygons[[1]]@Polygons[[5]]),ID=1)))
 
 bw = 2400 # band width in feet (I guess)
 
@@ -505,63 +511,63 @@ compute.kdes <- function(df, grd.grdtop, bw){
   # note: grd needs to be a GridTopology object
   #       df needs to be a SpatialPointsDataFrame
   
-  kde.all <- spkernel2d(pts = df, 
-                        poly = portland.bdy.simp@polygons[[1]]@Polygons[[1]]@coords, 
-                        h0 = bw, 
-                        grd = grd.grdtop)
-  kde.street <- spkernel2d(pts = df[df$category=='STREET CRIMES', ], 
-                           poly = portland.bdy.simp@polygons[[1]]@Polygons[[1]]@coords, 
-                           h0 = bw, 
-                           grd = grd.grdtop)
-  kde.burglary <- spkernel2d(pts = df[df$category=='BURGLARY', ], 
-                             poly = portland.bdy.simp@polygons[[1]]@Polygons[[1]]@coords, 
-                             h0 = bw, 
-                             grd = grd.grdtop)
-  kde.vehicle <- spkernel2d(pts = df[df$category=='MOTOR VEHICLE THEFT', ], 
-                            poly = portland.bdy.simp@polygons[[1]]@Polygons[[1]]@coords, 
-                            h0 = bw, 
-                            grd = grd.grdtop)
+  kde.all <- 
+    spkernel2d(pts = df, h0 = bw, grd = grd.grdtop,
+               poly = portland.bdy.simp@polygons[[1L]]@Polygons[[1L]]@coords)
+  kde.street <-
+    spkernel2d(pts = df[df$category=='STREET CRIMES', ],
+               h0 = bw, grd = grd.grdtop,
+               poly = portland.bdy.simp@polygons[[1L]]@Polygons[[1L]]@coords)
+  kde.burglary <- 
+    spkernel2d(pts = df[df$category=='BURGLARY', ], 
+               poly = portland.bdy.simp@polygons[[1L]]@Polygons[[1L]]@coords, 
+               h0 = bw, grd = grd.grdtop)
+  kde.vehicle <- 
+    spkernel2d(pts = df[df$category=='MOTOR VEHICLE THEFT', ], 
+               poly = portland.bdy.simp@polygons[[1L]]@Polygons[[1L]]@coords, 
+               h0 = bw, grd = grd.grdtop)
   # for some reason kdes don't sum to 1; I normalize them so that they do
-  list(all=kde.all/sum(kde.all, na.rm=TRUE), 
-       street=kde.street/sum(kde.street, na.rm=TRUE), 
-       burglary=kde.burglary/sum(kde.burglary, na.rm=TRUE), 
-       vehicle=kde.vehicle/sum(kde.vehicle, na.rm=TRUE))
+  data.frame(all = kde.all/sum(kde.all, na.rm=TRUE), 
+             street = kde.street/sum(kde.street, na.rm=TRUE), 
+             burglary = kde.burglary/sum(kde.burglary, na.rm=TRUE), 
+             vehicle = kde.vehicle/sum(kde.vehicle, na.rm=TRUE))
 }
 ## temporal selection:
-crimes.map.feb16 <- crimes.map[crimes.map$occ_year==2016 & crimes.map$occ_month==2, ]
+crimes.map.feb16 <-
+  crimes.map[crimes.map$occ_year==2016 & crimes.map$occ_month==2, ]
 
 kdes = compute.kdes(df=crimes.map.feb16, grd.grdtop = grd.grdtop, bw=bw)
-kde.all.feb16 <- kdes$all
-kde.street.feb16 <- kdes$street
-kde.burglary.feb16 <- kdes$burglary
-kde.vehicle.feb16 <- kdes$vehicle
 
-# save kdes into dataframe:
-df.feb16 = data.frame(all=kde.all.feb16, street=kde.street.feb16, burglary=kde.burglary.feb16, vehicle=kde.vehicle.feb16)
-kernels <- SpatialGridDataFrame(grd.grdtop, data=df.feb16)
+kernels <- SpatialGridDataFrame(grd.grdtop, data = kdes)
 
 pdf('tex/figures/kde_bycategory.pdf')
 spplot(kernels, checkEmptyRC=FALSE, col.regions=terrain.colors(16), cuts=15,
-       main=paste('KDE for Feb 2016, bandwidth =', bw, ', cell size =', cell.sizex, 'x', cell.sizey, sep = " "))
+       main=paste('KDE for Feb 2016, bandwidth =', bw, 
+                  ', cell size =', cell.sizex, 'x', cell.sizey, sep = " "))
 dev.off()
 
 ## plot individually:
-spplot(obj = SpatialGridDataFrame(grd.grdtop, data = df.feb16['all']), col.regions=terrain.colors(16), cuts=15, 
+spplot(obj = SpatialGridDataFrame(grd.grdtop, data = kdes['all']), 
+       col.regions=terrain.colors(16), cuts=15, 
        main=list(label="All, Feb 2016",cex=2))
-spplot(obj = SpatialGridDataFrame(grd.grdtop, data = df.feb16['street']), col.regions=terrain.colors(16), cuts=15,
+spplot(obj = SpatialGridDataFrame(grd.grdtop, data = kdes['street']),
+       col.regions=terrain.colors(16), cuts=15,
        main=list(label="Street Crimes, Feb 2016",cex=2))
-spplot(obj = SpatialGridDataFrame(grd.grdtop, data = df.feb16['burglary']), col.regions=terrain.colors(16), cuts=15,
+spplot(obj = SpatialGridDataFrame(grd.grdtop, data = kdes['burglary']),
+       col.regions=terrain.colors(16), cuts=15,
        main=list(label="Burglaries, Feb 2016",cex=2))
-spplot(obj = SpatialGridDataFrame(grd.grdtop, data = df.feb16['vehicle']), col.regions=terrain.colors(16), cuts=15,
+spplot(obj = SpatialGridDataFrame(grd.grdtop, data = kdes['vehicle']),
+       col.regions=terrain.colors(16), cuts=15,
        main=list(label="Vehicle Theft, Feb 2016",cex=2))
 
-# ============================================================================
+# =============================================================================
 # SCATTER PLOTS
-# ============================================================================
+# =============================================================================
 
 # Compute kernels for different forecasting horizons:
 ## 1st week of Feb
-crimes.map.w116 <- crimes.map[crimes.map$occ_wed %between% c("2016-03-02","2016-03-09"),]
+crimes.map.w116 <- 
+  crimes.map[crimes.map$occ_wed %between% c("2016-03-02", "2016-03-09"), ]
 kdes <- compute.kdes(df=crimes.map.w116, grd.grdtop = grd.grdtop, bw=bw)
 kde.all.w116 <- kdes$all
 kde.street.w116 <- kdes$street
@@ -655,9 +661,9 @@ plot(kde.vehicle.feb16, kde.vehicle.m316, main='Vehicle')
 title("Density Feb 2016 vs. Months of Mar, Apr and May 2016", outer=TRUE)
 dev.off()
 
-# ============================================================================
+# =============================================================================
 # SPEARMAN CORRELATIONS
-# ============================================================================
+# =============================================================================
 
 spearman = setDF(lapply(setNames(
   nm = c('all', 'street', 'burglary', 'vehicle')),
@@ -668,18 +674,18 @@ spearman = setDF(lapply(setNames(
            method = 'spearman', use = 'pairwise.complete.obs')}),
   rownames = c('w1','w2','m1','m2','m3'))
 
-stargazer(spearman, float = FALSE, summary=FALSE, type = 'text', out='tex/tables/spearman.tex',
-          title = 'Spearman Rank Correlations')
+stargazer(spearman, float = FALSE, summary=FALSE, type = 'text',
+          out='tex/tables/spearman.tex', title = 'Spearman Rank Correlations')
 
-# ============================================================================
+# =============================================================================
 # GRID DATAFRAME
-# ============================================================================
+# =============================================================================
 # append kernel densities to the grd.layer SpatialPoligonsDataFrame
-grd.layer@data[ls(pattern = "^kde.*16$")] <- mget(ls(pattern = "^kde.*16$"))
+grd.layer@data[kde.nms] <- mget(kde.nms <- ls(pattern = "^kde.*16$"))
 
-# ============================================================================
+# =============================================================================
 # FORECASTING WITH feb16 DENSITIES
-# ============================================================================
+# =============================================================================
 area.min <- 6969600 # in square feet
 area.max <- 2.0909e+7 # in square feet
 area.cell <- prod(grd.grdtop@cellsize)
@@ -688,25 +694,43 @@ max.cells <- floor(area.max/area.cell)
 
 pdf('tex/figures/max_areas.pdf')
 par(mfrow=c(2,2), mar=c(1,1,1,1))
-rank.all <- order(grd.layer$kde.all.feb16, decreasing = TRUE)
+rank.all <- head(order(grd.layer$kde.all.feb16, decreasing = TRUE),
+                 max.cells)
 plot(portland.bdy.simp, main='All')
-plot(grd.layer[rank.all,][1:max.cells, ], add=TRUE, col='red', lwd=0.3)
+plot(grd.layer[rank.all, ], add=TRUE, col='red', lwd=0.3)
 
-rank.street <- order(grd.layer$kde.street.feb16, decreasing = TRUE)
+rank.street <- head(order(grd.layer$kde.street.feb16, decreasing = TRUE),
+                    max.cells)
 plot(portland.bdy.simp, main='Street')
-plot(grd.layer[rank.street,][1:max.cells, ], add=TRUE, col='red', lwd=0.3)
+plot(grd.layer[rank.street, ], add=TRUE, col='red', lwd=0.3)
 
-rank.burglary <- order(grd.layer$kde.burglary.feb16, decreasing = TRUE)
+rank.burglary <- head(order(grd.layer$kde.burglary.feb16, decreasing = TRUE),
+                      max.cells)
 plot(portland.bdy.simp, main='Burglary')
-plot(grd.layer[rank.burglary,][1:max.cells, ], add=TRUE, col='red', lwd=0.3)
+plot(grd.layer[rank.burglary, ], add=TRUE, col='red', lwd=0.3)
 
-rank.vehicle <- order(grd.layer$kde.vehicle.feb16, decreasing = TRUE)
+rank.vehicle <- head(order(grd.layer$kde.vehicle.feb16, decreasing = TRUE),
+                     max.cells)
 plot(portland.bdy.simp, main='Vehicle')
-plot(grd.layer[rank.vehicle,][1:max.cells, ], add=TRUE, col='red', lwd=0.3)
+plot(grd.layer[rank.vehicle, ], add=TRUE, col='red', lwd=0.3)
 
 mtext('Maximum Forecasted Areas, cell size 600x600', outer = TRUE, cex = 1)
 dev.off()
 
+# =============================================================================
+# Investigating Sensitivity of Rankings
+# =============================================================================
+
+BB = 100L
+
+lapply(integer(BB), function(...) {
+  
+  head(order(grd.layer$kde.all.feb16, decreasing = TRUE),
+                 max.cells)
+})
+
+  
+  
 # ============================================================================
 # ZOOMED IN FORECAST
 # ============================================================================
