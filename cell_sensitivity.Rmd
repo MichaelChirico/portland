@@ -65,6 +65,12 @@ portland.simp <-
   SpatialPolygons(list(Polygons(list(
     outerBounds@polygons[[1L]]@Polygons[[5L]]), ID=1)))
 
+log.min = function(x) {
+  m = min(x[x>0])
+  x[x == 0] = m/2
+  log10(x)
+}
+
 compute.kdes <- function(df, grd.grdtop, bw){
   kde.all <- 
     spkernel2d(pts = df, h0 = bw, grd = grd.grdtop,
@@ -123,7 +129,7 @@ inputPanel(
                min = 0, max = 1.28e5, step = 100)
 )
 
-renderPlot({
+renderPlot(
   spplot(
     SpatialGridDataFrame(
       grids[[input$grd]], 
@@ -134,5 +140,5 @@ renderPlot({
       )
     ), checkEmptyRC = FALSE, col.regions = terrain.colors(16), cuts = 15,
     main = 'Kernel Density Estimate with Specified Parameters')
-})
+)
 ```
