@@ -6,3 +6,6 @@
 #knitr cache -- ignore
 *_cache
 *_files
+
+#shiny-associated files -- ignore
+rsconnect/
