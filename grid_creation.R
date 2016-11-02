@@ -25,8 +25,7 @@ bb <- bbox(portland)
 ## list out our choices of grid, including
 ##   also a companion for easy saving
 cell.sizes = 
-  list(still problems with grid too small.
-       sq_min = list(dims = c(x = 250, y = 250),
+  list(sq_min = list(dims = c(x = 250, y = 250),
                     name = 'rec250x250'),
        sq_max = list(dims = c(x = 600, y = 600),
                      name = 'rec600x600'),

@@ -110,9 +110,6 @@ crimes = rbindlist(lapply(lapply(list.files(
 
 setnames(crimes, tolower(names(crimes)))
 crimes[ , occ_date := as.IDate(occ_date)]
-
-setnames(crimes, tolower(names(crimes)))
-crimes[ , occ_date := as.IDate(occ_date)]
 crimes[ , occ_year := quick_year(occ_date)]
 crimes[ , occ_wday := quick_wday(occ_date)]
 crimes[ , occ_quarter := quarter(occ_date)]
@@ -417,7 +414,7 @@ stargazer(df.other, type = 'html')
 
 # =============================================================================
 # NO CRIME ZONES
-# ============================================================================
+# =============================================================================
 
 pdf("~/Desktop/nocrimes.pdf")
 par(mfrow = c(2L, 2L))
