@@ -87,6 +87,13 @@ df.table <- function(ls){
   df
 }
 
+#when taking the log of zero, toss to 0
+infto0 = function(x) {x[is.infinite(x)] = 0; x}
+#alternative approach: as long as we know all non-zero
+#  x are integers, they're at least 1 -- if we re-set
+#  0 as .5, the ordering is still set
+inftomin = function(x) {x[is.infinite(x)] = log(.5); x}
+
 pai = function(a, n, N, A) (n/N)/(a/A)
 
 # =============================================================================
@@ -147,6 +154,8 @@ crimes.map@data[ , c("district", "precinct")] =
 
 # Some observations outside the police district boundaries presented
 crimes.map = crimes.map[!is.na(crimes.map$precinct), ]
+
+grd = readShapePoly("./data/grids/rec600x600.shp", proj4string = prj)
 
 # =============================================================================
 # KDE PLOTS
@@ -269,55 +278,6 @@ ck.streetOther <- Lcross(crimes.ppp, i='STREET CRIMES', j='OTHER', correction='b
 plot(ck.streetOther, main = "Street Crimes & Other Crimes")
 plot(ck.streetOther)
 
-# =============================================================================
-# GRID
-# ============================================================================
-
-bb <- bbox(portland)
-cell.sizex <- 600
-cell.sizey <- 600
-cell.dimx <- round(diff(bb["x", ])/cell.sizex)
-cell.dimy <- round(diff(bb["y", ])/cell.sizey)
-
-grd.grdtop <- GridTopology(cellcentre.offset = bb[ , "min"],
-                    cellsize = c(cell.sizex, cell.sizey),
-                    cells.dim = c(cell.dimx, cell.dimy))
-
-# turn grid to SpatialPolygonsDataFrame:
-nb.cells = cell.dimx * cell.dimy
-grd.layer <- 
-  SpatialPolygonsDataFrame(
-    Sr = as.SpatialPolygons.GridTopology(
-      grd.grdtop, proj4string = CRS(proj4string(crimes.map))
-    ),
-    data = data.frame(id = integer(nb.cells)),
-    match.ID = FALSE
-  )
-names(grd.layer) <- "ID"
-
-# intersect grid with boundaries of Portland:
-
-# Should work but doesn't:
-grd <- gIntersection(grd.layer, portland.bdy, byid = TRUE)
-
-# alternative from http://stackoverflow.com/questions/15881455/
-# grd.index <- gIntersects(grd.layer, portland.bdy, byid = TRUE)
-# grd <- grd.layer[which(grd.index), ]
-
-grd.bdy <- gUnaryUnion(grd)
-areas <- poly.areas(grd)
-areas.total <- gArea(grd)
-
-# turn grid to SpatialPointsDataFrame with data=id
-grd <- 
-  SpatialPolygonsDataFrame(
-    grd, data = data.frame(grd.id = gsub("\\s.*", "", names(grd))), 
-    match.ID = FALSE
-  )
-
-plot(grd)
-plot(portland.bdy, add=TRUE)
-
 # crimes.count <- poly.counts(crimes.map, grd)
 
 # =============================================================================
@@ -361,23 +321,27 @@ tab.vehicle <- tab.counts(counts, variable = 'MOTOR_VEHICLE_THEFT', from = date.
 tab.other <- tab.counts(counts, variable = 'OTHER', from = date.from, to = date.to)
 tab.street <- tab.counts(counts, variable = 'STREET_CRIMES', from = date.from, to = date.to)
 
+
+
 pdf("~/Desktop/spatiohists.pdf")
 par(mfrow = c(1,1), mfrow = c(2,2))
-barplot(log10(tab.all), yaxt = "n", main = "All Crimes", col = "blue")
+barplot(infto0(log10(tab.all)), 
+        yaxt = "n", main = "All Crimes", col = "blue")
 axis(side = 2L, at = (ys <- 0:ceiling(par('usr')[4L])), 
      labels = prettyNum(10^ys, big.mark = ","), las = 1L)
 
-barplot({y <- log10(tab.burglaries); y[is.infinite(y)] = 0; y},
+barplot(infto0(log10(tab.burglaries)),
         yaxt = "n", main = "Burglaries", col = "blue")
 axis(side = 2L, at = (ys <- 0:ceiling(par('usr')[4L])),
      labels = prettyNum(10^ys, big.mark = ","), las = 1L)
 
-barplot({y <- log10(tab.vehicle); y[is.infinite(y)] = 0; y}, 
+barplot(infto0(log10(tab.vehicle)), 
         yaxt = "n", main = "Vehicle", col = "blue")
 axis(side = 2L, at = (ys <- 0:ceiling(par('usr')[4L])), 
      labels = prettyNum(10^ys, big.mark = ","), las = 1L)
 
-barplot(log10(tab.street), yaxt = "n", main = "Street", col = "blue")
+barplot(infto0(log10(tab.street)), 
+        yaxt = "n", main = "Street", col = "blue")
 axis(side = 2L, at = (ys <- 0:ceiling(par('usr')[4L])), 
      labels = prettyNum(10^ys, big.mark = ","), las = 1L)
 dev.off()
