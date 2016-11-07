@@ -67,7 +67,7 @@ portland.simp <-
 
 log.min = function(x) {
   m = min(x[x>0])
-  x[x == 0] = m/2
+  x[x == 0] = m/10
   log10(x)
 }
 
@@ -140,5 +140,18 @@ renderPlot(
       )
     ), checkEmptyRC = FALSE, col.regions = terrain.colors(16), cuts = 15,
     main = 'Kernel Density Estimate with Specified Parameters')
+)
+
+renderPlot(
+  spplot(
+    SpatialGridDataFrame(
+      grids[[input$grd]], 
+      data = log.min(compute.kdes(
+        df = crimes.map[crimes.map$occ_date %between% 
+                          intervals[[input$horiz]], ],
+        grd.grdtop = grids[[input$grd]], bw = input$bw
+      ))
+    ), checkEmptyRC = FALSE, col.regions = terrain.colors(50), cuts = 49,
+    main = 'Kernel Density Estimate with Specified Parameters (Log-10 Scale)')
 )
 ```
