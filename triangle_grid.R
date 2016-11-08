@@ -1,29 +1,45 @@
+# Forecasting Crime in Portland
+# ** Creating Potential Regular Triangular Tiling of Portland **
+# Michael Chirico, Seth Flaxman,
+# Charles Loeffler, Pau Pereira
 library(sp)
+library(maptools)
+library(rgeos)
 library(abind)
 
-area = 2.5
+#import portland
+prj = CRS("+init=epsg:2913")
+portland = gBuffer(gUnaryUnion(readShapePoly(
+  "./data/Portland_Police_Districts.shp", proj4string = prj)),
+  #See http://gis.stackexchange.com/questions/163445/
+  #  some micro-scale errors being caused by the
+  #  un-"buffered" shapefile
+  byid = TRUE, width = 0)
+
+area = 250*250 #in square feet
 #given area, side of
 #  equilateral triangle with that area is
-side = 2*sqrt(area/sqrt(3))
-delx = 10
-dely = 5
+side = 2*sqrt(area/sqrt(3)) #in feet
+lims = apply(bbox(portland), 1L, diff)
 
 #Count number of triangles needed, left-right
-nn = as.integer(ceiling(2*delx/side)) + 1L
+nn = as.integer(ceiling(2*lims[1L]/side)) + 1L
 #top-bottom
-mm = as.integer(ceiling(2*dely/side/sqrt(3)))
+mm = as.integer(ceiling(2*lims[2L]/side/sqrt(3)))
 
 coord.array = 
   #array of coordinates -- first "face" is x,
   #  second "face" is y coordinates. Start to the
-  #  left of the origin since the origin is the top
+  #  left of the upper-left corner since it is the top
   #  vertex of an up-facing triangle. The grid is
   #  made up of alternating coordinates of a 
   #  rectangular array with x coordinates along
   #  multiples of s/2, y coordinates along
   #  multiples of s*sqrt(3)/2
-  abind(matrix(rep(-1:nn, each = mm+1L), mm+1L, nn+2L) * side/2,
-        matrix(rep(0L:mm, nn+2L), mm+1L, nn+2L) * -side*sqrt(3)/2,
+  abind(bbox(portland)["x", "min"] + 
+          matrix(rep(-1:nn, each = mm+1L), mm+1L, nn+2L) * side/2,
+        bbox(portland)["y", "max"] + 
+          matrix(rep(0L:mm, nn+2L), mm+1L, nn+2L) * -side*sqrt(3)/2,
         along = 3L)
 
 downs = array(rep(cbind(
@@ -74,17 +90,22 @@ tris = abind(ups, downs, along = 2L)
 
 #convert to sp-friendly coordinates
 coords = array(sapply(1L:3L, function(kk)
-    t(matrix(coord.array[t(tris[ , , kk])], nrow = 2))),
+    matrix(coord.array[t(tris[ , , kk])], nrow = 2)),
     dim = c(2, dim(tris)[2L]/2L, 3))
 
 #construct from scratch
 triangles = 
   SpatialPolygons(lapply(seq_len(dim(coords)[2L]),
                          function(jj)
-                           Polygons(list(Polygon(coords[ , jj, ])), ID = jj)))
+                           Polygons(list(Polygon(t(coords[ , jj, ]))), ID = jj)),
+                  proj4string = prj)
 
-bound = SpatialPolygons(list(Polygons(list(Polygon(matrix(c(
-  0, 0, delx, 0, delx, -dely, 0, -dely), ncol = 2L, byrow = TRUE))), ID = 1L)))
-    
-plot(triangles)
-plot(bound, border = 'red', add = TRUE)
+#clip to portland
+triangles = 
+  gIntersection(
+    triangles[which(gIntersects(triangles, portland, byid = TRUE)), ], 
+    portland, byid = TRUE
+  )
+
+plot(portland, border = 'red')
+plot(triangles, add = TRUE)
