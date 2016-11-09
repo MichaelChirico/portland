@@ -104,10 +104,12 @@ for (aa in c(250*250, .5*(250*250+600*600), 600*600)) {
   
   #construct from scratch
   triangles = 
-    SpatialPolygons(lapply(seq_len(dim(coords)[2L]),
-                           function(jj)
-                             Polygons(list(Polygon(t(coords[ , jj, ]))), ID = jj)),
-                    proj4string = prj)
+    SpatialPolygons(
+      lapply(seq_len(dim(coords)[2L]),
+             function(jj)
+               Polygons(list(Polygon(t(coords[ , jj, ]))), ID = jj)),
+      proj4string = prj
+    )
   
   #clip to portland
   triangles = 
@@ -115,6 +117,11 @@ for (aa in c(250*250, .5*(250*250+600*600), 600*600)) {
       triangles[which(gIntersects(triangles, portland, byid = TRUE)), ], 
       portland, byid = TRUE
     )
+  
+  triangles = 
+    SpatialPolygonsDataFrame(triangles, 
+                             data = data.frame(ID = seq_len(length(triangles))),
+                             match.ID = FALSE)
   
   writeOGR(triangles, dsn = './data/grids/',
            layer = paste0("triA", aa/100), driver = "ESRI Shapefile")
