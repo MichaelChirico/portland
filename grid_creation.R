@@ -13,9 +13,12 @@ library(funchir)
 prj = CRS("+init=epsg:2913")
 
 portland <-
-  gUnaryUnion(readShapePoly("./data/Portland_Police_Districts.shp", 
-                            proj4string = prj))
-
+  gBuffer(
+    gUnaryUnion(readShapePoly("./data/Portland_Police_Districts.shp", 
+                              proj4string = prj)),
+    byid = TRUE, width = 0
+  )
+    
 bb <- bbox(portland)
 
 # =============================================================================
@@ -25,9 +28,7 @@ bb <- bbox(portland)
 ## list out our choices of grid, including
 ##   also a companion for easy saving
 cell.sizes = 
-  list(sq_min = list(dims = c(x = 250, y = 250),
-                    name = 'rec250x250'),
-       sq_max = list(dims = c(x = 600, y = 600),
+  list(sq_max = list(dims = c(x = 600, y = 600),
                      name = 'rec600x600'),
        sq_mid = list(dims = c(x = 460, y = 460),
                      name = 'rec460x460'),
