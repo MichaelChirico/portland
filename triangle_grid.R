@@ -43,15 +43,15 @@ for (aa in c(250*250, .5*(250*250+600*600), 600*600)) {
   coord.array = 
     #array of coordinates -- first "face" is x,
     #  second "face" is y coordinates. Start to the
-    #  left of the upper-left corner since it is the top
-    #  vertex of an up-facing triangle. The grid is
+    #  left of the lower-left corner since it is the top
+    #  vertex of a downward-facing triangle. The grid is
     #  made up of alternating coordinates of a 
     #  rectangular array with x coordinates along
     #  multiples of s/2, y coordinates along
     #  multiples of s*sqrt(3)/2
     abind(bbox(portland)["x", "min"] + 
             matrix(rep(-1:nn, each = mm+1L), mm+1L, nn+2L) * side/2,
-          bbox(portland)["y", "max"] - 
+          bbox(portland)["y", "min"] + 
             matrix(rep(0L:mm, nn+2L), mm+1L, nn+2L) * sqrt(3) * side/2,
           along = 3L)
   
