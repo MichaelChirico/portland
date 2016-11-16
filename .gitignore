@@ -12,3 +12,9 @@ rsconnect/
 
 #.shp files take too much space...
 data/grids/
+*.cpg
+*.dbf
+*.prj
+*.qpj
+*.shp
+*.shx

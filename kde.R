@@ -511,7 +511,7 @@ kernels <- SpatialGridDataFrame(grd.grdtop, data = kdes)
 pdf('tex/figures/kde_bycategory.pdf')
 spplot(kernels, checkEmptyRC=FALSE, col.regions=terrain.colors(16), cuts=15,
        main=paste('KDE for Feb 2016, bandwidth =', bw, 
-                  ', cell size =', cell.sizex, 'x', cell.sizey, sep = " "))
+                  ', cell size =', 600, 'x', 600, sep = " "))
 dev.off()
 
 ## plot individually:
