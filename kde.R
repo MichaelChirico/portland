@@ -465,6 +465,11 @@ portland.bdy.simp <-
   SpatialPolygons(list(Polygons(list(
     outerBounds@polygons[[1]]@Polygons[[5]]),ID=1)))
 
+## GridTopology
+grd.grdtop = GridTopology(cellcentre.offset = bbox(portland)[ , 'min'],
+                          cellsize = c(600, 600),
+                          cells.dim = round(apply(bbox(portland), 1L, diff)/600))
+
 bw = 2400 # band width in feet (I guess)
 
 ## compute kernels:
