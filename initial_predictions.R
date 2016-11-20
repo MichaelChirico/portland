@@ -173,8 +173,10 @@ dev.off()
 sizes = CJ(delx = seq(250, 600, length.out = 5L),
            dely = seq(250, 600, length.out = 5L))
 
-plotdata = copy(sizes)[ , c("all", "str", "bur", "veh") := 
-                          replicate(4L, numeric(.N), simplify = FALSE)]
+plotdata = rbind(copy(sizes), copy(sizes)
+                 )[ , c("index", "all", "str", "bur", "veh") := 
+                      c(list(rep(c("pai", "pei"), each = .N/2)),
+                        replicate(4L, numeric(.N), simplify = FALSE))]
 
 for (ii in 1L:nrow(sizes)) {
   dims = unlist(sizes[ii])
@@ -223,6 +225,9 @@ for (ii in 1L:nrow(sizes)) {
                     str = pai(n = n.str, N = N, a = a, A = A),
                     bur = pai(n = n.bur, N = N, a = a, A = A),
                     veh = pai(n = n.veh, N = N, a = a, A = A))]
+  plotdata[ii + nrow(sizes),
+           `:=`(all = n.all/N.all, str = n.str/N.str,
+                bur = n.bur/N.bur, veh = n.veh/N.veh)]
 }
 
 pdf("pai_cellsize.pdf")
