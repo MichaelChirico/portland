@@ -163,3 +163,103 @@ plotdata[index == "pei",
 mtext("Competition Indices vs. Bandwidth\n" %+%
         "For 600x600 grid & Minimum Forecast Area", outer = TRUE)
 dev.off()
+
+# Cell Size ####
+
+## Based on results above, fix bandwidth at 500 for now --
+##  Around 300 was optimal for 250x250 cells, 800 was
+##  optimal for 600x600 (clear interdependence of bw & cell size)
+
+sizes = CJ(delx = seq(250, 600, length.out = 5L),
+           dely = seq(250, 600, length.out = 5L))
+
+plotdata = copy(sizes)[ , c("all", "str", "bur", "veh") := 
+                          replicate(4L, numeric(.N), simplify = FALSE)]
+
+for (ii in 1L:nrow(sizes)) {
+  dims = unlist(sizes[ii])
+  grd = GridTopology(cellcentre.offset = bb[ , 'min'] + dims/2,
+                     cellsize = dims,
+                     cells.dim = round(apply(bb, 1L, diff)/dims))
+  grdSP = as.SpatialPolygons.GridTopology(grd, proj4string = prj)
+  grdSP = SpatialPolygonsDataFrame(
+    grdSP, data = data.frame(rn = rownames(coordinates(grdSP))),
+    match.ID = FALSE
+  )
+    
+  counts = table2(future %over% grdSP, ord = "dec")
+  counts.str = table2(future[future$category == 'STREET CRIMES', ] %over% grdSP,
+                      ord = "dec")
+  counts.bur = table2(future[future$category == 'BURGLARY', ] %over% grdSP,
+                      ord = "dec")
+  counts.veh = table2(future[future$category == 'MOTOR VEHICLE THEFT', ] %over% 
+                        grdSP, ord = "dec")
+  
+  min.cells = ceiling(6969600/prod(dims))
+  a = min.cells*prod(dims)
+  
+  N.all = sum(counts[1L:min.cells])
+  N.str = sum(counts.str[1L:min.cells])
+  N.bur = sum(counts.bur[1L:min.cells])
+  N.veh = sum(counts.veh[1L:min.cells])
+  
+  kdes = rbindlist(lapply(crimes_ym_SP, compute.kdes,
+                          port.coord, h0 = 500, grd), idcol = "mo")
+  #weight prior Marches at .02 relative to current February
+  kdes[ , wt := .02 + .98*(substr(mo, 1L, 2L) == "16")]
+  #aggregate
+  wt.kde = kdes[ , lapply(.SD, function(x) sum(x * wt)), 
+                 by = id, .SDcols = !c("mo", "wt")]
+  n.all = sum(counts[wt.kde[order(all, decreasing = TRUE), 
+                            id[1L:min.cells]]])
+  n.str = sum(counts.str[wt.kde[order(street, decreasing = TRUE), 
+                                id[1L:min.cells]]])
+  n.bur = sum(counts.bur[wt.kde[order(burglary, decreasing = TRUE), 
+                                id[1L:min.cells]]])
+  n.veh = sum(counts.veh[wt.kde[order(vehicle, decreasing = TRUE), 
+                                id[1L:min.cells]]])
+  
+  plotdata[ii, `:=`(all = pai(n = n.all, N = N, a = a, A = A),
+                    str = pai(n = n.str, N = N, a = a, A = A),
+                    bur = pai(n = n.bur, N = N, a = a, A = A),
+                    veh = pai(n = n.veh, N = N, a = a, A = A))]
+}
+
+pdf("pai_cellsize.pdf")
+par(mfrow = c(2L, 2L), oma = c(0,0,3,0))
+contour(x = plotdata[ , unique(delx)],
+        y = plotdata[ , unique(dely)],
+        z = plotdata[ , matrix(all, 5L, 5L)], 
+        nlevels = 5L, lwd = 3L,
+        xlab = "E-W Size", ylab = "N-S Size",
+        main = "All Crimes")
+points(plotdata[which.max(all), cbind(delx, dely)],
+       pch = "x")
+contour(x = plotdata[ , unique(delx)],
+        y = plotdata[ , unique(dely)],
+        z = plotdata[ , matrix(str, 5L, 5L)], 
+        nlevels = 5L, lwd = 3L, col = "red",
+        xlab = "E-W Size", ylab = "N-S Size",
+        main = "Street")
+points(plotdata[which.max(str), cbind(delx, dely)],
+       pch = "x", col = "red")
+contour(x = plotdata[ , unique(delx)],
+        y = plotdata[ , unique(dely)],
+        z = plotdata[ , matrix(bur, 5L, 5L)], 
+        nlevels = 5L, lwd = 3L, col = "blue",
+        xlab = "E-W Size", ylab = "N-S Size",
+        main = "Burglary")
+points(plotdata[which.max(bur), cbind(delx, dely)],
+       pch = "x", col = "blue")
+contour(x = plotdata[ , unique(delx)],
+        y = plotdata[ , unique(dely)],
+        z = plotdata[ , matrix(veh, 5L, 5L)], 
+        nlevels = 5L, lwd = 3L, col = "darkgreen",
+        xlab = "E-W Size", ylab = "N-S Size",
+        main = "Vehicle")
+points(plotdata[which.max(veh), cbind(delx, dely)],
+       pch = "x", col = "darkgreen")
+mtext("PAI vs Cell Size\n" %+%
+        "Bandwidth Fixed @ 500ft, Minimum Forecast Area",
+      outer = TRUE)
+dev.off()
