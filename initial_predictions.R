@@ -10,26 +10,26 @@ library(rgeos)
 library(splancs)
 
 # Functions ####
-compute.kdes <- function(DT, poly, h0, nx, ny){
+compute.kdes <- function(DT, poly, h0, grd){
   kde.all = 
-    kernel2d(pts = pts(DT), 
-             poly = poly, h0 = h0, nx = nx, ny = ny, quiet = TRUE)
+    nml(spkernel2d(pts = DT, poly = poly, h0 = h0, grd = grd))
   kde.street =
-    kernel2d(pts = pts(DT[category=='STREET CRIMES']),
-             poly = poly, h0 = h0, nx = nx, ny = ny, quiet = TRUE)
+    nml(spkernel2d(pts = DT[DT$category=='STREET CRIMES', ],
+                   poly = poly, h0 = h0, grd = grd))
   kde.burglary = 
-    kernel2d(pts = pts(DT[category=='BURGLARY']), 
-             poly = poly, h0 = h0, nx = nx, ny = ny, quiet = TRUE)
+    nml(spkernel2d(pts = DT[DT$category=='BURGLARY', ], 
+                   poly = poly, h0 = h0, grd = grd))
   kde.vehicle = 
-    kernel2d(pts = pts(DT[category=='MOTOR VEHICLE THEFT']),
-             poly = poly, h0 = h0, nx = nx, ny = ny, quiet = TRUE)
-  CJ(x = kde.all$x, y = kde.all$y
-     )[ , c("all", "street", "burglary", "vehicle") := 
-          lapply(list(kde.all, kde.street, kde.burglary, kde.vehicle),
-                 function(k) c(k$z/sum(k$z, na.rm = TRUE)))]
+    nml(spkernel2d(pts = DT[DT$category=='MOTOR VEHICLE THEFT', ],
+                   poly = poly, h0 = h0, grd = grd))
+  data.table(id = 'g' %+% 1L:prod(grd@cells.dim),
+             all = kde.all, street = kde.street,
+             burglary = kde.burglary, vehicle = kde.vehicle)
 }
 
 pts = function(DT) DT[ , cbind(x_coordina, y_coordina)]
+nml = function(x) x/sum(x, na.rm = TRUE)
+pai = function(a, n, N, A) (n/N)/(a/A)
 
 # Setup ####
 prj = CRS("+init=epsg:2913")
@@ -69,39 +69,97 @@ crimes[ , occ_ym := format(occ_date, "%y%m")]
 
 crimes_ym = split(crimes, by = "occ_ym")
 
+crimes_ym_SP = 
+  lapply(crimes_ym, function(mo)
+    SpatialPointsDataFrame(
+      coords = pts(mo), data = mo[ , -grep('coord', names(mo)), with = FALSE],
+      proj4string = prj)
+  )
+
 dims = c(600, 600)
 ncells = round(apply(bb, 1L, diff)/dims)
 
-grd = GridTopology(cellcentre.offset = bb[ , 'min'],
+grd = GridTopology(cellcentre.offset = bb[ , 'min'] + dims/2,
                    cellsize = dims,
                    cells.dim = round(apply(bb, 1L, diff)/dims))
 
-grdDT = as.data.table(coordinates(grd))[ , I := .I]
+grdSP = as.SpatialPolygons.GridTopology(grd, proj4string = prj)
+
+grdSP = 
+  SpatialPolygonsDataFrame(
+    grdSP, data = data.frame(rn = rownames(coordinates(grdSP))),
+    match.ID = FALSE
+  )
+
+counts = table2(future %over% grdSP, ord = "dec")
+counts.str = table2(future[future$category == 'STREET CRIMES', ] %over% grdSP,
+                    ord = "dec")
+counts.bur = table2(future[future$category == 'BURGLARY', ] %over% grdSP,
+                    ord = "dec")
+counts.veh = table2(future[future$category == 'MOTOR VEHICLE THEFT', ] %over% 
+                      grdSP, ord = "dec")
 
 min.cells = ceiling(6969600/prod(dims))
 N = nrow(crimes.marw1)
 a = min.cells*prod(dims)
 A = gArea(portland)
 
+N.all = sum(counts[1L:min.cells])
+N.str = sum(counts.str[1L:min.cells])
+N.bur = sum(counts.bur[1L:min.cells])
+N.veh = sum(counts.veh[1L:min.cells])
+
 # Bandwidth ####
-nn = 20L
+nn = 30L
 bws = seq(100, 4000, length.out = nn)
-plotdata = data.table(index = rep(c("pai", "pei"), each = 2L*nn),
+plotdata = data.table(index = rep(c("pai", "pei"), each = nn),
                       bandwidth = rep(bws, 2L),
-                      all = numeric(2L*nn), street = numeric(2L*nn),
-                      burg = numeric(2L*nn), vehi = numeric(2L*nn))
+                      all = numeric(2L*nn), str = numeric(2L*nn),
+                      bur = numeric(2L*nn), veh = numeric(2L*nn))
        
 for (bw in bws) {
-  kdes = rbindlist(lapply(crimes_ym, compute.kdes, port.coord, bw, ncells["x"], ncells["y"]), idcol = "mo")
+  kdes = rbindlist(lapply(crimes_ym_SP, compute.kdes,
+                          port.coord, bw, grd), idcol = "mo")
   #weight prior Marches at .02 relative to current February
-  kdes[ , wt := .02 + .98*(substr(mo, 1, 2) == "16")]
+  kdes[ , wt := .02 + .98*(substr(mo, 1L, 2L) == "16")]
   #aggregate
   wt.kde = kdes[ , lapply(.SD, function(x) sum(x * wt)), 
-                 by = .(x, y), .SDcols = !c("mo", "wt")]
-  spplot(SpatialGridDataFrame(grd600, data = wt.kde[ , !"id", with = FALSE], proj4string = prj))
-  all.rk = grdDF[wt.kde[order(all, decreasing = TRUE)[1:min.cells], id], ]
-  rank.all <- head(order(grd.layer$kde.all.feb16, decreasing = TRUE),
-                 max.cells)
+                 by = id, .SDcols = !c("mo", "wt")]
+  n.all = sum(counts[wt.kde[order(all, decreasing = TRUE), 
+                            id[1L:min.cells]]])
+  n.str = sum(counts.str[wt.kde[order(street, decreasing = TRUE), 
+                                id[1L:min.cells]]])
+  n.bur = sum(counts.bur[wt.kde[order(burglary, decreasing = TRUE), 
+                                id[1L:min.cells]]])
+  n.veh = sum(counts.veh[wt.kde[order(vehicle, decreasing = TRUE), 
+                                id[1L:min.cells]]])
+  
   plotdata[index == "pai" & bandwidth == bw,
-           `:=`(all = pai(n = sum(!is.na(`$`(future %over% a.all, ID))), N = N, a = a, A = A)
+           `:=`(all = pai(n = n.all, N = N, a = a, A = A),
+                str = pai(n = n.str, N = N, a = a, A = A),
+                bur = pai(n = n.bur, N = N, a = a, A = A),
+                veh = pai(n = n.veh, N = N, a = a, A = A))]
+  plotdata[index == "pei" & bandwidth == bw,
+           `:=`(all = n.all/N.all, str = n.str/N.str,
+                bur = n.bur/N.bur, veh = n.veh/N.veh)]
 }
+
+pdf("peipai.pdf")
+par(mfrow = c(1L, 2L), oma = c(0,0,2,0))
+plotdata[index == "pai", 
+         matplot(bandwidth, cbind(all, str, bur, veh),
+                 main = "PAI", xlab = "Bandwidth",
+                 ylab = "PAI", type = "l", lty = 1L,
+                 lwd = 3L, 
+                 col = c("black", "red", "blue", "darkgreen"))]
+legend("topright", legend = c("All", "Street", "Burglary", "Vehicle"),
+       lwd = 3L, col = c("black", "red", "blue", "darkgreen"))
+plotdata[index == "pei", 
+         matplot(bandwidth, cbind(all, str, bur, veh),
+                 main = "PEI", xlab = "Bandwidth",
+                 ylab = "PEI (%)", type = "l", lty = 1L,
+                 lwd = 3L, 
+                 col = c("black", "red", "blue", "darkgreen"))]
+mtext("Competition Indices vs. Bandwidth\n" %+%
+        "For 600x600 grid & Minimum Forecast Area", outer = TRUE)
+dev.off()
