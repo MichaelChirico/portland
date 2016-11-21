@@ -28,7 +28,7 @@ compute.kdes <- function(DT, poly, h0, grd){
 }
 
 pts = function(DT) DT[ , cbind(x_coordina, y_coordina)]
-nml = function(x) x/sum(x, na.rm = TRUE)
+nml = function(x) {x[is.na(x)] = 0; x/sum(x)}
 pai = function(a, n, N, A) (n/N)/(a/A)
 
 # Setup ####
@@ -144,7 +144,7 @@ for (bw in bws) {
                 bur = n.bur/N.bur, veh = n.veh/N.veh)]
 }
 
-pdf("peipai.pdf")
+pdf("peipai_bandwidth.pdf")
 par(mfrow = c(1L, 2L), oma = c(0,0,2,0))
 plotdata[index == "pai", 
          matplot(bandwidth, cbind(all, str, bur, veh),
@@ -232,39 +232,78 @@ for (ii in 1L:nrow(sizes)) {
 
 pdf("pai_cellsize.pdf")
 par(mfrow = c(2L, 2L), oma = c(0,0,3,0))
-contour(x = plotdata[ , unique(delx)],
-        y = plotdata[ , unique(dely)],
-        z = plotdata[ , matrix(all, 5L, 5L)], 
+contour(x = plotdata[index == "pai", unique(delx)],
+        y = plotdata[index == "pai", unique(dely)],
+        z = plotdata[index == "pai", matrix(all, 5L, 5L)], 
         nlevels = 5L, lwd = 3L,
         xlab = "E-W Size", ylab = "N-S Size",
         main = "All Crimes")
-points(plotdata[which.max(all), cbind(delx, dely)],
+points(plotdata[index == "pai"][which.max(all), cbind(delx, dely)],
        pch = "x")
-contour(x = plotdata[ , unique(delx)],
-        y = plotdata[ , unique(dely)],
-        z = plotdata[ , matrix(str, 5L, 5L)], 
+contour(x = plotdata[index == "pai", unique(delx)],
+        y = plotdata[index == "pai", unique(dely)],
+        z = plotdata[index == "pai", matrix(str, 5L, 5L)], 
         nlevels = 5L, lwd = 3L, col = "red",
         xlab = "E-W Size", ylab = "N-S Size",
         main = "Street")
-points(plotdata[which.max(str), cbind(delx, dely)],
+points(plotdata[index == "pai"][which.max(str), cbind(delx, dely)],
        pch = "x", col = "red")
-contour(x = plotdata[ , unique(delx)],
-        y = plotdata[ , unique(dely)],
-        z = plotdata[ , matrix(bur, 5L, 5L)], 
+contour(x = plotdata[index == "pai", unique(delx)],
+        y = plotdata[index == "pai", unique(dely)],
+        z = plotdata[index == "pai", matrix(bur, 5L, 5L)], 
         nlevels = 5L, lwd = 3L, col = "blue",
         xlab = "E-W Size", ylab = "N-S Size",
         main = "Burglary")
-points(plotdata[which.max(bur), cbind(delx, dely)],
+points(plotdata[index == "pai"][which.max(bur), cbind(delx, dely)],
        pch = "x", col = "blue")
-contour(x = plotdata[ , unique(delx)],
-        y = plotdata[ , unique(dely)],
-        z = plotdata[ , matrix(veh, 5L, 5L)], 
+contour(x = plotdata[index == "pai", unique(delx)],
+        y = plotdata[index == "pai", unique(dely)],
+        z = plotdata[index == "pai", matrix(veh, 5L, 5L)], 
         nlevels = 5L, lwd = 3L, col = "darkgreen",
         xlab = "E-W Size", ylab = "N-S Size",
         main = "Vehicle")
-points(plotdata[which.max(veh), cbind(delx, dely)],
+points(plotdata[index == "pai"][which.max(veh), cbind(delx, dely)],
        pch = "x", col = "darkgreen")
 mtext("PAI vs Cell Size\n" %+%
+        "Bandwidth Fixed @ 500ft, Minimum Forecast Area",
+      outer = TRUE)
+dev.off()
+
+pdf("pei_cellsize.pdf")
+par(mfrow = c(2L, 2L), oma = c(0,0,3,0))
+contour(x = plotdata[index == "pei", unique(delx)],
+        y = plotdata[index == "pei", unique(dely)],
+        z = plotdata[index == "pei", matrix(all, 5L, 5L)], 
+        nlevels = 5L, lwd = 3L,
+        xlab = "E-W Size", ylab = "N-S Size",
+        main = "All Crimes")
+points(plotdata[index == "pei"][which.max(all), cbind(delx, dely)],
+       pch = "x")
+contour(x = plotdata[index == "pei", unique(delx)],
+        y = plotdata[index == "pei", unique(dely)],
+        z = plotdata[index == "pei", matrix(str, 5L, 5L)], 
+        nlevels = 5L, lwd = 3L, col = "red",
+        xlab = "E-W Size", ylab = "N-S Size",
+        main = "Street")
+points(plotdata[index == "pei"][which.max(str), cbind(delx, dely)],
+       pch = "x", col = "red")
+contour(x = plotdata[index == "pei", unique(delx)],
+        y = plotdata[index == "pei", unique(dely)],
+        z = plotdata[index == "pei", matrix(bur, 5L, 5L)], 
+        nlevels = 5L, lwd = 3L, col = "blue",
+        xlab = "E-W Size", ylab = "N-S Size",
+        main = "Burglary")
+points(plotdata[index == "pei"][which.max(bur), cbind(delx, dely)],
+       pch = "x", col = "blue")
+contour(x = plotdata[index == "pei", unique(delx)],
+        y = plotdata[index == "pei", unique(dely)],
+        z = plotdata[index == "pei", matrix(veh, 5L, 5L)], 
+        nlevels = 5L, lwd = 3L, col = "darkgreen",
+        xlab = "E-W Size", ylab = "N-S Size",
+        main = "Vehicle")
+points(plotdata[index == "pei"][which.max(veh), cbind(delx, dely)],
+       pch = "x", col = "darkgreen")
+mtext("PEI vs Cell Size\n" %+%
         "Bandwidth Fixed @ 500ft, Minimum Forecast Area",
       outer = TRUE)
 dev.off()
