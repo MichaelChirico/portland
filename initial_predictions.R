@@ -145,7 +145,7 @@ for (bw in bws) {
 }
 
 pdf("peipai_bandwidth.pdf")
-par(mfrow = c(1L, 2L), oma = c(0,0,2,0))
+par(mfrow = c(1L, 2L), oma = c(0, 0, 2, 0))
 plotdata[index == "pai", 
          matplot(bandwidth, cbind(all, str, bur, veh),
                  main = "PAI", xlab = "Bandwidth",
