@@ -23,11 +23,11 @@ n_clust = detectCores()
 #       * 3m : three months
 args = commandArgs(trailingOnly = TRUE)
 nx = ny = as.integer(args[1L])
-horizon = list('1w' = D('2016-03-01', '2016-03-06'),
-               '2w' = D('2016-03-01', '2016-03-13'),
-               '1m' = D('2016-03-01', '2016-03-31'),
-               '2m' = D('2016-03-01', '2016-04-30'),
-               '3m' = D('2016-03-01', '2016-05-21'))[[args[2L]]]
+horizon = list('1w' = as.Date(c('2016-03-01', '2016-03-06')),
+               '2w' = as.Date(c('2016-03-01', '2016-03-13')),
+               '1m' = as.Date(c('2016-03-01', '2016-03-31')),
+               '2m' = as.Date(c('2016-03-01', '2016-04-30')),
+               '3m' = as.Date(c('2016-03-01', '2016-05-21')))[[args[2L]]]
 
 # Functions ####
 compute.kdes <- function(DT, poly, h0, grd){
