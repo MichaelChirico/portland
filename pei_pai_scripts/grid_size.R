@@ -5,7 +5,6 @@
 # Michael Chirico, Seth Flaxman,
 # Charles Loeffler, Pau Pereira
 library(data.table)
-library(funchir)
 library(maptools)
 library(foreign)
 library(rgeos)
