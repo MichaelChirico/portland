@@ -25,6 +25,7 @@ library(spatstat)
 library(GISTools)
 library(sp)
 library(raster)
+library(rgdal)
 library(splancs) # very fast kde, a bit picky in the form of the inputs
 #output formatting
 library(stargazer)
@@ -784,6 +785,44 @@ plot(forecast.all, add=TRUE, border='red', lwd=2)
 plot(select.all, add=TRUE)
 title('Hotspot for All Crimes, Feb 2016', outer = FALSE)
 dev.off2()
+
+# ============================================================================
+# STREET MAPS
+# ============================================================================
+
+streets <- readOGR("./data/PortlandStreets/", layer='streets_pdx')
+streets <- spTransform(streets, CRS(proj4string(crimes.map)))
+dim(streets)
+
+plot(streets)
+plot(portland.bdy.simp, border='red', add=TRUE)
+
+N <- length(crimes.map)
+crimes.map.small <- crimes.map[sample(N, .1*N),]
+
+dist <- numeric(nrow(crimes.map.small))
+for (i in 1:length(crimes.map.small)) {
+  dist[i] <- gDistance(crimes.map.small[i,], streets)  
+}
+bins <- seq(0, 500, 10)
+dist.cut <- cut(dist, 
+                breaks = bins,
+                right = FALSE)
+
+barplot(table(dist.cut), las=2, cex.names=0.5)
+
+crimes.small <- to.data.table(crimes.map.small)
+crimes.small[, dist:=dist]
+
+crimes.dist <- crimes.small[, .(mean.dist = mean(dist),
+                 q1.dist = quantile(dist, .25),
+                 med.dist = median(dist),
+                 q3.dist = quantile(dist, .75),
+                 q95 = quantile(dist, .95),
+                 q99 = quantile(dist, .99)), by=category]
+crimes.dist
+write.csv(crimes.dist, file = '../dist_table.csv')
+
 
 # # ============================================================================
 # # MINIMUM AREAS

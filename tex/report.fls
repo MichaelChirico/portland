@@ -293,6 +293,9 @@ INPUT ./figures/kde_bycategory.pdf
 INPUT ./figures/kde_bycategory.pdf
 INPUT /usr/local/texlive/2015/texmf-dist/fonts/tfm/public/kpfonts/jkpmn7t.tfm
 INPUT /usr/local/texlive/2015/texmf-dist/fonts/tfm/public/kpfonts/jkpmit7t.tfm
+INPUT figures/kde3d.pdf
+INPUT ./figures/kde3d.pdf
+INPUT ./figures/kde3d.pdf
 INPUT figures/scatter_kde_1w.pdf
 INPUT ./figures/scatter_kde_1w.pdf
 INPUT ./figures/scatter_kde_1w.pdf
@@ -396,6 +399,9 @@ INPUT /usr/local/texlive/2015/texmf-dist/fonts/vf/public/kpfonts/jkpmit7t.vf
 INPUT /usr/local/texlive/2015/texmf-dist/fonts/tfm/public/kpfonts/jkpmite.tfm
 INPUT /usr/local/texlive/2015/texmf-dist/fonts/tfm/public/kpfonts/jkpmit8r.tfm
 INPUT /usr/local/texlive/2015/texmf-var/fonts/map/pdftex/updmap/pdftex.map
+INPUT /usr/local/texlive/2015/texmf-dist/fonts/vf/public/kpfonts/jkpmn7t.vf
+INPUT /usr/local/texlive/2015/texmf-dist/fonts/tfm/public/kpfonts/jkpmne.tfm
+INPUT /usr/local/texlive/2015/texmf-dist/fonts/tfm/public/kpfonts/jkpmn8r.tfm
 INPUT /usr/local/texlive/2015/texmf-dist/fonts/vf/public/kpfonts/jkpmn7t.vf
 INPUT /usr/local/texlive/2015/texmf-dist/fonts/tfm/public/kpfonts/jkpmne.tfm
 INPUT /usr/local/texlive/2015/texmf-dist/fonts/tfm/public/kpfonts/jkpmn8r.tfm
