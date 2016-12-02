@@ -2,14 +2,11 @@
 .Rhistory
 .Rproj.user
 *.Rproj
-
 #knitr cache -- ignore
 *_cache
 *_files
-
 #shiny-associated files -- ignore
 rsconnect/
-
 #.shp files take too much space...
 data/
 *.cpg
@@ -18,3 +15,4 @@ data/
 *.qpj
 *.shp
 *.shx
+*.csv
