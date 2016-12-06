@@ -222,12 +222,12 @@ plotdata[ , {
   par(mfrow = c(1L, 2L),
       oma = c(0, 0, 2.5, 0))
   .SD[index == "pai",
-      matplot(theta*180/pi, .SD, type = "l", lty = 1L,
+      matplot(theta, .SD, type = "l", lty = 1L,
               lwd = 3L, col = c("black", "red", "blue", "darkgreen"),
               xlab = "Angle of Rotation", ylab = "PAI", main = "PAI"),
       .SDcols = !c("theta", "index")]
   .SD[index == "pei",
-      matplot(theta*180/pi, .SD, type = "l", lty = 1L,
+      matplot(theta, .SD, type = "l", lty = 1L,
               lwd = 3L, col = c("black", "red", "blue", "darkgreen"),
               xlab = "Angle of Rotation", ylab = "PEI", main = "PEI"),
       .SDcols = !c("theta", "index")]
