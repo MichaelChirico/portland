@@ -16,3 +16,6 @@ data/
 *.shp
 *.shx
 *.csv
+
+#too many
+pei_pai_scripts/*.pdf
