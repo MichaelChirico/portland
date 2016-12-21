@@ -1,0 +1,154 @@
+---
+title: "Stochastic Spatiotemporal Modeling"
+runtime: shiny
+output: html_document
+---
+
+There are two main methodological advances from machine learning that I have in mind: random
+features and stochastic gradient MCMC. The focus is on
+scaling up fully Bayesian Gaussian process inference and learning, going beyond what's been done in ML
+which has focused narrowly on GPs for regression and classification. Ultimately, I want to target complex hierarchical models,
+where GP priors play an important role but there are other things going on as well, e.g. marked point process models or multilevel models
+with hierarchical spatial structure.
+
+## Random Fourier Features
+
+By Bochner's theorem, any stationary covariance (positive definite kernel) $k(x,y)$
+is the Fourier transform of a unique positive measure $\mu(w)$ called the spectral measure:
+
+$k(x,y) = \int \exp(i w^{\top}(x-y)) d \mu(w) = E_w[\exp(i w^{\top}x)\exp(i w^{\top}y)^*]$
+
+For example, the squared exponential (Gaussian) kernel with lengthscale $\lambda$ has spectral measure given by a Gaussian pdf with variance $1/\lambda$.
+
+Rahimi and Recht [2008] proposed an approximation to $k(x,y)$ using Monte Carlo samples from $\mu$.
+One sample $w \sim \mu(w)$ will give an estimate of the expectation above:
+
+$k(x,y) \approx \exp(i w^{\top}x)\exp(i w^{\top}y)^*$
+
+Observing that we are interested in real-valued $k(x,y)$ we can ignore the imaginary parts of this to find that
+$k(x,y)$ is being approximated by the dot product of two two-dimensional vectors:
+
+$k(x,y) \approx \langle [cos(w^{\top} x), sin(w^{\top} x)], [cos(w^{\top} y), sin(w^{\top} y)] \rangle$
+
+To improve the accuracy of this approximation, we simply sample iid $w_1, \ldots, w_p \sim \mu(x)$
+and define $\hat\phi(x) =  [cos(w^{\top}_1 x), sin(w^{\top}_1 x), \ldots, 
+cos(w^{\top}_p x), sin(w^{\top}_p x)]$.
+
+With $n$ observations, GP regression is not scalable because the covariance matrix $K_{ij} = k(x_i,x_j)$ is $n \times n$.
+With a set of $p$ random Fourier features we define $\Phi = \left(\begin{matrix} \hat\phi(x_1) \\ \vdots \\ \hat\phi(x_n)\end{matrix}\right)  \in \mathcal{R}^{n \times p}$
+
+Then we have that $K = \Phi \Phi^{\top}$, yielding significant computational advantages for $p \ll n$.
+
+As an example, consider a draw from a GP prior with a covariance defined by a set of $p$ random Fourier features.
+```{r, echo=FALSE}
+inputPanel(
+  sliderInput("p_breaks", label = "Number of random features:",
+              min = 1, max=500, value=20, step=1),
+  
+  sliderInput("lengthscale", label = "Lengthscale:",
+              min = 0.01, max = 5, value = 1, step = 0.01)
+)
+
+renderPlot({
+  library(kernlab)
+  p = as.numeric(input$p_breaks)
+  bw = 1/(2*input$lengthscale^2)
+  set.seed(1)
+  w = rnorm(p,sd=sqrt(bw))
+  x = seq(-2,2,.1)
+  par(mfrow=c(1,3))
+  plot(x,cos(x*w[1]),ylim=c(0,10),ty="l", main=sprintf("a few of the %d random features",p),xlab="x", ylab="random features")
+  for(i in 2:10)
+    lines(x,cos(x*w[sample(p,1)])+i-1)
+  
+  phi = rbind(outer(w,x,FUN = function(a,b) cos(a*b)),outer(w,x,FUN = function(a,b) sin(a*b)))
+  plot(x,t(rnorm(p*2) %*% phi),ty="l",xlab="x", ylab="y",ylim=c(-5,5), main="Random features")
+  for(i in 1:20)
+   lines(x,t(rnorm(p*2) %*% phi),ty="l")
+  
+  L = t(chol(kernelMatrix(rbfdot(bw),matrix(x))+diag(1e-6,length(x))))
+  plot(x,L %*% rnorm(length(x)),ty="l",xlab="x",ylab="y",ylim=c(-5,5), main="Full GP")
+  for(i in 1:20)
+   lines(x,L %*% rnorm(length(x)))
+  
+})
+```
+
+Now let's add some data and consider the posterior:
+```{r, echo=FALSE}
+inputPanel(
+  sliderInput("p_breaks1", label = "Number of random features:",
+              min = 1, max=500, value=20, step=1),
+  
+  sliderInput("lengthscale1", label = "Lengthscale:",
+              min = 0.1, max = 5, value = .2, step = 0.05),
+  sliderInput("sigma2", label = "Observation error:",
+              min = 0.01, max = 2, value = .1, step = 0.01)
+)
+
+renderPlot({
+  library(kernlab)
+  sigma2 = input$sigma2
+  p = as.numeric(input$p_breaks1)
+  bw = 1/(2*input$lengthscale1^2)
+  set.seed(1)
+  x = seq(-2,2,.05)
+  y = cumsum(rnorm(length(x)))
+  w = rnorm(p,sd=sqrt(bw))
+  
+  plot(x,y,main=sprintf("p = %d",p), xlab="x",ylab="value",pch=21)
+
+  phi = rbind(outer(w,x,FUN = function(a,b) cos(a*b)),outer(w,x,FUN = function(a,b) sin(a*b)))
+  Kcheating = t(phi) %*% phi # this defeats the whole purpose! use Woodbury instead.
+  mu=Kcheating %*% solve(Kcheating + diag(sigma2,length(x)),y)
+  lines(x,mu,col="blue")
+  se = sqrt(diag(Kcheating - Kcheating %*% solve(Kcheating + diag(sigma2,length(x)),Kcheating)))
+  lines(x,mu+1.96*se,col="gray")
+  lines(x,mu-1.96*se,col="gray")
+  
+  K = kernelMatrix(rbfdot(bw),matrix(x))
+  mu=K %*% solve(K + diag(sigma2,length(x)),y)
+   se = sqrt(diag(K - K %*% solve(K + diag(sigma2,length(x)),K)))
+  lines(x,mu+1.96*se,col="gray")
+  lines(x,mu-1.96*se,col="gray")
+  lines(x,mu,col="red")
+ legend("bottomright", legend=c("Observed data", "Posterior (random expansion)", "Posterior (full GP)"), col=c("black","blue","red"),pch=20)
+  
+  
+})
+```
+
+
+## Stochastic gradient MCMC
+
+With standard Monte Carlo methods, we need to be able to calculate the likelihood of the data given the current
+parameter values at every step of the sampler. This is costly for GP models, and using random feature expansions
+partially alleviates this issue, as above. (Another issue is that MCMC with GP models often entails poor mixing due to the strong correlations between the parameters.) The other benefit of random feature expansions is that they make it natural to apply stochastic MCMC methods. We focus here on a simple methods, which has been generalized and extended in various directions, that of stochastic gradient Langevin dynamics (SGLD). SGLD is similar to Hamiltonian Monte Carlo in that it exploits gradient information to efficiently explore the likelihood surface, hopefully preventing random walk behavior. Given a log-likelihood $\ell(X|\theta)$ for parameters $\theta$ and observations $X$ a single step of SGLD consists of taking a step of length $\epsilon$ along the gradient and taking a random step with variance $\epsilon$. As explained in [Welling and Teh 2012] the result of this algorithm, with an appropriate learning rate $\epsilon$ is to perform a discrete version of Langevin dynamics. So far, we have not said anything about making this stochastic. Instead of calculating the full gradient $\nabla_{\theta} \ell(X|\theta)$ consider a random minibatch of observations and calculate the stochastic gradient; this is an unbiased approximation to the true gradient.
+
+As an example, consider a model $x_i \sim N(\mu,1)$ with unknown mean $mu$
+
+```{r, echo=FALSE}
+inputPanel(
+  sliderInput("p_breaks1", label = "Number of random features:",
+              min = 1, max=500, value=20, step=1),
+  
+  sliderInput("lengthscale1", label = "Lengthscale:",
+              min = 0.1, max = 5, value = .2, step = 0.05),
+  sliderInput("sigma2", label = "Observation error:",
+              min = 0.01, max = 2, value = .1, step = 0.01)
+)
+
+renderPlot({
+  plot()
+  library(kernlab)
+  sigma2 = input$sigma2
+  p = as.numeric(input$p_breaks1)
+  bw = 1/(2*input$lengthscale1^2)
+  set.seed(1)
+  x = seq(-2,2,.05)
+  y = cumsum(rnorm(length(x)))
+  w = rnorm(p,sd=sqrt(bw))
+  
+})
+```
+

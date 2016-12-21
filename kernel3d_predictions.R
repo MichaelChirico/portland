@@ -52,6 +52,23 @@ kernel3d.crime <- function(pts, t, hxy=2400, hz=60, grd.grdtop) {
   flipVertical(grd.k3d)
 }
 
+compute.kdes.3d <- function(DT, hxy, hz, grdtop){
+  kde.all <- kernel3d.crime(pts=pts(DT), t=DT[, day], hxy, hz, grdtop)
+  kde.str <- kernel3d.crime(pts=pts(DT[category=='STREET CRIMES']),
+                            t=DT[category=='STREET CRIMES', day], 
+                            hxy, hz, grdtop)
+  kde.bur <- kernel3d.crime(pts=pts(DT[category=='BURGLARY']),
+                            t=DT[category=='BURGLARY', day], 
+                            hxy, hz, grdtop)
+  kde.veh <- kernel3d.crime(pts=pts(DT[category=='MOTOR VEHICLE THEFT']),
+                            t=DT[category=='MOTOR VEHICLE THEFT', day], 
+                            hxy, hz, grdtop)
+  # ls <- list(all=kde.all, burglary=kde.bur, vehicle=kde.veh, street=kde.str)
+  data.table(id = 'g' %+% 1L:prod(grd@cells.dim),
+             all = kde.all$kde, street = kde.str$kde,
+             burglary = kde.bur$kde, vehicle = kde.veh$kde)
+}
+
 flipHorizontal <- function(x) {
   if (!inherits(x, "SpatialGridDataFrame")) stop("x must be a
                                                  SpatialGridDataFrame")
@@ -181,24 +198,6 @@ N.all = sum(counts[1L:min.cells])
 N.str = sum(counts.str[1L:min.cells])
 N.bur = sum(counts.bur[1L:min.cells])
 N.veh = sum(counts.veh[1L:min.cells])
-
-compute.kdes.3d <- function(DT, hxy, hz, grdtop){
-  kde.all <- kernel3d.crime(pts=pts(DT), t=DT[, day], hxy, hz, grdtop)
-  kde.str <- kernel3d.crime(pts=pts(DT[category=='STREET CRIMES']),
-                            t=DT[category=='STREET CRIMES', day], 
-                            hxy, hz, grdtop)
-  kde.bur <- kernel3d.crime(pts=pts(DT[category=='BURGLARY']),
-                            t=DT[category=='BURGLARY', day], 
-                            hxy, hz, grdtop)
-  kde.veh <- kernel3d.crime(pts=pts(DT[category=='MOTOR VEHICLE THEFT']),
-                            t=DT[category=='MOTOR VEHICLE THEFT', day], 
-                            hxy, hz, grdtop)
-  # ls <- list(all=kde.all, burglary=kde.bur, vehicle=kde.veh, street=kde.str)
-  data.table(id = 'g' %+% 1L:prod(grd@cells.dim),
-             all = kde.all$kde, street = kde.str$kde,
-             burglary = kde.bur$kde, vehicle = kde.veh$kde)
-}
-
 
 # ============================================================================
 # LOOP BANDWIDTHS
@@ -330,7 +329,94 @@ area.cell <- prod(grd@cellsize)
 min.cells <- ceiling(area.min/area.cell)
 max.cells <- floor(area.max/area.cell)
 
+# create plotadata df to store results
+cell.grid <- seq(min.cells, max.cells, 5)
+nn <- length(cell.grid)
+plotdata = data.table(index = rep(c("pai", "pei"), each = nn),
+                      nb_cells = rep(cell.grid, 2L),
+                      all = numeric(2L*nn), str = numeric(2L*nn),
+                      bur = numeric(2L*nn), veh = numeric(2L*nn))
+bw = 1000L
 
+for (ncell in cell.grid) {
+  print(paste0('Doing computations for nb_cells =', as.character(ncell)))
+  kdes = rbindlist(lapply(crimes_y, compute.kdes.3d,
+                          bw, 60, grd), idcol = "y")
+  # weight prior years at .02 relative to current February
+  kdes[ , wt := .2*(y != 2016) + .80*(y == 2016)]
+  # aggregate
+  wt.kde = kdes[ , lapply(.SD, function(x) sum(x * wt)), 
+                 by = id, .SDcols = !c("y", "wt")]
+  n.all = sum(counts[wt.kde[order(all, decreasing = TRUE), 
+                            id[1L:ncell]]])
+  n.str = sum(counts.str[wt.kde[order(street, decreasing = TRUE), 
+                                id[1L:ncell]]])
+  n.bur = sum(counts.bur[wt.kde[order(burglary, decreasing = TRUE), 
+                                id[1L:ncell]]])
+  n.veh = sum(counts.veh[wt.kde[order(vehicle, decreasing = TRUE), 
+                                id[1L:ncell]]])
+  
+  # compute parameters for PAI/PEI (the ones not varying have been precomputed)
+  a = ncell*prod(dims)
+  N.all = sum(counts[1L:ncell])
+  N.str = sum(counts.str[1L:ncell])
+  N.bur = sum(counts.bur[1L:ncell])
+  N.veh = sum(counts.veh[1L:ncell])
+  
+  plotdata[index == "pai" & nb_cells == ncell,
+           `:=`(all = pai(n = n.all, N = N, a = a, A = A),
+                str = pai(n = n.str, N = N, a = a, A = A),
+                bur = pai(n = n.bur, N = N, a = a, A = A),
+                veh = pai(n = n.veh, N = N, a = a, A = A))]
+  plotdata[index == "pei" & nb_cells == ncell,
+           `:=`(all = n.all/N.all, str = n.str/N.str,
+                bur = n.bur/N.bur, veh = n.veh/N.veh)]
+}
+
+pdf2("paipei_forecastingarea.pdf")
+par(mfrow = c(1L, 2L), oma = c(0,0,2,0))
+plotdata[index == "pai", 
+         matplot(nb_cells, cbind(all, str, bur, veh),
+                 main = "PAI", xlab = "No. Cells",
+                 ylab = "PAI", type = "l", lty = 1L,
+                 lwd = 3L, 
+                 col = c("black", "red", "blue", "darkgreen"))]
+legend("topright", bg="transparent", legend = c("All", "Street", "Burglary", "Vehicle"),
+       lwd = 3L, col = c("black", "red", "blue", "darkgreen"))
+plotdata[index == "pei", 
+         matplot(nb_cells, cbind(all, str, bur, veh),
+                 main = "PEI", xlab = "No. Cells",
+                 ylab = "PEI (%)", type = "l", lty = 1L,
+                 lwd = 3L, 
+                 col = c("black", "red", "blue", "darkgreen"))]
+mtext("Kernel 3D, Competition Indices vs. Nb. of Cells\n" %+%
+        "For 600x600 grid & 1000ft spatial bw, 60 days tempral bw, 2 weeks of March'16 ", outer = TRUE)
+dev.off2()
+
+
+# ============================================================================
+# CHARLES MAP
+# Comparison of all crimes and street crimes using minimum forecasting area.
+# ============================================================================
+
+kdes = rbindlist(lapply(crimes_y, compute.kdes.3d,
+                        1000, 60, grd), idcol = "y")
+# weight prior years at .02 relative to current February
+kdes[ , wt := .2*(y != 2016) + .80*(y == 2016)]
+
+# aggregate
+wt.kde = kdes[ , lapply(.SD, function(x) sum(x * wt)), 
+               by = id, .SDcols = !c("y", "wt")]
+hot.all <- wt.kde[order(-all), id][1:min.cells]
+hot.street <- wt.kde[order(-street), id][1:min.cells]
+
+par(mfrow=c(1,1))
+plot(portland)
+plot(grdSP[grdSP$rn %in% hot.all, ], add=TRUE, col='red')
+plot(grdSP[grdSP$rn %in% hot.street, ], add=TRUE, col='green')
+
+plot(portland)
+plot(grdSP[grdSP$rn %in% hot.all, ], add=TRUE, col='red')
 # ============================================================================
 # CELL SIZE
 # ============================================================================
