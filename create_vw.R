@@ -51,9 +51,8 @@ phi = cbind(cos(proj), sin(proj))/sqrt(k)
 #convert to data.table for ease
 phi.dt = as.data.table(phi)
 
-fwrite(phi.dt[ , .(paste0(
-  crimes.grid.dt$value, " | ", sapply(transpose(lapply(
+fwrite(phi.dt[ , c(list(paste0(
+  crimes.grid.dt$value, " |")), lapply(
     names(.SD), function(jj)
-      paste0(jj, ":", get(jj)))),
-    paste, collapse = " ")))], 
-  "test.vw", col.names = FALSE, quote = FALSE)
+      paste0(jj, ":", get(jj))))], 
+  "test.vw", sep = " ", col.names = FALSE, quote = FALSE)
