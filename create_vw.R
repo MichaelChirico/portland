@@ -3,8 +3,10 @@
 # **     GPP Featurization      **
 # Michael Chirico, Seth Flaxman,
 # Charles Loeffler, Pau Pereira
-library(data.table)
 library(spatstat)
+#data.table after spatstat to
+#  access data.table::shift more easily
+library(data.table)
 
 args = commandArgs(trailingOnly = TRUE)
 delx = as.integer(args[1L])
@@ -26,7 +28,8 @@ crimes_ever =
     #  and appears to do so pretty quickly
     x = x_coordina, y = y_coordina,
     xrange =  xrng, yrange = yrng),
-    #we can easily make these command line arguments
+    #this must be done within-loop
+    #  since it depends on delx & dely
     dimyx = c(y = dely, x = delx)))))
 #record order for more reliable merging below
 crimes_ever[order(x, y), I := .I]
@@ -64,4 +67,4 @@ fwrite(phi.dt[ , .(paste0(
     names(.SD), function(jj)
       paste0(jj, ":", get(jj)))),
     paste, collapse = " ")))], 
-  "test.vw", col.names = FALSE, quote = FALSE)
+  "output.vw", col.names = FALSE, quote = FALSE)
