@@ -50,7 +50,7 @@ crimes.grid.dt[order(x, y), I := .I]
 
 #subset to eliminate never-crime cells
 crimes.grid.dt = 
-  crimes.grid.dt[crimes_ever, .(x, y, value), on = "I"]
+  crimes.grid.dt[crimes_ever, .(x, y, value, I), on = "I"]
 
 #project -- these are the omega * xs
 proj = crimes.grid.dt[ , cbind(x, y)] %*% 
@@ -63,8 +63,21 @@ phi = cbind(cos(proj), sin(proj))/sqrt(features)
 phi.dt = as.data.table(phi)
 
 fwrite(phi.dt[ , .(paste0(
-  crimes.grid.dt$value, " | ", sapply(transpose(lapply(
+  crimes.grid.dt$value, " ", 
+  crimes.grid.dt$I, "| ", sapply(transpose(lapply(
     names(.SD), function(jj)
       paste0(jj, ":", get(jj)))),
     paste, collapse = " ")))], 
   "output.vw", col.names = FALSE, quote = FALSE)
+
+system('rm output.cache')
+#train with VW
+system(paste('vw --loss_function poisson --l2 1e-4 --l1 1e-5 output.vw',
+             '--cache_file output.cache --passes 200 -f output.model'))
+#test with VW
+system('vw -t -i output.model -p output_pred.txt output.vw --loss_function poisson')
+
+preds = fread("output_pred.txt", sep = " ", 
+              header = FALSE, col.names = c("pred", "I"))
+
+crimes.grid.dt[preds, pred := i.pred, on = "I"]
