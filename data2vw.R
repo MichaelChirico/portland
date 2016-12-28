@@ -41,9 +41,6 @@ pts = function(DT) DT[ , cbind(x_coordina, y_coordina)]
 nml = function(x) x/sum(x, na.rm = TRUE)
 pai = function(a, n, N, A) (n/N)/(a/A)
 
-# ============================================================================
-# USEFUL FUNCTIONS
-# ============================================================================
 to.map <- function(df, crs="+init=epsg:2913", pct=1){
   prj = CRS(crs)
   map = with(df,
@@ -136,72 +133,87 @@ grd.sp <-
 grd.id <- over(crimes.sp, grd.sp)
 crimes.sp$grdid <- grd.id$grdid
 
-# check
-# plot(grd.sp)
-plot(portland.bdy)
-plot(gBuffer(grd.sp[grd.sp$grdid == crimes.sp[1L, ]$grdid, ], width=500), col='red', add=TRUE)
-plot(crimes.sp[1L, ], add=TRUE)
+# # check
+# plot(portland.bdy)
+# plot(gBuffer(grd.sp[grd.sp$grdid == crimes.sp[1L, ]$grdid, ], width=500), col='red', add=TRUE)
+# plot(crimes.sp[1L, ], add=TRUE)
 
 # drop crimes outside the city
 crimes.sp <- crimes.sp[!is.na(crimes.sp$grdid), ]
 
 crimes.dt <- to.data.table(sp = crimes.sp)
-crimes.agg <- crimes.dt[, .N, by=.(grdid, occ_year, occ_wed)]
+crimes.agg <- crimes.dt[, .N, by=.(grdid, occ_year, occ_wed, category)]
+crimes.agg <- dcast(crimes.agg, grdid + occ_wed + occ_year ~ category, value.var='N', fill = 0)
+setnames(crimes.agg, c('BURGLARY','MOTOR VEHICLE THEFT','OTHER','STREET CRIMES'),
+                     c('N_burglary','N_vehicle','N_other','N_street'))
+crimes.agg[, N_all := N_burglary + N_vehicle + N_other + N_street]
 
+setkey(crimes.agg, grdid)
 # create factor variables
 crimes.agg[, `:=`(grdid = as.factor(grdid),
                   occ_year = as.factor(occ_year))]
 
 # ============================================================================
-# CREATE DUMMY VARIABLES
-# ============================================================================
-# library(caret)
-# dummies <- dummyVars("~.",data=crimes.agg, fullRank=F)
-# predict(dummies, crimes.agg)
-
-# ============================================================================
 # GENERATE KDE ESTIMATES
 # will use the KDE estimate of each cell as a feuture in the vw model
 # ============================================================================
-# # weekly estimates
-# crimes.dt <- to.data.table(crimes.sp) 
-# crimes.agg.week <- crimes.dt[, .N, by=.(occ_year, occ_wed, grdid, category)]
-# crimes.agg.week <- dcast(crimes.agg.week, occ_year + occ_wed + grdid ~ category, fill = 0, value.var = 'N')
 
-# using all data pooled
-kdes <- compute.kdes(crimes.sp, port.coord, h0 = 1000, grd = grd)
-
-grd.df <- SpatialGridDataFrame(grd, data = kdes)
-
-grd.ras <- brick(grd.df)
-par(mfrow=c(1,1))
-plot(grd.ras$all)
-plot(portland.bdy, add=T)
-plot(crimes.sp[sample(1:nrow(crimes.sp), 1000), ], add=T)
+# compute kdes by week
+weeks <- sort(crimes.dt[, unique(occ_wed)])
+week1.crimes <- crimes.sp[crimes.sp$occ_wed==weeks[1], ]
+kdes <- compute.kdes(week1.crimes, port.coord, 1000, grd) # kdes for 1st week
+kdes[, occ_wed := weeks[1]]
+for (i in seq_along(weeks)){
+  if (i==1) {next}
+  week <- weeks[i]
+  week.crimes <- crimes.sp[crimes.sp$occ_wed==week, ]
+  week.kdes <- compute.kdes(week.crimes, port.coord, 1000, grd)
+  week.kdes[, occ_wed := week]
+  kdes <- rbind(kdes, week.kdes)
+}
 
 # merge kde estimations with aggregate data:
-crimes.agg <- merge(crimes.agg, kdes, by.x='grdid', by.y='id', all.x=TRUE)
-# top.all <- kdes[order(-all), id][1:50]
-# plot(portland.bdy)
-# plot(grd.sp[grd.sp$grdid %in% top.all, ], add=T)
-# plot(grd.sp[grd.sp$grdid %in% crimes.agg[is.na(all), grdid],], add=T, col='red')
+crimes.agg <- merge(crimes.agg, kdes, by.x=c('grdid', 'occ_wed'), by.y=c('id', 'occ_wed'), all.x=TRUE)
 
+# turn NAs to 0s
 crimes.agg[is.na(all), all := 0]
 crimes.agg[is.na(street), street := 0]
 crimes.agg[is.na(burglary), burglary := 0]
 crimes.agg[is.na(vehicle), vehicle := 0]
 
-grd.df <- SpatialGridDataFrame(grd, data = kdes)
+# grd.df <- SpatialGridDataFrame(grd, data = kdes)
+# grd.ras <- brick(grd.df)
+# par(mfrow=c(1,1))
+# plot(grd.ras$all)
+# plot(portland.bdy, add=T)
+# plot(crimes.sp[sample(1:nrow(crimes.sp), 500), ], add=T)
+
+# grd.df <- SpatialGridDataFrame(grd, data = kdes)
 # par(mfrow=c(1,1))
 # spplot(grd.df, checkEmptyRC=FALSE, col.regions=terrain.colors(16), cuts=15)
 
 # ============================================================================
+# NORMALIZATIONS
+# - Normalize counts by cell area
+# - Reescale kde estimates to avoid overflow problems
+# ============================================================================
+
+cell.area = prod(grd@cellsize)
+print(cell.area)
+
+# rescale all explanatory variables
+sfactor <- 1e3
+
+for (col in c('all','burglary','street','vehicle'))
+  set(crimes.agg, j=col, value = crimes.agg[[col]]*sfactor)
+
+# ============================================================================
 # PARSE TO VOWPAL WABBIT
 # ============================================================================
-crimes.agg[, vw_all := paste(N, '|', grdid, occ_year, 'kde:', all)]
-crimes.agg[, vw_street := paste(N, '|', grdid, occ_year, 'kde:', street)]
-crimes.agg[, vw_burglary := paste(N, '|', grdid, occ_year, 'kde:', burglary)]
-crimes.agg[, vw_vehicle := paste(N, '|', grdid, occ_year, 'kde:', vehicle)]
+crimes.agg[, vw_all := paste(N_all, '|', grdid, occ_year) %+% ' kde:' %+% as.character(all)]
+crimes.agg[, vw_street := paste(N_street, '|', grdid, occ_year) %+% ' kde:' %+% as.character(street)]
+crimes.agg[, vw_burglary := paste(N_burglary, '|', grdid, occ_year) %+% ' kde:' %+% as.character(burglary)]
+crimes.agg[, vw_vehicle := paste(N_vehicle, '|', grdid, occ_year) %+% ' kde:' %+% as.character(vehicle)]
 
 # split into training and test sets
 crimes.agg.train <- crimes.agg[occ_wed < '2016-03-01',]
@@ -213,15 +225,17 @@ for (variable in c('vw_all','vw_street','vw_burglary','vw_vehicle')){
   write.table(crimes.agg.test[, get(variable)], paste0('data/vowpal/', variable,'_test.vw'), row.names = FALSE, quote = FALSE, col.names = FALSE)
 }
 
-# ============================================================================
+ # ============================================================================
 # ASSESS TEST DATA
 # ============================================================================
-# list.files('data/vowpal/')
-# test <- fread('data/vowpal/test.pred')
-# setnames(test, 'V1','pred')
-# 
-# test[, true := crimes.agg.test$N]
-# test[, plot(true, pred)]
+# load vowpal predictions
+list.files('data/vowpal/')
+test <- fread('data/vowpal/t_all.pred')
+setnames(test, 'V1','pred')
+test[, table(pred)]
+
+test[, true := crimes.agg.test$N]
+test[, plot(true, pred)]
 
 
 

@@ -1,4 +1,3 @@
-# Predictions using 3d kernels
 setwd('~/Dropbox/0_Penn/Research/crime_prediction/portland/')
 rm(list = ls())
 
