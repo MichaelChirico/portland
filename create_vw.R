@@ -24,14 +24,15 @@ pp = as.numeric(args[11L])
 
 #outer parameters
 metric = args[12L]
+hh = args[13L]
+crime.type = args[14L]
+
+aa = delx*dely #forecasted area
 horizon = list('1w' = as.IDate(c('2016-03-01', '2016-03-06')),
                '2w' = as.IDate(c('2016-03-01', '2016-03-13')),
                '1m' = as.IDate(c('2016-03-01', '2016-03-31')),
                '2m' = as.IDate(c('2016-03-01', '2016-04-30')),
-               '3m' = as.IDate(c('2016-03-01', '2016-05-21')))[[args[13L]]]
-crime.type = args[14L]
-
-aa = delx*dely #forecasted area
+               '3m' = as.IDate(c('2016-03-01', '2016-05-21')))[[hh]]
 
 crime.file = switch(crime.type,
                     all = "crimes_all.csv",
@@ -122,7 +123,8 @@ crimes.grid.dt[preds, pred := i.pred, on = "I"]
 #  we must round down; otherwise, just round
 # **TO DO: if we predict any boundary cells and are using the minimum
 #          forecast area, WE'LL FALL BELOW IT WHEN WE CLIP TO PORTLAND **
-which.round = function(x) if (x > 0) {if (x < 1) round else floor} else ceiling
+which.round = function(x)
+  if (x > 0) {if (x < 1) round else floor} else ceiling
 
 n.cells = as.integer(which.round(alpha)(6969600*(1+2*alpha)/aa))
 
@@ -140,8 +142,18 @@ crimes.future[order(x, y), I := .I]
 #how well did we do? lower-case n in the PEI/PAI calculation
 nn = crimes.future[crimes.grid.dt[(hotspot)], sum(x.value), on = "I"]
 
-switch(metric,
-       pei = nn/crimes.future[order(-value)[1L:n.cells], sum(value)],
-       #rather than load the portland shapefile just to calculate
-       #  the total area, pre-do that here
-       pai = (nn/crimes.future[ , sum(value)])/(aa*n.cells/4117777129))
+score =
+  switch(metric,
+         pei = nn/crimes.future[order(-value)[1L:n.cells], sum(value)],
+         #rather than load the portland shapefile just to calculate
+         #  the total area, pre-do that here
+         pai = (nn/crimes.future[ , sum(value)])/(aa*n.cells/4117777129))
+
+ff = paste0("scores/", crime.type, "_", hh, "_", metric, ".csv")
+
+if (!file.exists(ff)) 
+  cat("delx,dely,alpha,l,k,l1,l2,lambda,delta,t0,p,score\n", file = ff)
+
+cat(paste(delx, dely, alpha, lengthscale, features, l1, l2,
+          lambda, delta, t0, pp, score, sep = ","), "\n",
+    append = TRUE, file = ff)

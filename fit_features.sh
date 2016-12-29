@@ -4,7 +4,7 @@
 #  arguments:
 #    1 ) E-W grid width (delx)
 #    2 ) N-S grid width (dely)
-#    3 ) forecast area target weight alpha:
+#    3 ) forecast area target weight (alpha):
 #          alpha = 0 : minimum forecast area
 #          alpha = 1 : maximum forecast area
 #    4 ) lengthscale (l)
@@ -15,7 +15,7 @@
 #    9 ) decay rate, learning parameter for VW (delta)
 #    10) initial t, learning parameter for VW (t0)
 #    11) power t, learning parameter for VW (p)
-#    12) competition metric (pei or pai)
+#    12) competition metric m (pei or pai)
 #    13) forecasting horizon h:
 #         h = 1w : one week
 #         h = 2w : two weeks
