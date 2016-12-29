@@ -27,5 +27,4 @@
 #         c = street : Street Crime
 #         c = burglary : Burglary
 #         c = vehicle : Motor Vehicle Theft
-#              1   2  3   4   5   6    7   8 9 10 11  12 13  14
-./create_vw.R 600 600 0 1800 20 1e-4 1e-5 .5 1  0 .5 pei 1w all
+./create_vw.R $1 $2 $3 $4 $5 $6 $7 $8 $9 $10 $11 $12 $13 $14
