@@ -16,7 +16,7 @@ data/
 *.shp
 *.shx
 *.csv
-!crimes.csv
+!crimes_*
 
 #too many
 pei_pai_scripts/*.pdf
