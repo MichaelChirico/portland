@@ -11,4 +11,8 @@ crimes = rbindlist(lapply(list.files(
   #  also, some missing data snuck in on one line
   read.dbf, as.is = TRUE))[!is.na(occ_date)]
 
-fwrite(crimes, "crimes.csv")
+fwrite(crimes, "crimes_all.csv")
+crimes.split = split(crimes, by = "CATEGORY")
+fwrite(crimes.split[["STREET CRIMES"]], "crimes_str.csv")
+fwrite(crimes.split[["BURGLARY"]], "crimes_bur.csv")
+fwrite(crimes.split[["MOTOR VEHICLE THEFT"]], "crimes_veh.csv")
