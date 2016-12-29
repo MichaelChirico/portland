@@ -13,6 +13,9 @@ delx = as.integer(args[1L])
 dely = as.integer(args[2L])
 lengthscale = as.numeric(args[3L])
 features = as.integer(args[4L])
+l2 = as.numeric(args[5L])
+l1 = as.numeric(args[6L])
+alpha = as.numeric(args[7L])
 
 crimes = fread("crimes.csv")
 
@@ -62,22 +65,39 @@ phi = cbind(cos(proj), sin(proj))/sqrt(features)
 #convert to data.table for ease
 phi.dt = as.data.table(phi)
 
+#temporary files
+out.vw = tempfile()
+cache = tempfile()
+model = tempfile()
+preds = tempfile()
+
 fwrite(phi.dt[ , .(paste0(
   crimes.grid.dt$value, " ", 
   crimes.grid.dt$I, "| ", sapply(transpose(lapply(
     names(.SD), function(jj)
       paste0(jj, ":", get(jj)))),
     paste, collapse = " ")))], 
-  "output.vw", col.names = FALSE, quote = FALSE)
+  out.vw, col.names = FALSE, quote = FALSE)
 
-system('rm output.cache')
+## **TO DO: eliminate the cache purge once the system's
+##          up and running properly**
+if (file.exists(cache)) system(paste('rm', cache))
 #train with VW
-system(paste('vw --loss_function poisson --l2 1e-4 --l1 1e-5 output.vw',
-             '--cache_file output.cache --passes 200 -f output.model'))
+system(paste('vw --loss_function poisson --l2', l2, '--l1', l1, out.vw,
+             '--cache_file', cache, '--passes 200 -f', model))
 #test with VW
-system('vw -t -i output.model -p output_pred.txt output.vw --loss_function poisson')
+system(paste('vw -t -i', model, '-p', preds, 
+             out.vw, '--loss_function poisson'))
 
-preds = fread("output_pred.txt", sep = " ", 
-              header = FALSE, col.names = c("pred", "I"))
+preds = fread(preds, sep = " ", header = FALSE, col.names = c("pred", "I"))
 
 crimes.grid.dt[preds, pred := i.pred, on = "I"]
+
+#when we're at the minimum forecast area, we must round up
+#  to be sure we don't undershoot; when at the max,
+#  we must round down; otherwise, just round
+which.round = function(x) if (x > 0) {if (x < 1) round else floor} else ceiling
+
+n.cells = as.integer(which.round(alpha)(6969600*(1+2*alpha)/delx/dely))
+
+crimes.grid.dt[order(-pred), hotspot := .I <= n.cells]
