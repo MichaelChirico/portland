@@ -8,24 +8,38 @@ library(spatstat)
 #  access data.table::shift more easily
 library(data.table)
 
+#inner parameters
 args = commandArgs(trailingOnly = TRUE)
 delx = as.integer(args[1L])
 dely = as.integer(args[2L])
-lengthscale = as.numeric(args[3L])
-features = as.integer(args[4L])
-l2 = as.numeric(args[5L])
+alpha = as.numeric(args[3L])
+lengthscale = as.numeric(args[4L])
+features = as.integer(args[5L])
 l1 = as.numeric(args[6L])
-alpha = as.numeric(args[7L])
-metric = args[8L]
-horizon = list('1w' = as.Date(c('2016-03-01', '2016-03-06')),
-               '2w' = as.Date(c('2016-03-01', '2016-03-13')),
-               '1m' = as.Date(c('2016-03-01', '2016-03-31')),
-               '2m' = as.Date(c('2016-03-01', '2016-04-30')),
-               '3m' = as.Date(c('2016-03-01', '2016-05-21')))[[args[9L]]]
+l2 = as.numeric(args[7L])
+lambda = as.numeric(args[8L])
+delta = as.numeric(args[9L])
+t0 = as.numeric(args[10L])
+pp = as.numeric(args[11L])
+
+#outer parameters
+metric = args[12L]
+horizon = list('1w' = as.IDate(c('2016-03-01', '2016-03-06')),
+               '2w' = as.IDate(c('2016-03-01', '2016-03-13')),
+               '1m' = as.IDate(c('2016-03-01', '2016-03-31')),
+               '2m' = as.IDate(c('2016-03-01', '2016-04-30')),
+               '3m' = as.IDate(c('2016-03-01', '2016-05-21')))[[args[13L]]]
+crime.type = args[14L]
 
 aa = delx*dely #forecasted area
 
-crimes = fread("crimes.csv")
+crime.file = switch(crime.type,
+                    all = "crimes_all.csv",
+                    street = "crimes_str.csv",
+                    burglary = "crimes_bur.csv",
+                    vehicle = "crimes_veh.csv")
+
+crimes = fread(crime.file)
 crimes[ , occ_date := as.IDate(occ_date)]
 
 #record range here, so that
@@ -39,7 +53,7 @@ crimes_ever =
     #pixellate counts dots over each cell,
     #  and appears to do so pretty quickly
     x = x_coordina, y = y_coordina,
-    xrange =  xrng, yrange = yrng),
+    xrange = xrng, yrange = yrng),
     #this must be done within-loop
     #  since it depends on delx & dely
     dimyx = c(y = dely, x = delx)))))
@@ -90,7 +104,10 @@ fwrite(phi.dt[ , .(paste0(
 ##          up and running properly**
 if (file.exists(cache)) system(paste('rm', cache))
 #train with VW
-system(paste('vw --loss_function poisson --l2', l2, '--l1', l1, out.vw,
+system(paste('vw --loss_function poisson --l1', l1, '--l2', l2, 
+             '--learning_rate', lambda,
+             '--decay_learning_rate', delta,
+             '--initial_t', t0, '--power_t', pp, out.vw,
              '--cache_file', cache, '--passes 200 -f', model))
 #test with VW
 system(paste('vw -t -i', model, '-p', preds, 
