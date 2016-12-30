@@ -112,7 +112,7 @@ preds = tempfile()
 #   out.vw, col.names = FALSE, quote = FALSE)
 cat('starting VW output\n')
 for (ii in seq_len(nrow(crimes.grid.dt))) {
-  if (ii %% 1e4 == 0) cat('row', ii, '\n')
+  if (ii %% 1e6 == 0) cat('row', ii, '\n')
   crimes.grid.dt[ii, cat(value, " ", I, "| ", sep = "",
                          file = out.vw, append = TRUE)]
   phi.dt[ii, cat(paste(names(.SD), .SD, sep = ":"), 
