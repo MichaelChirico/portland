@@ -30,6 +30,12 @@ metric = args[12L]
 hh = args[13L]
 crime.type = args[14L]
 
+#baselines for testing:
+delx=dely=600;alpha=0;lengthscale=1800
+features=20;l1=1e-5;l2=1e-4;lambda=.5;
+delta=1;t0=1;pp=.5
+metric='pei';hh='1w';crime.type='all'
+
 aa = delx*dely #forecasted area
 horizon = list('1w' = as.IDate(c('2016-03-01', '2016-03-06')),
                '2w' = as.IDate(c('2016-03-01', '2016-03-13')),
@@ -57,7 +63,7 @@ crimes_ever =
     #pixellate counts dots over each cell,
     #  and appears to do so pretty quickly
     x = x_coordina, y = y_coordina,
-    xrange = xrng, yrange = yrng),
+    xrange = xrng, yrange = yrng, check = FALSE),
     #this must be done within-loop
     #  since it depends on delx & dely
     dimyx = c(y = dely, x = delx)))))
@@ -66,23 +72,22 @@ crimes_ever[order(x, y), I := .I]
 #eliminate no-crime cells
 crimes_ever = crimes_ever[value > 0]
 
-#repeat over-cell counting
 crimes.grid.dt = 
-  with(crimes[occ_date %between%
-                c("2016-02-22", "2016-02-28")],
-       setDT(as.data.frame(pixellate(ppp(
-         x = x_coordina, y = y_coordina,
-         xrange = xrng, yrange = yrng),
-         dimyx = c(y = dely, x = delx)))))
-crimes.grid.dt[order(x, y), I := .I]
-
+  crimes[occ_date <= "2016-02-28", 
+         as.data.table(pixellate(ppp(
+           x = x_coordina, y = y_coordina,
+           xrange = xrng, yrange = yrng, check = FALSE),
+           dimyx = c(y = dely, x = delx))),
+         by = week_no]
+#_should_ be ordered by this anyway
+crimes.grid.dt[order(-week_no, x, y), I := seq_len(.N), by = week_no]
 #subset to eliminate never-crime cells
 crimes.grid.dt = 
-  crimes.grid.dt[crimes_ever, .(x, y, value, I), on = "I"]
+  crimes.grid.dt[crimes_ever, .(week_no, x, y, value, I), on = "I"]
 
 #project -- these are the omega * xs
-proj = crimes.grid.dt[ , cbind(x, y)] %*% 
-  matrix(rnorm(2*features), nrow = 2L) / lengthscale
+proj = crimes.grid.dt[ , cbind(x, y, week_no)] %*% 
+  matrix(rnorm(3*features), nrow = 3L) / lengthscale
 
 #create the features
 phi = cbind(cos(proj), sin(proj))/sqrt(features)
