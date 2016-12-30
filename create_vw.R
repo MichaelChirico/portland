@@ -101,13 +101,26 @@ cache = tempfile()
 model = tempfile()
 preds = tempfile()
 
-fwrite(phi.dt[ , .(paste0(
-  crimes.grid.dt$value, " ", 
-  crimes.grid.dt$I, "| ", sapply(transpose(lapply(
-    names(.SD), function(jj)
-      paste0(jj, ":", get(jj)))),
-    paste, collapse = " ")))], 
-  out.vw, col.names = FALSE, quote = FALSE)
+# this version is faster, but _much_ more RAM-intensive
+#   than going line-by-line... abandoning for now
+# fwrite(phi.dt[ , .(paste0(
+#   crimes.grid.dt$value, " ", 
+#   crimes.grid.dt$I, "| ", sapply(transpose(lapply(
+#     names(.SD), function(jj)
+#       paste0(jj, ":", get(jj)))),
+#     paste, collapse = " ")))], 
+#   out.vw, col.names = FALSE, quote = FALSE)
+cat('starting VW output\n')
+for (ii in seq_len(nrow(crimes.grid.dt))) {
+  if (ii %% 1e4 == 0) cat('row', ii, '\n')
+  crimes.grid.dt[ii, cat(value, " ", I, "| ", sep = "",
+                         file = out.vw, append = TRUE)]
+  phi.dt[ii, cat(paste(names(.SD), .SD, sep = ":"), 
+                 sep = " ", file = out.vw, append = TRUE)]
+  cat("\n", file = out.vw, append = TRUE)
+}
+  
+
 
 ## **TO DO: eliminate the cache purge once the system's
 ##          up and running properly**
