@@ -8,6 +8,9 @@ library(spatstat)
 #  access data.table::shift more easily
 library(data.table)
 
+#from random.org
+set.seed(60251935)
+
 #inner parameters
 args = commandArgs(trailingOnly = TRUE)
 delx = as.integer(args[1L])
