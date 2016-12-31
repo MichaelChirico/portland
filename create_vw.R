@@ -92,35 +92,19 @@ proj = crimes.grid.dt[ , cbind(x, y, week_no)] %*%
 #create the features
 phi = cbind(cos(proj), sin(proj))/sqrt(features)
 
-#convert to data.table for ease
-phi.dt = as.data.table(phi)
-
 #temporary files
 out.vw = tempfile()
 cache = tempfile()
 model = tempfile()
 preds = tempfile()
 
-# this version is faster, but _much_ more RAM-intensive
-#   than going line-by-line... abandoning for now
-# fwrite(phi.dt[ , .(paste0(
-#   crimes.grid.dt$value, " ", 
-#   crimes.grid.dt$I, "| ", sapply(transpose(lapply(
-#     names(.SD), function(jj)
-#       paste0(jj, ":", get(jj)))),
-#     paste, collapse = " ")))], 
-#   out.vw, col.names = FALSE, quote = FALSE)
 cat('starting VW output\n')
-for (ii in seq_len(nrow(crimes.grid.dt))) {
-  if (ii %% 1e6 == 0) cat('row', ii, '\n')
-  crimes.grid.dt[ii, cat(value, " ", I, "| ", sep = "",
-                         file = out.vw, append = TRUE)]
-  phi.dt[ii, cat(paste(names(.SD), .SD, sep = ":"), 
-                 sep = " ", file = out.vw, append = TRUE)]
-  cat("\n", file = out.vw, append = TRUE)
-}
-  
-
+#convert to data.table to use fwrite
+phi.dt = data.table(v = crimes.grid.dt$value,
+                    l = paste0(crimes.grid.dt$I, "|"))
+for (jj in seq_len(ncol(phi)))
+  set(phi.dt, , paste0("V", jj), sprintf("V%i:%.5f", jj, phi[ , jj]))
+fwrite(phi.dt, out.vw, sep = " ", quote = FALSE, col.names = FALSE)
 
 ## **TO DO: eliminate the cache purge once the system's
 ##          up and running properly**
