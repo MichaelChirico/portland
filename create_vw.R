@@ -3,10 +3,14 @@
 # **     GPP Featurization      **
 # Michael Chirico, Seth Flaxman,
 # Charles Loeffler, Pau Pereira
-library(spatstat)
-#data.table after spatstat to
-#  access data.table::shift more easily
-library(data.table)
+cat("Setup...\t")
+t0 = proc.time()["elapsed"]
+suppressMessages({
+  library(spatstat, quietly = TRUE)
+  #data.table after spatstat to
+  #  access data.table::shift more easily
+  library(data.table, warn.conflicts = FALSE, quietly = TRUE)
+})
 
 #from random.org
 set.seed(60251935)
@@ -31,10 +35,10 @@ hh = args[13L]
 crime.type = args[14L]
 
 #baselines for testing:
-delx=dely=600;alpha=0;lengthscale=1800
-features=20;l1=1e-5;l2=1e-4;lambda=.5;
-delta=1;t0=1;pp=.5
-metric='pei';hh='1w';crime.type='all'
+# delx=dely=600;alpha=0;lengthscale=1800
+# features=20;l1=1e-5;l2=1e-4;lambda=.5;
+# delta=1;t0=1;pp=.5
+# metric='pei';hh='1w';crime.type='all'
 
 aa = delx*dely #forecasted area
 horizon = list('1w' = as.IDate(c('2016-03-01', '2016-03-06')),
@@ -72,6 +76,10 @@ crimes_ever[order(x, y), I := .I]
 #eliminate no-crime cells
 crimes_ever = crimes_ever[value > 0]
 
+t1 = proc.time()["elapsed"]
+cat(sprintf("%3.0fs", t1 - t0), "\n")
+cat("Pixellate...\t")
+t0 = proc.time()["elapsed"]
 crimes.grid.dt = 
   crimes[occ_date <= "2016-02-28", 
          as.data.table(pixellate(ppp(
@@ -80,16 +88,28 @@ crimes.grid.dt =
            dimyx = c(y = dely, x = delx))),
          by = week_no]
 #_should_ be ordered by this anyway
+t1 = proc.time()["elapsed"]
+cat(sprintf("%3.0fs", t1 - t0), "\n")
+cat("Delete Cells...\t")
+t0 = proc.time()["elapsed"]
 crimes.grid.dt[order(-week_no, x, y), I := seq_len(.N), by = week_no]
 #subset to eliminate never-crime cells
 crimes.grid.dt = 
   crimes.grid.dt[crimes_ever, .(week_no, x, y, value, I), on = "I"]
 
 #project -- these are the omega * xs
+t1 = proc.time()["elapsed"]
+cat(sprintf("%3.0fs", t1 - t0), "\n")
+cat("Projection...\t")
+t0 = proc.time()["elapsed"]
 proj = crimes.grid.dt[ , cbind(x, y, week_no)] %*% 
   matrix(rnorm(3*features), nrow = 3L) / lengthscale
 
 #create the features
+t1 = proc.time()["elapsed"]
+cat(sprintf("%3.0fs", t1 - t0), "\n")
+cat("Featurize...\t")
+t0 = proc.time()["elapsed"]
 phi = cbind(cos(proj), sin(proj))/sqrt(features)
 
 #temporary files
@@ -98,7 +118,10 @@ cache = tempfile()
 model = tempfile()
 preds = tempfile()
 
-cat('starting VW output\n')
+t1 = proc.time()["elapsed"]
+cat(sprintf("%3.0fs", t1 - t0), "\n")
+cat("VW Output...\t")
+t0 = proc.time()["elapsed"]
 #convert to data.table to use fwrite
 phi.dt = data.table(v = crimes.grid.dt$value,
                     l = paste0(crimes.grid.dt$I, "|"))
@@ -110,12 +133,21 @@ fwrite(phi.dt, out.vw, sep = " ", quote = FALSE, col.names = FALSE)
 ##          up and running properly**
 if (file.exists(cache)) system(paste('rm', cache))
 #train with VW
+t1 = proc.time()["elapsed"]
+cat(sprintf("%3.0fs", t1 - t0), "\n")
+cat("VW Training...\n")
+t0 = proc.time()["elapsed"]
 system(paste('vw --loss_function poisson --l1', l1, '--l2', l2, 
              '--learning_rate', lambda,
              '--decay_learning_rate', delta,
              '--initial_t', t0, '--power_t', pp, out.vw,
              '--cache_file', cache, '--passes 200 -f', model))
 #test with VW
+t1 = proc.time()["elapsed"]
+cat("\n****************************\n",
+    "VW Training...\t", sprintf("%3.0fs", t1 - t0), "\n")
+cat("VW Testing...\n")
+t0 = proc.time()["elapsed"]
 system(paste('vw -t -i', model, '-p', preds, 
              out.vw, '--loss_function poisson'))
 
@@ -128,6 +160,11 @@ crimes.grid.dt[preds, pred := i.pred, on = "I"]
 #  we must round down; otherwise, just round
 # **TO DO: if we predict any boundary cells and are using the minimum
 #          forecast area, WE'LL FALL BELOW IT WHEN WE CLIP TO PORTLAND **
+t1 = proc.time()["elapsed"]
+cat("\n****************************\n", 
+    "VW Testing...\t", sprintf("%3.0fs", t1 - t0), "\n")
+cat("Calculate Score...\t")
+t0 = proc.time()["elapsed"]
 which.round = function(x)
   if (x > 0) {if (x < 1) round else floor} else ceiling
 
@@ -140,7 +177,7 @@ crimes.future =
   with(crimes[occ_date %between% horizon],
        setDT(as.data.frame(pixellate(ppp(
          x = x_coordina, y = y_coordina,
-         xrange = xrng, yrange = yrng),
+         xrange = xrng, yrange = yrng, check = FALSE),
          dimyx = c(y = dely, x = delx)))))
 crimes.future[order(x, y), I := .I]
 
@@ -162,3 +199,5 @@ if (!file.exists(ff))
 cat(paste(delx, dely, alpha, lengthscale, features, l1, l2,
           lambda, delta, t0, pp, score, sep = ","), "\n",
     append = TRUE, file = ff)
+t1 = proc.time()["elapsed"]
+cat(sprintf("%3.0fs", t1 - t0), "\n")
