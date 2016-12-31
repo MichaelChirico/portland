@@ -27,4 +27,4 @@
 #         c = street : Street Crime
 #         c = burglary : Burglary
 #         c = vehicle : Motor Vehicle Theft
-./create_vw.R $1 $2 $3 $4 $5 $6 $7 $8 $9 $10 $11 $12 $13 $14
+./create_vw.R "$@"

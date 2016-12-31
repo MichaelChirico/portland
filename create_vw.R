@@ -26,7 +26,7 @@ l1 = as.numeric(args[6L])
 l2 = as.numeric(args[7L])
 lambda = as.numeric(args[8L])
 delta = as.numeric(args[9L])
-t0 = as.numeric(args[10L])
+t0.vw = as.numeric(args[10L])
 pp = as.numeric(args[11L])
 
 #outer parameters
@@ -36,8 +36,8 @@ crime.type = args[14L]
 
 #baselines for testing:
 # delx=dely=600;alpha=0;lengthscale=1800
-# features=20;l1=1e-5;l2=1e-4;lambda=.5;
-# delta=1;t0=1;pp=.5
+# features=5;l1=1e-5;l2=1e-4;lambda=.5;
+# delta=1;t0.vw=1;pp=.5
 # metric='pei';hh='1w';crime.type='all'
 
 aa = delx*dely #forecasted area
@@ -124,7 +124,7 @@ cat("VW Output...\t")
 t0 = proc.time()["elapsed"]
 #convert to data.table to use fwrite
 phi.dt = data.table(v = crimes.grid.dt$value,
-                    l = paste0(crimes.grid.dt$I, "|"))
+                    l = paste0(seq_len(nrow(phi)), "|"))
 for (jj in seq_len(ncol(phi)))
   set(phi.dt, , paste0("V", jj), sprintf("V%i:%.5f", jj, phi[ , jj]))
 fwrite(phi.dt, out.vw, sep = " ", quote = FALSE, col.names = FALSE)
@@ -140,7 +140,7 @@ t0 = proc.time()["elapsed"]
 system(paste('vw --loss_function poisson --l1', l1, '--l2', l2, 
              '--learning_rate', lambda,
              '--decay_learning_rate', delta,
-             '--initial_t', t0, '--power_t', pp, out.vw,
+             '--initial_t', t0.vw, '--power_t', pp, out.vw,
              '--cache_file', cache, '--passes 200 -f', model))
 #test with VW
 t1 = proc.time()["elapsed"]
@@ -197,7 +197,7 @@ if (!file.exists(ff))
   cat("delx,dely,alpha,l,k,l1,l2,lambda,delta,t0,p,score\n", file = ff)
 
 cat(paste(delx, dely, alpha, lengthscale, features, l1, l2,
-          lambda, delta, t0, pp, score, sep = ","), "\n",
+          lambda, delta, t0.vw, pp, score, sep = ","), "\n",
     append = TRUE, file = ff)
 t1 = proc.time()["elapsed"]
 cat(sprintf("%3.0fs", t1 - t0), "\n")
