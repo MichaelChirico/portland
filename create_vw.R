@@ -38,7 +38,7 @@ crime.type = args[14L]
 # delx=dely=600;alpha=0;lengthscale=1800
 # features=5;l1=1e-5;l2=1e-4;lambda=.5;
 # delta=1;t0.vw=1;pp=.5
-# metric='pei';hh='1w';crime.type='all'
+# metric='pei';hh='2w';crime.type='all'
 
 aa = delx*dely #forecasted area
 horizon = list('1w' = as.IDate(c('2016-03-01', '2016-03-06')),
@@ -81,16 +81,7 @@ cat(sprintf("%3.0fs", t1 - t0), "\n")
 cat("Pixellate...\t")
 t0 = proc.time()["elapsed"]
 crimes.grid.dt = 
-  crimes[occ_date <= "2016-02-28", 
-         as.data.table(pixellate(ppp(
-           x = x_coordina, y = y_coordina,
-           xrange = xrng, yrange = yrng, check = FALSE),
-           dimyx = c(y = dely, x = delx))),
-         by = week_no]
-
-#now, pixellate the future crimes
-crimes.future = 
-  crimes[occ_date %between% horizon, 
+  crimes[occ_date <= horizon[[2L]], 
          as.data.table(pixellate(ppp(
            x = x_coordina, y = y_coordina,
            xrange = xrng, yrange = yrng, check = FALSE),
@@ -103,26 +94,23 @@ cat("Delete Cells...\t")
 t0 = proc.time()["elapsed"]
 #_should_ be ordered by this anyway
 crimes.grid.dt[order(-week_no, x, y), I := seq_len(.N), by = week_no]
-crimes.future[order(-week_no, x, y), I := seq_len(.N), by = week_no]
 #subset to eliminate never-crime cells
 crimes.grid.dt = 
   crimes.grid.dt[crimes_ever, .(week_no, x, y, value, I), on = "I"]
-crimes.future = 
-  crimes.future[crimes_ever, .(week_no, x, y, value, I), on = "I"]
+
+#can use this to split into train & test
+crimes.grid.dt[ , train := week_no > 0L]
 
 #project -- these are the omega * xs
 t1 = proc.time()["elapsed"]
 cat(sprintf("%3.0fs", t1 - t0), "\n")
 cat("Project+Featurize...\t")
 t0 = proc.time()["elapsed"]
-freqs = matrix(rnorm(3*features), nrow = 3L)
-proj = crimes.grid.dt[ , cbind(x, y, week_no)] %*% freqs / lengthscale
-proj.future = crimes.future[ , cbind(x, y, week_no)] %*% freqs / lengthscale
+proj = crimes.grid.dt[ , cbind(x, y, week_no)] %*% 
+  matrix(rnorm(3*features), nrow = 3L) / lengthscale
 
 #create the features
 phi = cbind(cos(proj), sin(proj))/sqrt(features)
-phi.future = cbind(cos(proj.future), 
-                   sin(proj.future))/sqrt(features)
 
 t1 = proc.time()["elapsed"]
 cat(sprintf("%3.0fs", t1 - t0), "\n")
@@ -143,21 +131,16 @@ cat("Training file:", train.vw,
     "\nPredictions:", pred.vw, "\n")
 
 #convert to data.table to use fwrite
-phi.dt = data.table(v = crimes.grid.dt$value,
-                    l = paste0(crimes.grid.dt$I, "_", 
-                               crimes.grid.dt$week_no, "|"))
-phi.future.dt = data.table(v = crimes.future$value,
-                           l = paste0(crimes.future$I, "_", 
-                                      crimes.future$week_no, "|"))
+phi.dt = with(crimes.grid.dt,
+              data.table(v = value,
+                         l = paste0(I, "_", week_no, "|")))
 for (jj in seq_len(ncol(phi)))
-  set(phi.dt, , paste0("V", jj), 
-      sprintf("V%i:%.5f", jj, phi[ , jj]))
-fwrite(phi.dt, train.vw, sep = " ", quote = FALSE, col.names = FALSE)
-
-for (jj in seq_len(ncol(phi.future)))
-  set(phi.future.dt, , paste0("V", jj), 
-      sprintf("V%i:%.5f", jj, phi.future[ , jj]))
-fwrite(phi.future.dt, test.vw, sep = " ", quote = FALSE, col.names = FALSE)
+  set(phi.dt, j = paste0("V", jj), 
+      value = sprintf("V%i:%.5f", jj, phi[ , jj]))
+fwrite(phi.dt[crimes.grid.dt$train], train.vw, 
+       sep = " ", quote = FALSE, col.names = FALSE)
+fwrite(phi.dt[!crimes.grid.dt$train], test.vw, 
+       sep = " ", quote = FALSE, col.names = FALSE)
 
 ## **TO DO: eliminate the cache purge once the system's
 ##          up and running properly**
