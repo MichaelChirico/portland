@@ -124,7 +124,7 @@ cat("VW Output...\t")
 t0 = proc.time()["elapsed"]
 #convert to data.table to use fwrite
 phi.dt = data.table(v = crimes.grid.dt$value,
-                    l = paste0(seq_len(nrow(phi)), "|"))
+                    l = paste0(crimes.grid.dt$I, "|"))
 for (jj in seq_len(ncol(phi)))
   set(phi.dt, , paste0("V", jj), sprintf("V%i:%.5f", jj, phi[ , jj]))
 fwrite(phi.dt, out.vw, sep = " ", quote = FALSE, col.names = FALSE)
