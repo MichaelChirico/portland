@@ -31,7 +31,7 @@ pp = as.numeric(args[11L])
 
 #outer parameters
 metric = args[12L]
-hh = args[13L]
+horizon = args[13L]
 crime.type = args[14L]
 
 #baselines for testing:
@@ -41,11 +41,11 @@ crime.type = args[14L]
 # metric='pei';hh='2w';crime.type='all'
 
 aa = delx*dely #forecasted area
-horizon = list('1w' = as.IDate(c('2016-03-01', '2016-03-06')),
-               '2w' = as.IDate(c('2016-03-01', '2016-03-13')),
-               '1m' = as.IDate(c('2016-03-01', '2016-03-31')),
-               '2m' = as.IDate(c('2016-03-01', '2016-04-30')),
-               '3m' = as.IDate(c('2016-03-01', '2016-05-21')))[[hh]]
+end.date = 
+  as.IDate(switch(
+    horizon, '1w' = '2016-03-06', '2w' = '2016-03-13',
+    '1m' = '2016-03-31', '2m' = '2016-04-30', '3m' = '2016-05-21'
+  ))
 
 crime.file = switch(crime.type,
                     all = "crimes_all.csv",
@@ -81,7 +81,7 @@ cat(sprintf("%3.0fs", t1 - t0), "\n")
 cat("Pixellate...\t")
 t0 = proc.time()["elapsed"]
 crimes.grid.dt = 
-  crimes[occ_date <= horizon[[2L]], 
+  crimes[occ_date <= end.date, 
          as.data.table(pixellate(ppp(
            x = x_coordina, y = y_coordina,
            xrange = xrng, yrange = yrng, check = FALSE),
@@ -205,7 +205,7 @@ score =
          #  the total area, pre-do that here
          pai = (nn/crimes.future[ , sum(value)])/(aa*n.cells/4117777129))
 
-ff = paste0("scores/", crime.type, "_", hh, "_", metric, ".csv")
+ff = paste0("scores/", crime.type, "_", horizon, "_", metric, ".csv")
 
 if (!file.exists(ff)) 
   cat("delx,dely,alpha,l,k,l1,l2,lambda,delta,t0,p,score\n", file = ff)
