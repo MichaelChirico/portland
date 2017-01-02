@@ -87,60 +87,91 @@ crimes.grid.dt =
            xrange = xrng, yrange = yrng, check = FALSE),
            dimyx = c(y = dely, x = delx))),
          by = week_no]
-#_should_ be ordered by this anyway
+
+#now, pixellate the future crimes
+crimes.future = 
+  crimes[occ_date %between% horizon, 
+         as.data.table(pixellate(ppp(
+           x = x_coordina, y = y_coordina,
+           xrange = xrng, yrange = yrng, check = FALSE),
+           dimyx = c(y = dely, x = delx))),
+         by = week_no]
+
 t1 = proc.time()["elapsed"]
 cat(sprintf("%3.0fs", t1 - t0), "\n")
 cat("Delete Cells...\t")
 t0 = proc.time()["elapsed"]
+#_should_ be ordered by this anyway
 crimes.grid.dt[order(-week_no, x, y), I := seq_len(.N), by = week_no]
+crimes.future[order(-week_no, x, y), I := seq_len(.N), by = week_no]
 #subset to eliminate never-crime cells
 crimes.grid.dt = 
   crimes.grid.dt[crimes_ever, .(week_no, x, y, value, I), on = "I"]
+crimes.future = 
+  crimes.future[crimes_ever, .(week_no, x, y, value, I), on = "I"]
 
 #project -- these are the omega * xs
 t1 = proc.time()["elapsed"]
 cat(sprintf("%3.0fs", t1 - t0), "\n")
-cat("Projection...\t")
+cat("Project+Featurize...\t")
 t0 = proc.time()["elapsed"]
-proj = crimes.grid.dt[ , cbind(x, y, week_no)] %*% 
-  matrix(rnorm(3*features), nrow = 3L) / lengthscale
+freqs = matrix(rnorm(3*features), nrow = 3L)
+proj = crimes.grid.dt[ , cbind(x, y, week_no)] %*% freqs / lengthscale
+proj.future = crimes.future[ , cbind(x, y, week_no)] %*% freqs / lengthscale
 
 #create the features
+phi = cbind(cos(proj), sin(proj))/sqrt(features)
+phi.future = cbind(cos(proj.future), 
+                   sin(proj.future))/sqrt(features)
+
 t1 = proc.time()["elapsed"]
 cat(sprintf("%3.0fs", t1 - t0), "\n")
-cat("Featurize...\t")
+cat("VW Output...\n")
 t0 = proc.time()["elapsed"]
-phi = cbind(cos(proj), sin(proj))/sqrt(features)
 
 #temporary files
-out.vw = tempfile()
+train.vw = tempfile()
+test.vw = tempfile()
 cache = tempfile()
 model = tempfile()
-preds = tempfile()
+pred.vw = tempfile()
 
-t1 = proc.time()["elapsed"]
-cat(sprintf("%3.0fs", t1 - t0), "\n")
-cat("VW Output...\t")
-t0 = proc.time()["elapsed"]
+cat("Training file:", train.vw,
+    "\nTesting file:", test.vw,
+    "\nCache:", cache,
+    "\nModel:", model,
+    "\nPredictions:", pred.vw, "\n")
+
 #convert to data.table to use fwrite
 phi.dt = data.table(v = crimes.grid.dt$value,
-                    l = paste0(crimes.grid.dt$I, "|"))
+                    l = paste0(crimes.grid.dt$I, "_", 
+                               crimes.grid.dt$week_no, "|"))
+phi.future.dt = data.table(v = crimes.future$value,
+                           l = paste0(crimes.future$I, "_", 
+                                      crimes.future$week_no, "|"))
 for (jj in seq_len(ncol(phi)))
-  set(phi.dt, , paste0("V", jj), sprintf("V%i:%.5f", jj, phi[ , jj]))
-fwrite(phi.dt, out.vw, sep = " ", quote = FALSE, col.names = FALSE)
+  set(phi.dt, , paste0("V", jj), 
+      sprintf("V%i:%.5f", jj, phi[ , jj]))
+fwrite(phi.dt, train.vw, sep = " ", quote = FALSE, col.names = FALSE)
+
+for (jj in seq_len(ncol(phi.future)))
+  set(phi.future.dt, , paste0("V", jj), 
+      sprintf("V%i:%.5f", jj, phi.future[ , jj]))
+fwrite(phi.future.dt, test.vw, sep = " ", quote = FALSE, col.names = FALSE)
 
 ## **TO DO: eliminate the cache purge once the system's
 ##          up and running properly**
 if (file.exists(cache)) system(paste('rm', cache))
 #train with VW
 t1 = proc.time()["elapsed"]
-cat(sprintf("%3.0fs", t1 - t0), "\n")
+cat("\n****************************\n",
+    "VW Output...\t", sprintf("%3.0fs", t1 - t0), "\n")
 cat("VW Training...\n")
 t0 = proc.time()["elapsed"]
 system(paste('vw --loss_function poisson --l1', l1, '--l2', l2, 
              '--learning_rate', lambda,
              '--decay_learning_rate', delta,
-             '--initial_t', t0.vw, '--power_t', pp, out.vw,
+             '--initial_t', t0.vw, '--power_t', pp, train.vw,
              '--cache_file', cache, '--passes 200 -f', model))
 #test with VW
 t1 = proc.time()["elapsed"]
@@ -148,12 +179,16 @@ cat("\n****************************\n",
     "VW Training...\t", sprintf("%3.0fs", t1 - t0), "\n")
 cat("VW Testing...\n")
 t0 = proc.time()["elapsed"]
-system(paste('vw -t -i', model, '-p', preds, 
-             out.vw, '--loss_function poisson'))
 
-preds = fread(preds, sep = " ", header = FALSE, col.names = c("pred", "I"))
+system(paste('vw -t -i', model, '-p', pred.vw, 
+             test.vw, '--loss_function poisson'))
 
-crimes.grid.dt[preds, pred := i.pred, on = "I"]
+preds = fread(pred.vw, sep = " ", header = FALSE, col.names = c("pred", "I_wk"))
+preds[ , c("I", "week_no", "I_wk") := 
+         c(lapply(tstrsplit(I_wk, split = "_"), as.integer),
+           list(NULL))]
+
+crimes.future[preds, pred.count := exp(i.pred), on = c("I", "week_no")]
 
 #when we're at the minimum forecast area, we must round up
 #  to be sure we don't undershoot; when at the max,
@@ -170,23 +205,19 @@ which.round = function(x)
 
 n.cells = as.integer(which.round(alpha)(6969600*(1+2*alpha)/aa))
 
-crimes.grid.dt[order(-pred), hotspot := .I <= n.cells]
-
-#now, pixellate the future crimes
-crimes.future = 
-  with(crimes[occ_date %between% horizon],
-       setDT(as.data.frame(pixellate(ppp(
-         x = x_coordina, y = y_coordina,
-         xrange = xrng, yrange = yrng, check = FALSE),
-         dimyx = c(y = dely, x = delx)))))
-crimes.future[order(x, y), I := .I]
+hotspot.ids =
+  crimes.future[ , .(tot.pred = sum(pred.count)), by = I
+                 ][order(-tot.pred)[1L:n.cells], I]
+crimes.future[ , hotspot := I %in% hotspot.ids]
 
 #how well did we do? lower-case n in the PEI/PAI calculation
-nn = crimes.future[crimes.grid.dt[(hotspot)], sum(x.value), on = "I"]
+nn = crimes.future[(hotspot), sum(value)]
 
 score =
   switch(metric,
-         pei = nn/crimes.future[order(-value)[1L:n.cells], sum(value)],
+         pei = nn/crimes.future[ , .(tot.crimes = sum(value)), by = I
+                                 ][order(-tot.crimes)[1L:n.cells],
+                                   sum(tot.crimes)],
          #rather than load the portland shapefile just to calculate
          #  the total area, pre-do that here
          pai = (nn/crimes.future[ , sum(value)])/(aa*n.cells/4117777129))
