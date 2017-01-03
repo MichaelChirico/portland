@@ -79,7 +79,7 @@ incl_ids =
 
 t1 = proc.time()["elapsed"]
 cat(sprintf("%3.0fs", t1 - t0), "\n")
-cat("Pixellate...\t")
+cat("Pixellate&Delete Cells...\t")
 t0 = proc.time()["elapsed"]
 crimes.grid.dt = 
   crimes[occ_date <= end.date, 
@@ -87,17 +87,9 @@ crimes.grid.dt =
            x = x_coordina, y = y_coordina,
            xrange = xrng, yrange = yrng, check = FALSE),
            dimyx = c(y = dely, x = delx))),
-         by = week_no]
-rm(crimes)
-
-t1 = proc.time()["elapsed"]
-cat(sprintf("%3.0fs", t1 - t0), "\n")
-cat("Delete Cells...\t")
-t0 = proc.time()["elapsed"]
-crimes.grid.dt[ , I := seq_len(.N), by = week_no]
-#subset to eliminate never-crime cells
-crimes.grid.dt = crimes.grid.dt[I %in% incl_ids]
-rm(incl_ids)
+         #subset to eliminate never-crime cells
+         by = week_no][rowid(week_no) %in% incl_ids]
+rm(crimes, incl_ids)
 
 #can use this to split into train & test
 crimes.grid.dt[ , train := week_no > 0L]
@@ -108,7 +100,7 @@ cat(sprintf("%3.0fs", t1 - t0), "\n")
 cat("Project+Featurize...\t")
 t0 = proc.time()["elapsed"]
 proj = crimes.grid.dt[ , cbind(x, y, week_no)] %*% 
-  matrix(rnorm(3*features), nrow = 3L) / lengthscale
+  matrix(rnorm(3L*features), nrow = 3L)/lengthscale
 
 #create the features
 phi = cbind(cos(proj), sin(proj))/sqrt(features)
