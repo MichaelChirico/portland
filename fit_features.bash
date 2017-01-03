@@ -1,4 +1,10 @@
 #!/bin/bash
+#$ -cwd
+#$ -q all.q
+#$ -pe openmp 1
+#$ -S /bin/bash
+#$ -o /home/chiricom/portland/output_vw_fit.log
+#$ -e /home/chiricom/portland/error_vw_fit.log
 
 #create vw file
 #  arguments:
