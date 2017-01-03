@@ -174,6 +174,8 @@ system(paste('vw -t -i', model, '-p', pred.vw,
              test.vw, '--loss_function poisson'))
 
 preds = fread(pred.vw, sep = " ", header = FALSE, col.names = c("pred", "I_wk"))
+#wrote 2-variable label with _ to fit VW guidelines;
+#  now split back to constituents so we can join
 preds[ , c("I", "week_no", "I_wk") := 
          c(lapply(tstrsplit(I_wk, split = "_"), as.integer),
            list(NULL))]
