@@ -1,4 +1,4 @@
-#!/usr/bin/env Rscript
+#!/usr/bin/Rscript
 # Forecasting Crime in Portland
 # **     GPP Featurization      **
 # Michael Chirico, Seth Flaxman,
