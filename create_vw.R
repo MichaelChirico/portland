@@ -35,10 +35,10 @@ horizon = args[13L]
 crime.type = args[14L]
 
 #baselines for testing:
-# delx=dely=600;alpha=0;lengthscale=1800
-# features=5;l1=1e-5;l2=1e-4;lambda=.5;
-# delta=1;t0.vw=1;pp=.5
-# metric='pei';hh='2w';crime.type='all'
+delx=dely=600;alpha=0;lengthscale=1800
+features=5;l1=1e-5;l2=1e-4;lambda=.5;
+delta=1;t0.vw=1;pp=.5
+metric='pei';horizon='2w';crime.type='all'
 
 aa = delx*dely #forecasted area
 end.date = 
@@ -71,10 +71,9 @@ crimes_ever =
     #this must be done within-loop
     #  since it depends on delx & dely
     dimyx = c(y = dely, x = delx)))))
-#record order for more reliable merging below
-crimes_ever[order(x, y), I := .I]
-#eliminate no-crime cells
-crimes_ever = crimes_ever[value > 0]
+#record order, then find cells that ever have a crime
+incl_ids = crimes_ever[order(x, y), .(value = value, I = .I)][value > 0, I]
+rm(crimes_ever)
 
 t1 = proc.time()["elapsed"]
 cat(sprintf("%3.0fs", t1 - t0), "\n")
@@ -87,16 +86,20 @@ crimes.grid.dt =
            xrange = xrng, yrange = yrng, check = FALSE),
            dimyx = c(y = dely, x = delx))),
          by = week_no]
+rm(crimes)
 
 t1 = proc.time()["elapsed"]
 cat(sprintf("%3.0fs", t1 - t0), "\n")
 cat("Delete Cells...\t")
 t0 = proc.time()["elapsed"]
-#_should_ be ordered by this anyway
+#_should_ be ordered by this anyway,
+#  so including week_no should speed up
+#  the sort (instead of first undoing
+#  the sorting by week_no)
 crimes.grid.dt[order(-week_no, x, y), I := seq_len(.N), by = week_no]
 #subset to eliminate never-crime cells
-crimes.grid.dt = 
-  crimes.grid.dt[crimes_ever, .(week_no, x, y, value, I), on = "I"]
+crimes.grid.dt = crimes.grid.dt[I %in% incl_ids]
+rm(incl_ids)
 
 #can use this to split into train & test
 crimes.grid.dt[ , train := week_no > 0L]
@@ -111,6 +114,7 @@ proj = crimes.grid.dt[ , cbind(x, y, week_no)] %*%
 
 #create the features
 phi = cbind(cos(proj), sin(proj))/sqrt(features)
+rm(proj)
 
 t1 = proc.time()["elapsed"]
 cat(sprintf("%3.0fs", t1 - t0), "\n")
@@ -137,10 +141,12 @@ phi.dt = with(crimes.grid.dt,
 for (jj in seq_len(ncol(phi)))
   set(phi.dt, j = paste0("V", jj), 
       value = sprintf("V%i:%.5f", jj, phi[ , jj]))
+rm(phi)
 fwrite(phi.dt[crimes.grid.dt$train], train.vw, 
        sep = " ", quote = FALSE, col.names = FALSE)
 fwrite(phi.dt[!crimes.grid.dt$train], test.vw, 
        sep = " ", quote = FALSE, col.names = FALSE)
+rm(phi.dt)
 
 ## **TO DO: eliminate the cache purge once the system's
 ##          up and running properly**
@@ -171,7 +177,8 @@ preds[ , c("I", "week_no", "I_wk") :=
          c(lapply(tstrsplit(I_wk, split = "_"), as.integer),
            list(NULL))]
 
-crimes.future[preds, pred.count := exp(i.pred), on = c("I", "week_no")]
+crimes.grid.dt[preds, pred.count := exp(i.pred), on = c("I", "week_no")]
+rm(preds)
 
 #when we're at the minimum forecast area, we must round up
 #  to be sure we don't undershoot; when at the max,
@@ -189,21 +196,21 @@ which.round = function(x)
 n.cells = as.integer(which.round(alpha)(6969600*(1+2*alpha)/aa))
 
 hotspot.ids =
-  crimes.future[ , .(tot.pred = sum(pred.count)), by = I
+  crimes.grid.dt[(!train), .(tot.pred = sum(pred.count)), by = I
                  ][order(-tot.pred)[1L:n.cells], I]
-crimes.future[ , hotspot := I %in% hotspot.ids]
+crimes.grid.dt[(!train), hotspot := I %in% hotspot.ids]
 
 #how well did we do? lower-case n in the PEI/PAI calculation
-nn = crimes.future[(hotspot), sum(value)]
+nn = crimes.grid.dt[(hotspot), sum(value)]
 
 score =
   switch(metric,
-         pei = nn/crimes.future[ , .(tot.crimes = sum(value)), by = I
-                                 ][order(-tot.crimes)[1L:n.cells],
-                                   sum(tot.crimes)],
+         pei = nn/crimes.grid.dt[(!train), .(tot.crimes = sum(value)), by = I
+                                  ][order(-tot.crimes)[1L:n.cells],
+                                    sum(tot.crimes)],
          #rather than load the portland shapefile just to calculate
          #  the total area, pre-do that here
-         pai = (nn/crimes.future[ , sum(value)])/(aa*n.cells/4117777129))
+         pai = (nn/crimes.grid.dt[(!train), sum(value)])/(aa*n.cells/4117777129))
 
 ff = paste0("scores/", crime.type, "_", horizon, "_", metric, ".csv")
 
