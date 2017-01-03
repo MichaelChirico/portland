@@ -131,11 +131,12 @@ cat("VW Output...\n")
 t0 = proc.time()["elapsed"]
 
 #temporary files
-train.vw = tempfile()
-test.vw = tempfile()
-cache = tempfile()
-model = tempfile()
-pred.vw = tempfile()
+tdir = "delete_me"
+train.vw = tempfile(tmpdir = tdir)
+test.vw = tempfile(tmpdir = tdir)
+cache = tempfile(tmpdir = tdir)
+model = tempfile(tmpdir = tdir)
+pred.vw = tempfile(tmpdir = tdir)
 
 cat("Training file:", train.vw,
     "\nTesting file:", test.vw,
