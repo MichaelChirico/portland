@@ -97,13 +97,25 @@ crimes.grid.dt[ , train := week_no > 0L]
 #project -- these are the omega * xs
 t1 = proc.time()["elapsed"]
 cat(sprintf("%3.0fs", t1 - t0), "\n")
-cat("Project+Featurize...\t")
+cat("Project&Featurize...\t")
 t0 = proc.time()["elapsed"]
 proj = crimes.grid.dt[ , cbind(x, y, week_no)] %*% 
   matrix(rnorm(3L*features), nrow = 3L)/lengthscale
 
+#convert to data.table to use fwrite
+phi.dt = with(crimes.grid.dt,
+              data.table(v = value,
+                         l = paste0(I, "_", week_no, "|")))
 #create the features
-phi = cbind(cos(proj), sin(proj))/sqrt(features)
+fkt = 1/sqrt(features)
+#first, cos's
+for (jj in 1L:features)
+  set(phi.dt, j = paste0("V", jj), 
+      value = sprintf("V%i:%.5f", jj, fkt*cos(proj[ , jj])))
+#second, sin's
+for (jj in features+(1L:features))
+  set(phi.dt, j = paste0("V", jj), 
+      value = sprintf("V%i:%.5f", jj, fkt*sin(proj[ , jj - features])))
 rm(proj)
 
 t1 = proc.time()["elapsed"]
@@ -124,14 +136,6 @@ cat("Training file:", train.vw,
     "\nModel:", model,
     "\nPredictions:", pred.vw, "\n")
 
-#convert to data.table to use fwrite
-phi.dt = with(crimes.grid.dt,
-              data.table(v = value,
-                         l = paste0(I, "_", week_no, "|")))
-for (jj in seq_len(ncol(phi)))
-  set(phi.dt, j = paste0("V", jj), 
-      value = sprintf("V%i:%.5f", jj, phi[ , jj]))
-rm(phi)
 fwrite(phi.dt[crimes.grid.dt$train], train.vw, 
        sep = " ", quote = FALSE, col.names = FALSE)
 fwrite(phi.dt[!crimes.grid.dt$train], test.vw, 
