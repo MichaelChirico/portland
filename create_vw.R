@@ -35,10 +35,10 @@ horizon = args[13L]
 crime.type = args[14L]
 
 #baselines for testing:
-delx=dely=600;alpha=0;lengthscale=1800
-features=5;l1=1e-5;l2=1e-4;lambda=.5;
-delta=1;t0.vw=1;pp=.5
-metric='pei';horizon='2w';crime.type='all'
+# delx=dely=600;alpha=0;lengthscale=1800
+# features=100;l1=1e-5;l2=1e-4;lambda=.5;
+# delta=1;t0.vw=1;pp=.5
+# metric='pei';horizon='2w';crime.type='all'
 
 aa = delx*dely #forecasted area
 end.date = 
@@ -62,7 +62,10 @@ crimes[ , occ_date := as.IDate(occ_date)]
 xrng = crimes[ , range(x_coordina)]
 yrng = crimes[ , range(y_coordina)]
 
-crimes_ever = 
+#**TO DO: Check this Issue to be sure 
+#  the cells are actually sorted by x,y
+#  https://github.com/spatstat/spatstat/issues/37
+incl_ids = 
   with(crimes, setDT(as.data.frame(pixellate(ppp(
     #pixellate counts dots over each cell,
     #  and appears to do so pretty quickly
@@ -70,10 +73,9 @@ crimes_ever =
     xrange = xrng, yrange = yrng, check = FALSE),
     #this must be done within-loop
     #  since it depends on delx & dely
-    dimyx = c(y = dely, x = delx)))))
-#record order, then find cells that ever have a crime
-incl_ids = crimes_ever[order(x, y), .(value = value, I = .I)][value > 0, I]
-rm(crimes_ever)
+    dimyx = c(y = dely, x = delx))))
+    #find cells that ever have a crime
+  )[value > 0, which = TRUE]
 
 t1 = proc.time()["elapsed"]
 cat(sprintf("%3.0fs", t1 - t0), "\n")
@@ -92,11 +94,7 @@ t1 = proc.time()["elapsed"]
 cat(sprintf("%3.0fs", t1 - t0), "\n")
 cat("Delete Cells...\t")
 t0 = proc.time()["elapsed"]
-#_should_ be ordered by this anyway,
-#  so including week_no should speed up
-#  the sort (instead of first undoing
-#  the sorting by week_no)
-crimes.grid.dt[order(-week_no, x, y), I := seq_len(.N), by = week_no]
+crimes.grid.dt[ , I := seq_len(.N), by = week_no]
 #subset to eliminate never-crime cells
 crimes.grid.dt = crimes.grid.dt[I %in% incl_ids]
 rm(incl_ids)
