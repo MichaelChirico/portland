@@ -36,7 +36,7 @@ crime.type = args[14L]
 
 #baselines for testing:
 # delx=dely=600;alpha=0;lengthscale=1800
-# features=100;l1=1e-5;l2=1e-4;lambda=.5;
+# features=10;l1=1e-5;l2=1e-4;lambda=.5;
 # delta=1;t0.vw=1;pp=.5
 # metric='pei';horizon='2w';crime.type='all'
 
@@ -88,7 +88,7 @@ crimes.grid.dt =
            xrange = xrng, yrange = yrng, check = FALSE),
            dimyx = c(y = dely, x = delx))),
          #subset to eliminate never-crime cells
-         by = week_no][rowid(week_no) %in% incl_ids]
+         by = week_no][ , I := rowid(week_no)][I %in% incl_ids]
 rm(crimes, incl_ids)
 
 #can use this to split into train & test
@@ -107,6 +107,13 @@ phi.dt = with(crimes.grid.dt,
               data.table(v = value,
                          l = paste0(I, "_", week_no, "|")))
 #create the features
+#  previously explored alternative:
+#  assign cos/sin projection as matrix:
+#  phi = cbind(cos(proj), sin(proj))/sqrt(features)
+#  then assign to phi.dt column-wise,
+#  but this _appears_ to be slower than implicitly
+#  creating this as below by taking sin/cos 
+#  simultaneously with assigning to phi.dt.
 fkt = 1/sqrt(features)
 #first, cos's
 for (jj in 1L:features)
