@@ -73,7 +73,7 @@ incl_ids =
     xrange = xrng, yrange = yrng, check = FALSE),
     #this must be done within-loop
     #  since it depends on delx & dely
-    dimyx = c(y = dely, x = delx))))
+    eps = c(delx, dely))))
     #find cells that ever have a crime
   )[value > 0, which = TRUE]
 
