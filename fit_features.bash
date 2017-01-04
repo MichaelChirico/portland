@@ -17,22 +17,24 @@ module load shared R/3.3.2 vowpal_wabbit
 #    3 ) forecast area target weight (alpha):
 #          alpha = 0 : minimum forecast area
 #          alpha = 1 : maximum forecast area
-#    4 ) lengthscale (l)
-#    5 ) # of features (k)
-#    6 ) L1 loss parameter for VW (l1)
-#    7 ) L2 loss parameter for VW (l2)
-#    8 ) learning rate, learning parameter for VW (lambda)
-#    9 ) decay rate, learning parameter for VW (delta)
-#    10) initial t, learning parameter for VW (t0)
-#    11) power t, learning parameter for VW (p)
-#    12) competition metric m (pei or pai)
-#    13) forecasting horizon h:
+#    4 ) spatial lengthscale factor (eta):
+#          lengthscale_{x,y} = eta*del{x,y}
+#    5 ) temporal lengthscale (lt):
+#    6 ) # of features (k)
+#    7 ) L1 loss parameter for VW (l1)
+#    8 ) L2 loss parameter for VW (l2)
+#    9 ) learning rate, learning parameter for VW (lambda)
+#    10) decay rate, learning parameter for VW (delta)
+#    11) initial t, learning parameter for VW (t0)
+#    12) power t, learning parameter for VW (p)
+#    13) competition metric m (pei or pai)
+#    14) forecasting horizon h:
 #         h = 1w : one week
 #         h = 2w : two weeks
 #         h = 1m : one month
 #         h = 2m : two months
 #         h = 3m : three months
-#    14) crime category c
+#    15) crime category c
 #         c = all : All Calls for Service
 #         c = street : Street Crime
 #         c = burglary : Burglary

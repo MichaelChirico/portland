@@ -20,27 +20,30 @@ args = commandArgs(trailingOnly = TRUE)
 delx = as.integer(args[1L])
 dely = as.integer(args[2L])
 alpha = as.numeric(args[3L])
-lengthscale = as.numeric(args[4L])
-features = as.integer(args[5L])
-l1 = as.numeric(args[6L])
-l2 = as.numeric(args[7L])
-lambda = as.numeric(args[8L])
-delta = as.numeric(args[9L])
-t0.vw = as.numeric(args[10L])
-pp = as.numeric(args[11L])
+eta = as.numeric(args[4L])
+lt = as.numeric(args[5L])
+features = as.integer(args[6L])
+l1 = as.numeric(args[7L])
+l2 = as.numeric(args[8L])
+lambda = as.numeric(args[9L])
+delta = as.numeric(args[10L])
+t0.vw = as.numeric(args[11L])
+pp = as.numeric(args[12L])
 
 #outer parameters
-metric = args[12L]
-horizon = args[13L]
-crime.type = args[14L]
+metric = args[13L]
+horizon = args[14L]
+crime.type = args[15L]
 
 #baselines for testing:
-# delx=dely=600;alpha=0;lengthscale=1800
-# features=10;l1=1e-5;l2=1e-4;lambda=.5;
-# delta=1;t0.vw=1;pp=.5
-# metric='pei';horizon='2w';crime.type='all'
+delx=dely=600;alpha=0;eta=3;lt=4
+features=10;l1=1e-5;l2=1e-4;lambda=.5
+delta=1;t0.vw=1;pp=.5
+metric='pei';horizon='2w';crime.type='all'
 
 aa = delx*dely #forecasted area
+lx = eta*delx
+ly = eta*dely
 end.date = 
   as.IDate(switch(
     horizon, '1w' = '2016-03-06', '2w' = '2016-03-13',
@@ -100,7 +103,7 @@ cat(sprintf("%3.0fs", t1 - t0), "\n")
 cat("Project...\t")
 t0 = proc.time()["elapsed"]
 proj = crimes.grid.dt[ , cbind(x, y, week_no)] %*% 
-  matrix(rnorm(3L*features), nrow = 3L)/lengthscale
+  (matrix(rnorm(3L*features), nrow = 3L)/c(lx, ly, lt))
 
 t1 = proc.time()["elapsed"]
 cat(sprintf("%3.0fs", t1 - t0), "\n")
@@ -211,23 +214,23 @@ crimes.grid.dt[(!train), hotspot := I %in% hotspot.ids]
 #how well did we do? lower-case n in the PEI/PAI calculation
 nn = crimes.grid.dt[(hotspot), sum(value)]
 
-score =
-  switch(metric,
-         pei = nn/crimes.grid.dt[(!train), .(tot.crimes = sum(value)), by = I
-                                  ][order(-tot.crimes)[1L:n.cells],
-                                    sum(tot.crimes)],
-         #rather than load the portland shapefile just to calculate
-         #  the total area, pre-do that here
-         pai = (nn/crimes.grid.dt[(!train), sum(value)])/(aa*n.cells/4117777129))
+pei = nn/crimes.grid.dt[(!train), .(tot.crimes = sum(value)), by = I
+                        ][order(-tot.crimes)[1L:n.cells],
+                          sum(tot.crimes)]
+#rather than load the portland shapefile just to calculate
+#  the total area, pre-do that here
+pai = (nn/crimes.grid.dt[(!train), sum(value)])/(aa*n.cells/4117777129)
 
-ff = paste0("scores/", crime.type, "_", horizon, "_", metric, ".csv")
+ff = paste0("scores/", crime.type, "_", horizon, ".csv")
 
 if (!file.exists(ff)) 
-  cat("delx,dely,alpha,l,k,l1,l2,lambda,delta,t0,p,score\n", file = ff)
+  cat("delx,dely,alpha,eta,lt,k,l1,l2,lambda,delta,t0,p,metric,score\n", file = ff)
 
-cat(paste(delx, dely, alpha, lengthscale, features, l1, l2,
-          lambda, delta, t0.vw, pp, score, sep = ","), "\n",
-    append = TRUE, file = ff)
+cat(paste(delx, dely, alpha, eta, lt, features, l1, l2,
+          lambda, delta, t0.vw, pp, 'pei', pei, sep = ","), "\n",
+    paste(delx, dely, alpha, eta, lt, features, l1, l2,
+          lambda, delta, t0.vw, pp, 'pai', pai, sep = ","), "\n",
+    sep = "", append = TRUE, file = ff)
 t1 = proc.time()["elapsed"]
 cat("\n****************************\n",
     "Test&Score...\t", sprintf("%3.0fs", t1 - t0), "\n")
