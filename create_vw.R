@@ -86,7 +86,7 @@ crimes.grid.dt =
          as.data.table(pixellate(ppp(
            x = x_coordina, y = y_coordina,
            xrange = xrng, yrange = yrng, check = FALSE),
-           dimyx = c(y = dely, x = delx))),
+           eps = c(x = delx, dely))),
          #subset to eliminate never-crime cells
          by = week_no][ , I := rowid(week_no)][I %in% incl_ids]
 rm(crimes, incl_ids)
