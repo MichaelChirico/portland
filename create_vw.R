@@ -177,7 +177,7 @@ system(paste('vw --loss_function poisson --l1', l1, '--l2', l2,
 t1 = proc.time()["elapsed"]
 cat("\n****************************\n",
     "VW Training...\t", sprintf("%3.0fs", t1 - t0), "\n")
-cat("VW Testing...\n")
+cat("Test&Score...\n")
 t0 = proc.time()["elapsed"]
 
 system(paste('vw -t -i', model, '-p', pred.vw, 
@@ -198,11 +198,6 @@ rm(preds)
 #  we must round down; otherwise, just round
 # **TO DO: if we predict any boundary cells and are using the minimum
 #          forecast area, WE'LL FALL BELOW IT WHEN WE CLIP TO PORTLAND **
-t1 = proc.time()["elapsed"]
-cat("\n****************************\n", 
-    "VW Testing...\t", sprintf("%3.0fs", t1 - t0), "\n")
-cat("Calculate Score...\t")
-t0 = proc.time()["elapsed"]
 which.round = function(x)
   if (x > 0) {if (x < 1) round else floor} else ceiling
 
@@ -234,4 +229,6 @@ cat(paste(delx, dely, alpha, lengthscale, features, l1, l2,
           lambda, delta, t0.vw, pp, score, sep = ","), "\n",
     append = TRUE, file = ff)
 t1 = proc.time()["elapsed"]
+cat("\n****************************\n",
+    "Test&Score...\t", sprintf("%3.0fs", t1 - t0), "\n")
 cat(sprintf("%3.0fs", t1 - t0), "\n")
