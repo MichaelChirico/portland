@@ -97,10 +97,15 @@ crimes.grid.dt[ , train := week_no > 0L]
 #project -- these are the omega * xs
 t1 = proc.time()["elapsed"]
 cat(sprintf("%3.0fs", t1 - t0), "\n")
-cat("Project&Featurize...\t")
+cat("Project...\t")
 t0 = proc.time()["elapsed"]
 proj = crimes.grid.dt[ , cbind(x, y, week_no)] %*% 
   matrix(rnorm(3L*features), nrow = 3L)/lengthscale
+
+t1 = proc.time()["elapsed"]
+cat(sprintf("%3.0fs", t1 - t0), "\n")
+cat("Featurize cos...\t")
+t0 = proc.time()["elapsed"]
 
 #convert to data.table to use fwrite
 phi.dt = with(crimes.grid.dt,
@@ -120,6 +125,10 @@ for (jj in 1L:features)
   set(phi.dt, j = paste0("V", jj), 
       value = sprintf("V%i:%.5f", jj, fkt*cos(proj[ , jj])))
 #second, sin's
+t1 = proc.time()["elapsed"]
+cat(sprintf("%3.0fs", t1 - t0), "\n")
+cat("Featurize sin...\t")
+t0 = proc.time()["elapsed"]
 for (jj in features+(1L:features))
   set(phi.dt, j = paste0("V", jj), 
       value = sprintf("V%i:%.5f", jj, fkt*sin(proj[ , jj - features])))
