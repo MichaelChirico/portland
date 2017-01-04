@@ -6,6 +6,10 @@
 #$ -o /home/chiricom/portland/output_vw_fit.log
 #$ -e /home/chiricom/portland/error_vw_fit.log
 
+source /etc/profile.d/modules.sh
+module unload R/3.2.3
+module load shared R/3.3.2 vowpal_wabbit
+
 #create vw file
 #  arguments:
 #    1 ) E-W grid width (delx)
