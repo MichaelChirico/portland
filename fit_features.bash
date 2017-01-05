@@ -27,14 +27,13 @@ module load shared R/3.3.2 vowpal_wabbit
 #    10) decay rate, learning parameter for VW (delta)
 #    11) initial t, learning parameter for VW (t0)
 #    12) power t, learning parameter for VW (p)
-#    13) competition metric m (pei or pai)
-#    14) forecasting horizon h:
+#    13) forecasting horizon h:
 #         h = 1w : one week
 #         h = 2w : two weeks
 #         h = 1m : one month
 #         h = 2m : two months
 #         h = 3m : three months
-#    15) crime category c
+#    14) crime category c
 #         c = all : All Calls for Service
 #         c = street : Street Crime
 #         c = burglary : Burglary

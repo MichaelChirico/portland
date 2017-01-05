@@ -224,7 +224,9 @@ pai = (nn/crimes.grid.dt[(!train), sum(value)])/(aa*n.cells/4117777129)
 ff = paste0("scores/", crime.type, "_", horizon, ".csv")
 
 if (!file.exists(ff)) 
-  cat("delx,dely,alpha,eta,lt,k,l1,l2,lambda,delta,t0,p,metric,score\n", file = ff)
+  cat("delx,dely,alpha,eta,lt,k,l1,l2,",
+      "lambda,delta,t0,p,metric,score\n", 
+      sep = "", file = ff)
 
 cat(paste(delx, dely, alpha, eta, lt, features, l1, l2,
           lambda, delta, t0.vw, pp, 'pei', pei, sep = ","), "\n",
