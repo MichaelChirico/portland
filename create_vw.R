@@ -31,15 +31,14 @@ t0.vw = as.numeric(args[11L])
 pp = as.numeric(args[12L])
 
 #outer parameters
-metric = args[13L]
-horizon = args[14L]
-crime.type = args[15L]
+horizon = args[13L]
+crime.type = args[14L]
 
 #baselines for testing:
-delx=dely=600;alpha=0;eta=3;lt=4
-features=10;l1=1e-5;l2=1e-4;lambda=.5
-delta=1;t0.vw=1;pp=.5
-metric='pei';horizon='2w';crime.type='all'
+# delx=dely=600;alpha=0;eta=3;lt=4
+# features=10;l1=1e-5;l2=1e-4;lambda=.5
+# delta=1;t0.vw=1;pp=.5
+# horizon='2w';crime.type='all'
 
 aa = delx*dely #forecasted area
 lx = eta*delx
