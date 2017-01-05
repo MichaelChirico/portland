@@ -3,23 +3,28 @@ sh fit_features.bash 600 600 0 3 4 200 1e-5 1e-4 .5 1 0 .5 1w all
 sh fit_features.bash 600 600 0 3 4 200 1e-5 1e-4 .5 1 0 .5 1w all
 sh fit_features.bash 600 600 0 3 4 200 1e-5 1e-4 .5 1 0 .5 1w all
 sh fit_features.bash 600 600 0 3 4 200 1e-5 0 .5 1 0 .5 1w all
+rm delete_me/*
 sh fit_features.bash 600 600 0 3 4 200 0 1e-4 .5 1 0 .5 1w all
 sh fit_features.bash 600 600 0 3 4 200 1e-4 1e-4 .5 1 0 .5 1w all
 sh fit_features.bash 600 600 .5 3 4 200 1e-5 1e-4 .5 1 0 .5 1w all
 sh fit_features.bash 600 600 0 3 4 200 1e-5 1e-4 .5 1 0 .5 2w all
 sh fit_features.bash 600 600 0 3 4 200 1e-5 1e-4 .5 1 1 .5 1w all
+rm delete_me/*
 sh fit_features.bash 600 600 0 3 4 200 1e-5 1e-4 1 1 0 .5 1w all
 sh fit_features.bash 600 600 0 3 4 200 1e-5 1e-4 .5 1 0 .7 1w all
 sh fit_features.bash 600 600 0 1 4 200 1e-5 1e-4 .5 1 0 .5 1w all
 sh fit_features.bash 600 600 0 3 1 200 1e-5 1e-4 .5 1 0 .5 1w all
 sh fit_features.bash 300 300 0 3 4 200 1e-5 1e-4 .5 1 0 .5 1w all
+rm delete_me/*
 sh fit_features.bash 600 300 0 3 4 200 1e-5 1e-4 .5 1 0 .5 1w all
 sh fit_features.bash 300 600 0 3 4 200 1e-5 1e-4 .5 1 0 .5 1w all
 sh fit_features.bash 600 600 0 3 4 200 1e-5 1e-4 .5 1 0 .5 1w street
 sh fit_features.bash 600 600 0 3 4 200 1e-5 1e-4 .5 1 0 .5 1w burglary
 sh fit_features.bash 600 600 0 3 4 200 1e-5 1e-4 .5 1 0 .5 1w vehicle
+rm delete_me/*
 sh fit_features.bash 420 530 .3 1.2 6 400 1e-2 1e-5 .8 .2 1.3 .7 1w all
 sh fit_features.bash 600 600 0 3 4 600 1e-5 1e-4 .5 1 0 .5 1w all
 sh fit_features.bash 250 250 0 3 4 200 1e-5 1e-4 .5 1 0 .5 1w all
 sh fit_features.bash 250 250 0 5 4 200 1e-5 1e-4 .5 1 0 .5 1w all
 sh fit_features.bash 250 250 1 3 4 200 1e-5 1e-4 .5 1 0 .5 1w all
+rm delete_me/*
