@@ -1,3 +1,4 @@
+#!/bin/sh
 sh fit_features.bash 600 600 0 3 4 200 1e-5 1e-4 .5 1 0 .5 1w all
 sh fit_features.bash 600 600 0 3 4 200 1e-5 1e-4 .5 1 0 .5 1w all
 sh fit_features.bash 600 600 0 3 4 200 1e-5 1e-4 .5 1 0 .5 1w all
