@@ -35,10 +35,13 @@ horizon = args[13L]
 crime.type = args[14L]
 
 #baselines for testing:
-# delx=dely=600;alpha=0;eta=3;lt=4
-# features=10;l1=1e-5;l2=1e-4;lambda=.5
-# delta=1;t0.vw=1;pp=.5
-# horizon='2w';crime.type='all'
+delx=dely=600;alpha=0;eta=3;lt=4
+features=10;l1=1e-5;l2=1e-4;lambda=.5
+delta=1;t0.vw=1;pp=.5
+horizon='2w';crime.type='all'
+cat("**********************\n",
+    "* TEST PARAMETERS ON *\n",
+    "**********************\n")
 
 aa = delx*dely #forecasted area
 lx = eta*delx
@@ -227,11 +230,11 @@ if (!file.exists(ff))
       "lambda,delta,t0,p,metric,score\n", 
       sep = "", file = ff)
 
-cat(paste(delx, dely, alpha, eta, lt, features, l1, l2,
-          lambda, delta, t0.vw, pp, 'pei', pei, sep = ","), "\n",
-    paste(delx, dely, alpha, eta, lt, features, l1, l2,
-          lambda, delta, t0.vw, pp, 'pai', pai, sep = ","), "\n",
+params = paste(delx, dely, alpha, eta, lt, features, l1, l2,
+              lambda, delta, t0.vw, pp, sep = ",")
+cat(params, ',pei,', pei, "\n", params, ',pai,', pai, "\n",
     sep = "", append = TRUE, file = ff)
+
 t1 = proc.time()["elapsed"]
 cat("\n****************************\n",
     "Test&Score...\t", sprintf("%3.0fs", t1 - t0), "\n")
