@@ -116,6 +116,7 @@ t0 = proc.time()["elapsed"]
 phi.dt = with(crimes.grid.dt,
               data.table(v = value,
                          l = paste0(I, "_", week_no, "|")))
+if (features > 500L) alloc.col(phi.dt, 3L*features)
 #create the features
 #  previously explored alternative:
 #  assign cos/sin projection as matrix:
