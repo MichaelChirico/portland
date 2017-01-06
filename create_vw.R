@@ -35,13 +35,13 @@ horizon = args[13L]
 crime.type = args[14L]
 
 #baselines for testing:
-delx=dely=600;alpha=0;eta=3;lt=4
-features=10;l1=1e-5;l2=1e-4;lambda=.5
-delta=1;t0.vw=1;pp=.5
-horizon='2w';crime.type='all'
-cat("**********************\n",
-    "* TEST PARAMETERS ON *\n",
-    "**********************\n")
+# delx=dely=600;alpha=0;eta=3;lt=4
+# features=10;l1=1e-5;l2=1e-4;lambda=.5
+# delta=1;t0.vw=1;pp=.5
+# horizon='2w';crime.type='all'
+# cat("**********************\n",
+#     "* TEST PARAMETERS ON *\n",
+#     "**********************\n")
 
 aa = delx*dely #forecasted area
 lx = eta*delx
