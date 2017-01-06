@@ -239,3 +239,5 @@ t1 = proc.time()["elapsed"]
 cat("\n****************************\n",
     "Test&Score...\t", sprintf("%3.0fs", t1 - t0), "\n")
 cat(sprintf("%3.0fs", t1 - t0), "\n")
+
+system(paste0("rm ", tdir, "/*"))
