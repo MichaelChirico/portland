@@ -186,7 +186,7 @@ system(paste('vw --loss_function poisson --l1', l1, '--l2', l2,
 t1 = proc.time()["elapsed"]
 cat("\n****************************\n",
     "VW Training...\t", sprintf("%3.0fs", t1 - t0), "\n")
-cat("Test&Score...\n")
+cat("Test&Score&Delete...\t")
 t0 = proc.time()["elapsed"]
 
 system(paste('vw -t -i', model, '-p', pred.vw, 
@@ -238,10 +238,7 @@ params = paste(delx, dely, alpha, eta, lt, features, l1, l2,
               lambda, delta, t0.vw, pp, sep = ",")
 cat(params, ',pei,', pei, "\n", params, ',pai,', pai, "\n",
     sep = "", append = TRUE, file = ff)
+system(paste0("rm ", tdir, "/*"))
 
 t1 = proc.time()["elapsed"]
-cat("\n****************************\n",
-    "Test&Score...\t", sprintf("%3.0fs", t1 - t0), "\n")
 cat(sprintf("%3.0fs", t1 - t0), "\n")
-
-system(paste0("rm ", tdir, "/*"))
