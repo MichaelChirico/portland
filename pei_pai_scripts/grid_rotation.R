@@ -15,7 +15,7 @@ library(parallel)
 n_clust = detectCores()
 #supply THREE arguments:
 #  1) cell size (x: East-West)
-#  2) cell isze (y: North-South)
+#  2) cell size (y: North-South)
 #  3) abbreviation for forecasting horizon:
 #       * 1w : one week
 #       * 2w : two weeks
