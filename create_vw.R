@@ -3,8 +3,8 @@
 # **     GPP Featurization      **
 # Michael Chirico, Seth Flaxman,
 # Charles Loeffler, Pau Pereira
-cat("Setup...\t")
-t0 = proc.time()["elapsed"]
+# cat("Setup...\t")
+# t0 = proc.time()["elapsed"]
 suppressMessages({
   library(spatstat, quietly = TRUE)
   #data.table after spatstat to
@@ -85,10 +85,10 @@ incl_ids =
     #find cells that ever have a crime
   )[value > 0, which = TRUE]
 
-t1 = proc.time()["elapsed"]
-cat(sprintf("%3.0fs", t1 - t0), "\n")
-cat("Pixellate&Delete Cells...\t")
-t0 = proc.time()["elapsed"]
+# t1 = proc.time()["elapsed"]
+# cat(sprintf("%3.0fs", t1 - t0), "\n")
+# cat("Pixellate&Delete Cells...\t")
+# t0 = proc.time()["elapsed"]
 crimes.grid.dt = 
   crimes[occ_date <= end.date, 
          as.data.table(pixellate(ppp(
@@ -103,17 +103,17 @@ rm(crimes, incl_ids)
 crimes.grid.dt[ , train := week_no > 0L]
 
 #project -- these are the omega * xs
-t1 = proc.time()["elapsed"]
-cat(sprintf("%3.0fs", t1 - t0), "\n")
-cat("Project...\t")
-t0 = proc.time()["elapsed"]
+# t1 = proc.time()["elapsed"]
+# cat(sprintf("%3.0fs", t1 - t0), "\n")
+# cat("Project...\t")
+# t0 = proc.time()["elapsed"]
 proj = crimes.grid.dt[ , cbind(x, y, week_no)] %*% 
   (matrix(rnorm(3L*features), nrow = 3L)/c(lx, ly, lt))
 
-t1 = proc.time()["elapsed"]
-cat(sprintf("%3.0fs", t1 - t0), "\n")
-cat("Featurize cos...\t")
-t0 = proc.time()["elapsed"]
+# t1 = proc.time()["elapsed"]
+# cat(sprintf("%3.0fs", t1 - t0), "\n")
+# cat("Featurize cos...\t")
+# t0 = proc.time()["elapsed"]
 
 #convert to data.table to use fwrite
 phi.dt = with(crimes.grid.dt,
@@ -134,19 +134,19 @@ for (jj in 1L:features)
   set(phi.dt, j = paste0("V", jj), 
       value = sprintf("V%i:%.5f", jj, fkt*cos(proj[ , jj])))
 #second, sin's
-t1 = proc.time()["elapsed"]
-cat(sprintf("%3.0fs", t1 - t0), "\n")
-cat("Featurize sin...\t")
-t0 = proc.time()["elapsed"]
+# t1 = proc.time()["elapsed"]
+# cat(sprintf("%3.0fs", t1 - t0), "\n")
+# cat("Featurize sin...\t")
+# t0 = proc.time()["elapsed"]
 for (jj in features+(1L:features))
   set(phi.dt, j = paste0("V", jj), 
       value = sprintf("V%i:%.5f", jj, fkt*sin(proj[ , jj - features])))
 rm(proj)
 
-t1 = proc.time()["elapsed"]
-cat(sprintf("%3.0fs", t1 - t0), "\n")
-cat("VW Output...\n")
-t0 = proc.time()["elapsed"]
+# t1 = proc.time()["elapsed"]
+# cat(sprintf("%3.0fs", t1 - t0), "\n")
+# cat("VW Output...\n")
+# t0 = proc.time()["elapsed"]
 
 #temporary files
 tdir = "delete_me"
@@ -156,11 +156,11 @@ cache = tempfile(tmpdir = tdir)
 model = tempfile(tmpdir = tdir)
 pred.vw = tempfile(tmpdir = tdir)
 
-cat("Training file:", train.vw,
-    "\nTesting file:", test.vw,
-    "\nCache:", cache,
-    "\nModel:", model,
-    "\nPredictions:", pred.vw, "\n")
+# cat("Training file:", train.vw,
+#     "\nTesting file:", test.vw,
+#     "\nCache:", cache,
+#     "\nModel:", model,
+#     "\nPredictions:", pred.vw, "\n")
 
 fwrite(phi.dt[crimes.grid.dt$train], train.vw, 
        sep = " ", quote = FALSE, col.names = FALSE)
@@ -172,11 +172,11 @@ rm(phi.dt)
 ##          up and running properly**
 if (file.exists(cache)) system(paste('rm', cache))
 #train with VW
-t1 = proc.time()["elapsed"]
-cat("\n****************************\n",
-    "VW Output...\t", sprintf("%3.0fs", t1 - t0), "\n")
-cat("VW Training...\n")
-t0 = proc.time()["elapsed"]
+# t1 = proc.time()["elapsed"]
+# cat("\n****************************\n",
+#     "VW Output...\t", sprintf("%3.0fs", t1 - t0), "\n")
+# cat("VW Training...\n")
+# t0 = proc.time()["elapsed"]
 system(paste('vw --loss_function poisson --l1', l1, '--l2', l2, 
              '--learning_rate', lambda,
              '--decay_learning_rate', delta,
@@ -184,11 +184,11 @@ system(paste('vw --loss_function poisson --l1', l1, '--l2', l2,
              '--cache_file', cache, '--passes 200 -f', model),
        ignore.stderr = TRUE)
 #test with VW
-t1 = proc.time()["elapsed"]
-cat("\n****************************\n",
-    "VW Training...\t", sprintf("%3.0fs", t1 - t0), "\n")
-cat("Test&Score&Delete...\t")
-t0 = proc.time()["elapsed"]
+# t1 = proc.time()["elapsed"]
+# cat("\n****************************\n",
+#     "VW Training...\t", sprintf("%3.0fs", t1 - t0), "\n")
+# cat("Test&Score&Delete...\t")
+# t0 = proc.time()["elapsed"]
 
 system(paste('vw -t -i', model, '-p', pred.vw, 
              test.vw, '--loss_function poisson'),
@@ -242,5 +242,5 @@ cat(params, ',pei,', pei, "\n", params, ',pai,', pai, "\n",
     sep = "", append = TRUE, file = ff)
 system(paste0("rm ", tdir, "/*"))
 
-t1 = proc.time()["elapsed"]
-cat(sprintf("%3.0fs", t1 - t0), "\n")
+# t1 = proc.time()["elapsed"]
+# cat(sprintf("%3.0fs", t1 - t0), "\n")
