@@ -61,6 +61,9 @@ crime.file = switch(crime.type,
 crimes = fread(crime.file)
 crimes[ , occ_date := as.IDate(occ_date)]
 
+# trying to learn using only recent data for now
+crimes = crimes[occ_date >= '2015-09-01']
+
 #record range here, so that
 #  we have the same range 
 #  after we subset below
