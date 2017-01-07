@@ -181,7 +181,8 @@ system(paste('vw --loss_function poisson --l1', l1, '--l2', l2,
              '--learning_rate', lambda,
              '--decay_learning_rate', delta,
              '--initial_t', t0.vw, '--power_t', pp, train.vw,
-             '--cache_file', cache, '--passes 200 -f', model))
+             '--cache_file', cache, '--passes 200 -f', model),
+       ignore.stderr = TRUE)
 #test with VW
 t1 = proc.time()["elapsed"]
 cat("\n****************************\n",
@@ -190,7 +191,8 @@ cat("Test&Score&Delete...\t")
 t0 = proc.time()["elapsed"]
 
 system(paste('vw -t -i', model, '-p', pred.vw, 
-             test.vw, '--loss_function poisson'))
+             test.vw, '--loss_function poisson'),
+       ignore.stderr = TRUE)
 
 preds = fread(pred.vw, sep = " ", header = FALSE, col.names = c("pred", "I_wk"))
 #wrote 2-variable label with _ to fit VW guidelines;
