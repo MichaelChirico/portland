@@ -17,6 +17,7 @@ set.seed(60251935)
 
 #inner parameters
 args = commandArgs(trailingOnly = TRUE)
+cat("Current Arguments:\t", paste(args, collapse = "&"), "\n")
 delx = as.integer(args[1L])
 dely = as.integer(args[2L])
 alpha = as.numeric(args[3L])
