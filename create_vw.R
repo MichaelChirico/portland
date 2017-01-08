@@ -235,13 +235,12 @@ ff = paste0("scores/", crime.type, "_", horizon, ".csv")
 
 if (!file.exists(ff)) 
   cat("delx,dely,alpha,eta,lt,k,l1,l2,",
-      "lambda,delta,t0,p,metric,score\n", 
+      "lambda,delta,t0,p,pei,pai\n", 
       sep = "", file = ff)
 
 params = paste(delx, dely, alpha, eta, lt, features, l1, l2,
-              lambda, delta, t0.vw, pp, sep = ",")
-cat(params, ',pei,', pei, "\n", params, ',pai,', pai, "\n",
-    sep = "", append = TRUE, file = ff)
+              lambda, delta, t0.vw, pp, pei, pai, sep = ",")
+cat(params, "\n", sep = "", append = TRUE, file = ff)
 system(paste0("rm ", tdir, "/*"))
 
 # t1 = proc.time()["elapsed"]
