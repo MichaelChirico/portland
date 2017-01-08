@@ -17,7 +17,7 @@ set.seed(60251935)
 
 #inner parameters
 args = commandArgs(trailingOnly = TRUE)
-if (!all(nchar(gsub("\\s", "", args)))) stop("Missing Arguments???")
+if (!all(nchar(gsub("\\s", "", args)))) cat("STOPPING"); stop("Missing Arguments???")
 cat("Current Arguments:\t", paste(args, collapse = "&"), "\n")
 delx = as.integer(args[1L])
 dely = as.integer(args[2L])
