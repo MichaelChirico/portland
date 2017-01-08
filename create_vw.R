@@ -241,7 +241,7 @@ if (!file.exists(ff))
 params = paste(delx, dely, alpha, eta, lt, features, l1, l2,
                lambda, delta, t0.vw, pp, pei, pai, sep = ",")
 cat(params, "\n", sep = "", append = TRUE, file = ff)
-file.remove(train.vw, test.vw, cache, model, pred.vw)
+invisible(file.remove(train.vw, test.vw, cache, model, pred.vw))
 
 # t1 = proc.time()["elapsed"]
 # cat(sprintf("%3.0fs", t1 - t0), "\n")
