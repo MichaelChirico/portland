@@ -18,6 +18,13 @@ do
 	do
 		for eta in 2 2.5 3.5 4.5 5.5
 		do
+			for lt in 1 3 6
+			do
+				sh fit_features.bash $dx $dy 0 $eta $lt 200 1e-5 1e-4 .5 1 0 .5 "$@"
+			done
+		done
+		for eta in 1 3 6
+		do
 			for lt in 2 2.5 3.5 4.5 5.5
 			do
 				sh fit_features.bash $dx $dy 0 $eta $lt 200 1e-5 1e-4 .5 1 0 .5 "$@"
