@@ -17,8 +17,6 @@ set.seed(60251935)
 
 #inner parameters
 args = commandArgs(trailingOnly = TRUE)
-if (!all(nchar(gsub("\\s", "", args)))) message("Missing Arguments???")
-cat("Current Arguments:\t", paste(args, collapse = "&"), "\n")
 delx = as.integer(args[1L])
 dely = as.integer(args[2L])
 alpha = as.numeric(args[3L])
@@ -165,9 +163,11 @@ pred.vw = tempfile(tmpdir = tdir)
 #     "\nPredictions:", pred.vw, "\n")
 
 fwrite(phi.dt[crimes.grid.dt$train], train.vw, 
-       sep = " ", quote = FALSE, col.names = FALSE)
+       sep = " ", quote = FALSE, col.names = FALSE, 
+       showProgress = FALSE)
 fwrite(phi.dt[!crimes.grid.dt$train], test.vw, 
-       sep = " ", quote = FALSE, col.names = FALSE)
+       sep = " ", quote = FALSE, col.names = FALSE,
+       showProgress = FALSE)
 rm(phi.dt)
 
 ## **TO DO: eliminate the cache purge once the system's
