@@ -185,6 +185,7 @@ system(paste('vw --loss_function poisson --l1', l1, '--l2', l2,
              '--initial_t', t0.vw, '--power_t', pp, train.vw,
              '--cache_file', cache, '--passes 200 -f', model),
        ignore.stderr = TRUE)
+invisible(file.remove(train.vw))
 #test with VW
 # t1 = proc.time()["elapsed"]
 # cat("\n****************************\n",
@@ -195,6 +196,7 @@ system(paste('vw --loss_function poisson --l1', l1, '--l2', l2,
 system(paste('vw -t -i', model, '-p', pred.vw, 
              test.vw, '--loss_function poisson'),
        ignore.stderr = TRUE)
+invisible(file.remove(model, test.vw))
 
 preds = fread(pred.vw, sep = " ", header = FALSE, col.names = c("pred", "I_wk"))
 #wrote 2-variable label with _ to fit VW guidelines;
@@ -241,7 +243,7 @@ if (!file.exists(ff))
 params = paste(delx, dely, alpha, eta, lt, features, l1, l2,
                lambda, delta, t0.vw, pp, pei, pai, sep = ",")
 cat(params, "\n", sep = "", append = TRUE, file = ff)
-invisible(file.remove(train.vw, test.vw, cache, model, pred.vw))
+invisible(file.remove(cache, pred.vw))
 
 # t1 = proc.time()["elapsed"]
 # cat(sprintf("%3.0fs", t1 - t0), "\n")
