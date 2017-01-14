@@ -1,9 +1,9 @@
 #!/bin/sh
 
-for hh in 1w 2w 1m 2m 3m
-do
-	for cr in all street burglary vehicle
-	do
-		qsub inner_loop.bash $hh $cr
-	done
-done
+qsub vary_delta.sh
+qsub vary_features.sh
+qsub vary_l1.sh
+qsub vary_l2.sh
+qsub vary_lambda.sh
+qsub vary_p.sh
+qsub vary_t0.sh
