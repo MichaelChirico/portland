@@ -22,3 +22,5 @@ pei_pai_scripts/*.pdf
 #should tempfile these?
 output*
 delete_me
+
+scores/*.pdf
