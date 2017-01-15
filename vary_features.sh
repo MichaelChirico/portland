@@ -14,13 +14,13 @@ unset R_HOME
 
 for dx in 250 425
 do
-	for dy in 250 425
+	for dy in 425 600
 	do
-		for eta in 4 4.5 5 5.5 6
+		for eta in 4 5 6
 		do
-			for lt in 1.5 2 2.5 3 3.5
+			for lt in 1.5 2.5 3.5
 			do
-				for k in 100 200 300 400 500 600 700 800 900 1000
+				for k in 200 300 400 500 750 1000
 				do
 					sh fit_features.bash $dx $dy 0 $eta $lt $k 1e-5 1e-4 .5 1 0 .5 1w all
 				done
