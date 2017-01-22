@@ -6,6 +6,9 @@ scores =
         )[delx %in% c(250, 425) & dely %in% c(425, 600) & 
             alpha == 0 & eta %in% 4:6 & lt %in% (1:3 + .5)]
 
+timings = fread("timings/all_1w.csv")
+MAXT = timings[ , max(time)]
+
 dims = scores[ , CJ(delx = delx, dely = dely, 
                     unique = TRUE)][order(-dely, delx)]
 
@@ -51,6 +54,18 @@ scores_delta[ , {
   dev.off()
   }]
 
+
+timings[delx == 425 & dely == 600 & k == 200 & l1 == 1e-5 & 
+          l2 == 1e-4 & lambda == .5 & t0 == 0 & p == .5
+        ][ , .(time = mean(time)), keyby = delta
+           ][ , {
+             pdf("timings/vary_delta.pdf")
+             plot(delta, time, type = "l", col = "red", lwd = 3L,
+                  xlab = "delta", ylab = "Total Time", ylim = c(0, MAXT),
+                  main = "Sensitivity of Run Time to Delta")
+             dev.off()
+           }]
+
 # FEATURES ####
 scores_k = 
   scores[delta == 1 & l1 == 1e-5 & l2 == 1e-4 & lambda == .5 & 
@@ -86,6 +101,17 @@ scores_k[ , {
   title("PEI Sensitivity to # Features", outer = TRUE)
   dev.off()
   }]
+
+timings[delx == 425 & dely == 600 & delta == 1 & l1 == 1e-5 & 
+          l2 == 1e-4 & lambda == .5 & t0 == 0 & p == .5
+        ][ , .(time = mean(time)), keyby = k
+           ][ , {
+             pdf("timings/vary_k.pdf")
+             plot(k, time, type = "l", col = "red", lwd = 3L,
+                  xlab = "# Features", ylab = "Total Time", ylim = c(0, MAXT),
+                  main = "Sensitivity of Run Time to # Features")
+             dev.off()
+           }]
 
 # L1 ####
 scores_l1 = 
@@ -123,6 +149,17 @@ scores_l1[ , {
   dev.off()
   }]
 
+timings[delx == 250 & dely == 600 & k == 200 &  
+          l2 == 1e-4 & lambda == .5 & t0 == 0 & p == .5
+        ][ , .(time = mean(time)), keyby = l1
+           ][ , {
+             pdf("timings/vary_l1.pdf")
+             plot(log10(l1), time, type = "l", col = "red", lwd = 3L,
+                  xlab = "L1", ylab = "Total Time", ylim = c(0, MAXT),
+                  main = "Sensitivity of Run Time to L1")
+             dev.off()
+           }]
+
 # L2 ####
 scores_l2 = 
   scores[delta == 1 & k == 200 & l1 == 1e-5 & lambda == .5 & 
@@ -158,6 +195,17 @@ scores_l2[ , {
   title("PEI Sensitivity to L2", outer = TRUE)
   dev.off()
   }]
+
+timings[delx == 250 & dely == 600 & k == 200 & l1 == 1e-5 & 
+          lambda == .5 & t0 == 0 & p == .5
+        ][ , .(time = mean(time)), keyby = l2
+           ][ , {
+             pdf("timings/vary_l2.pdf")
+             plot(log10(l2), time, type = "l", col = "red", lwd = 3L,
+                  xlab = "L2", ylab = "Total Time", ylim = c(0, MAXT),
+                  main = "Sensitivity of Run Time to L2")
+             dev.off()
+           }]
 
 # LAMBDA ####
 scores_lambda = 
@@ -195,6 +243,16 @@ scores_lambda[ , {
   dev.off()
   }]
 
+timings[delx == 425 & dely == 600 & delta == 1 & l1 == 1e-5 & 
+          l2 == 1e-4 & k == 200 & t0 == 0 & p == .5
+        ][ , .(time = mean(time)), keyby = lambda
+           ][ , {
+             pdf("timings/vary_lambda.pdf")
+             plot(lambda, time, type = "l", col = "red", lwd = 3L,
+                  xlab = "lambda", ylab = "Total Time", ylim = c(0, MAXT),
+                  main = "Sensitivity of Run Time to Lambda")
+             dev.off()
+           }]
 
 # P ####
 scores_p = 
@@ -232,6 +290,16 @@ scores_p[ , {
   dev.off()
   }]
 
+timings[delx == 250 & dely == 600 & delta == 1 & l1 == 1e-5 & 
+          l2 == 1e-4 & lambda == .5 & t0 == 0 & k == 200
+        ][ , .(time = mean(time)), keyby = p
+           ][ , {
+             pdf("timings/vary_p.pdf")
+             plot(p, time, type = "l", col = "red", lwd = 3L,
+                  xlab = "# Features", ylab = "Total Time", ylim = c(0, MAXT),
+                  main = "Sensitivity of Run Time to p")
+             dev.off()
+           }]
 
 # T0 ####
 scores_t0 = 
@@ -269,4 +337,13 @@ scores_t0[ , {
   dev.off()
   }]
 
-
+timings[delx == 425 & dely == 425 & delta == 1 & l1 == 1e-5 & 
+          l2 == 1e-4 & lambda == .5 & k == 200 & p == .5
+        ][ , .(time = mean(time)), keyby = t0
+           ][ , {
+             pdf("timings/vary_t0.pdf")
+             plot(t0, time, type = "l", col = "red", lwd = 3L,
+                  xlab = "# Features", ylab = "Total Time", ylim = c(0, MAXT),
+                  main = "Sensitivity of Run Time to t0")
+             dev.off()
+           }]
