@@ -4,7 +4,7 @@
 # Michael Chirico, Seth Flaxman,
 # Charles Loeffler, Pau Pereira
 # cat("Setup...\t")
-# t0 = proc.time()["elapsed"]
+t0 = proc.time()["elapsed"]
 suppressMessages({
   library(spatstat, quietly = TRUE)
   #data.table after spatstat to
@@ -245,5 +245,12 @@ params = paste(delx, dely, alpha, eta, lt, features, l1, l2,
 cat(params, "\n", sep = "", append = TRUE, file = ff)
 invisible(file.remove(cache, pred.vw))
 
-# t1 = proc.time()["elapsed"]
+t1 = proc.time()["elapsed"]
+ft = paste0("timings/", crime.type, "_", horizon, ".csv")
+if (!file.exists(ft)) 
+  cat("delx,dely,alpha,eta,lt,k,l1,l2,",
+      "lambda,delta,t0,p,time\n", sep = "", file = ft)
+params = paste(delx, dely, alpha, eta, lt, features, l1, l2,
+               lambda, delta, t0.vw, pp, t1 - t0, sep = ",")
+cat(params, "\n", sep = "", append = TRUE, file = ft)
 # cat(sprintf("%3.0fs", t1 - t0), "\n")
