@@ -12,7 +12,19 @@ module load shared R/3.3.2 vowpal_wabbit gcc/5.2.0
 #see http://stackoverflow.com/questions/6395078/
 unset R_HOME
 
-for lambda in .01 .1 .5 1 1.5 2.5
+for dx in 250 425
 do
-	sh fit_features.bash 425 600 0 4 3.5 200 1e-5 1e-4 $lambda 1 0 .5 1w all
+	for dy in 250 425
+	do
+		for lt in 4 4.5 5 5.5 6
+		do
+			for eta in 1.5 2 2.5 3 3.5
+			do
+				for lambda in .01 .05 .1 .25 .5 .75 1 1.5
+				do
+					sh fit_features.bash $dx $dy 0 $eta $lt 200 1e-5 1e-4 $lambda 1 0 .5 1w all
+				done
+			done
+		done
+	done
 done
