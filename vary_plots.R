@@ -7,7 +7,7 @@ scores =
             alpha == 0 & eta %in% 4:6 & lt %in% (1:3 + .5)]
 
 timings = fread("timings/all_1w.csv")
-MAXT = timings[ , max(time)]
+MAXT = timings[p == .5, max(time)]
 
 dims = scores[ , CJ(delx = delx, dely = dely, 
                     unique = TRUE)][order(-dely, delx)]
@@ -296,7 +296,7 @@ timings[delx == 250 & dely == 600 & delta == 1 & l1 == 1e-5 &
            ][ , {
              pdf("timings/vary_p.pdf")
              plot(p, time, type = "l", col = "red", lwd = 3L,
-                  xlab = "# Features", ylab = "Total Time", ylim = c(0, MAXT),
+                  xlab = "# Features", ylab = "Total Time",
                   main = "Sensitivity of Run Time to p")
              dev.off()
            }]
