@@ -10,6 +10,7 @@ suppressMessages({
   #data.table after spatstat to
   #  access data.table::shift more easily
   library(data.table, warn.conflicts = FALSE, quietly = TRUE)
+  library(foreach)
 })
 
 #from random.org
@@ -129,18 +130,14 @@ if (features > 500L) alloc.col(phi.dt, 3L*features)
 #  creating this as below by taking sin/cos 
 #  simultaneously with assigning to phi.dt.
 fkt = 1/sqrt(features)
-#first, cos's
-for (jj in 1L:features)
-  set(phi.dt, j = paste0("V", jj), 
-      value = sprintf("V%i:%.5f", jj, fkt*cos(proj[ , jj])))
-#second, sin's
-# t1 = proc.time()["elapsed"]
-# cat(sprintf("%3.0fs", t1 - t0), "\n")
-# cat("Featurize sin...\t")
-# t0 = proc.time()["elapsed"]
-for (jj in features+(1L:features))
-  set(phi.dt, j = paste0("V", jj), 
-      value = sprintf("V%i:%.5f", jj, fkt*sin(proj[ , jj - features])))
+foreach(jj = 1L:features, .inorder = FALSE,
+        .combine = function(...) invisible(), 
+        .packages = 'data.table', .export = 'phi.dt') %do% {
+          pj = proj[ , jj]
+          set(phi.dt, j = paste0(c("cos", "sin"), jj), 
+              value = list(sprintf("cos%i:%.5f", jj, fkt*cos(pj)),
+                           sprintf("sin%i:%.5f", jj, fkt*sin(pj))))
+        }
 rm(proj)
 
 # t1 = proc.time()["elapsed"]
