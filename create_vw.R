@@ -115,10 +115,7 @@ getGTindices <- function(gt) {
   # Returns an index.
   dimx <- gt@cells.dim[1L]
   dimy <- gt@cells.dim[2L]
-  idx <- 1:(dimx*dimy)
-  idx.mat <- matrix(idx, ncol = dimx)
-  idx.mat <- idx.mat[nrow(idx.mat):1L, ]
-  as.vector(t(idx.mat))
+  c(matrix(1L:(dimx*dimy), ncol = dimy, byrow = TRUE)[ , dimy:1L])
 }
 
 # index to rearange rows in pixellate objects
