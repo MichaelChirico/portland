@@ -224,15 +224,10 @@ proj = crimes.grid.dt[ , cbind(x, y, week_no)] %*%
 # t0 = proc.time()["elapsed"]
 
 #convert to data.table to use fwrite
-phi.dt = with(crimes.grid.dt,
-              data.table(v = value,
-                         l = paste0(I, "_", week_no, "|")))
-
-# add KDEs to features matrix
-function (col) {
-  paste0
-}
-
+excl = c("I", "week_no", "x", "y", "value", "train")
+phi.dt =
+  crimes.grid.dt[ , c(list(v = value, l = paste0(I, "_", week_no, "|")), .SD), 
+                  .SDcols = !excl]
 
 if (features > 500L) alloc.col(phi.dt, 3L*features)
 #create the features
