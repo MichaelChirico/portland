@@ -22,20 +22,9 @@ crimes[, month_no := round((as.yearmon("2016-03-01") - as.yearmon(occ_date))*12)
 # day of the month
 crimes[, day_no := mday(occ_date)]
 
-
-fwrite(crimes, "crimes_all.csv")
-crimes.split = split(crimes, by = "CATEGORY")
-fwrite(crimes.split[["STREET CRIMES"]], "crimes_str.csv")
-fwrite(crimes.split[["BURGLARY"]], "crimes_bur.csv")
-fwrite(crimes.split[["MOTOR VEHICLE THEFT"]], "crimes_veh.csv")
-
 # ============================================================================
-# CREATE SHAPEFILES
+# REMOVE POINTS OUTSIDE BORDERS
 # ============================================================================
-
-# add month variable
-crimes[]
-
 # create Spatial Points Data Frame
 prj = CRS("+init=epsg:2913")
 crimes.sp = with(crimes,
@@ -45,18 +34,41 @@ crimes.sp = with(crimes,
                proj4string = prj
            ))
 
-# save as shapefile
-# all
-writeOGR(obj=crimes.sp, dsn="data/combined", layer="crimes_all", driver="ESRI Shapefile", overwrite_layer = TRUE)
+# load portland boundary
+portland = readOGR(dsn='data', layer='Portland_Police_Districts', verbose=FALSE)
+proj4string(portland) = CRS(proj4string(crimes.sp))
+portland.bdy <- gUnaryUnion(portland)
 
-# sreet
-writeOGR(obj=crimes.sp[crimes.sp$CATEGORY=="STREET CRIMES",], dsn="data/combined", layer="crimes_str", driver="ESRI Shapefile", overwrite_layer = TRUE)
+# slect crimes within city boundaries
+idx = over(crimes.sp, portland.bdy) 
+sum(is.na(idx))
+crimes = crimes[!is.na(idx)]
 
-# burglary
-writeOGR(obj=crimes.sp[crimes.sp$CATEGORY=="BURGLARY",], dsn="data/combined", layer="crimes_bur", driver="ESRI Shapefile", overwrite_layer = TRUE)
+# sanity check
+# par(mfrow=c(1,1))
+# plot(portland.bdy)
+# plot(crimes.sp[!is.na(idx),], add=T)
 
-# vehicle
-writeOGR(obj=crimes.sp[crimes.sp$CATEGORY=="MOTOR VEHICLE THEFT",], dsn="data/combined", layer="crimes_veh", driver="ESRI Shapefile", overwrite_layer = TRUE)
+fwrite(crimes, "crimes_all.csv")
+crimes.split = split(crimes, by = "CATEGORY")
+fwrite(crimes.split[["STREET CRIMES"]], "crimes_str.csv")
+fwrite(crimes.split[["BURGLARY"]], "crimes_bur.csv")
+fwrite(crimes.split[["MOTOR VEHICLE THEFT"]], "crimes_veh.csv")
 
 
-
+# 
+# # save as shapefile
+# # all
+# writeOGR(obj=crimes.sp, dsn="data/combined", layer="crimes_all", driver="ESRI Shapefile", overwrite_layer = TRUE)
+# 
+# # sreet
+# writeOGR(obj=crimes.sp[crimes.sp$CATEGORY=="STREET CRIMES",], dsn="data/combined", layer="crimes_str", driver="ESRI Shapefile", overwrite_layer = TRUE)
+# 
+# # burglary
+# writeOGR(obj=crimes.sp[crimes.sp$CATEGORY=="BURGLARY",], dsn="data/combined", layer="crimes_bur", driver="ESRI Shapefile", overwrite_layer = TRUE)
+# 
+# # vehicle
+# writeOGR(obj=crimes.sp[crimes.sp$CATEGORY=="MOTOR VEHICLE THEFT",], dsn="data/combined", layer="crimes_veh", driver="ESRI Shapefile", overwrite_layer = TRUE)
+# 
+# 
+# 

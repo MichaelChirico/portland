@@ -166,7 +166,7 @@ compute.kde <- function (pts, grd=grdtop, h0 = 1000, poly=portland.bdy.coords) {
 
 pts.selection <- function (pts, month, nb_days=7){
   # pick random days from given month. Return sp object.
-  pts.month = pts[pts$month_no==1,]
+  pts.month = pts[pts$month_no==month,]
   days.month = sample(unique(pts.month$day_no), 7)
   pts.month[pts.month$day_no %in% days.month, ]
 }
@@ -182,9 +182,16 @@ compute.kde.list <- function (pts, months = 1:6) {
 
 kdes = compute.kde.list(crimes.sp)
 
-# sgdf <- SpatialGridDataFrame(grid = grdtop, kde)
-# as.data.table(sgdf)[crimes.grid.dt, on='I'] # sanity check
+kdes[, I:=.I]
+sgdf <- SpatialGridDataFrame(grid = grdtop, kdes)
+x = as.data.table(sgdf)[crimes.grid.dt, on='I'] # sanity check
+x[, .(x,s1,y,s2)]
 
+xna = x[is.na(kde1),]
+plot(sgdf[sgdf$I %in% xna$I, 'I'])
+plot(portland.bdy, add=T)
+
+xx = x[!is.na(kde1)]
 # ============================================================================
 # SUBCATEGORIES - CALLGROUPS
 # Compute KDE for last mont for top three callgroups
