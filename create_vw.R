@@ -227,7 +227,7 @@ crimes.grid.dt <- kdes[crimes.grid.dt, on='I']
 # cat("Project...\t")
 # t0 = proc.time()["elapsed"]
 proj = crimes.grid.dt[ , cbind(x, y, week_no)] %*% 
-  (matrix(rnorm(3L*features), nrow = 3L)/c(lx, ly, lt))
+  (matrix(rt(3L*features, df = 2.5), nrow = 3L)/c(lx, ly, lt))
 
 # t1 = proc.time()["elapsed"]
 # cat(sprintf("%3.0fs", t1 - t0), "\n")
@@ -235,13 +235,17 @@ proj = crimes.grid.dt[ , cbind(x, y, week_no)] %*%
 # t0 = proc.time()["elapsed"]
 
 #convert to data.table to use fwrite
-incl = setdiff(names(crimes.grid.dt), 
+incl = setNames(
+  nm = setdiff(names(crimes.grid.dt), 
                c("I", "week_no", "x", "y", "value", "train"))
-names(incl) = incl
+)
 phi.dt =
   crimes.grid.dt[ , c(list(v = value, l = paste0(I, "_", week_no, "|")), 
-                      lapply(incl, function(vn) 
-                        sprintf("%s:%.5f", vn, get(vn))))]
+                      lapply(incl, function(vn) { 
+                        V = get(vn)
+                        #scale up by roughly the median order of KDE magnitude
+                        sprintf("%s:%.5f", vn, V/median(V))
+                      }))]
 
 if (features > 500L) alloc.col(phi.dt, 3L*features)
 #create the features
