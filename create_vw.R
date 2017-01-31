@@ -63,12 +63,6 @@ crime.file = switch(crime.type,
                     burglary = "crimes_bur.csv",
                     vehicle = "crimes_veh.csv")
 
-crime.shapefile = switch(crime.type,
-                    all = "crimes_all",
-                    street = "crimes_str",
-                    burglary = "crimes_bur",
-                    vehicle = "crimes_veh")
-
 crimes = fread(crime.file)
 crimes[ , occ_date := as.IDate(occ_date)]
 # trying to learn using only recent data for now
@@ -186,16 +180,16 @@ compute.kde.list <- function (pts, months = 1:6) {
 
 kdes = compute.kde.list(crimes.sp)
 
-kdes[, I:=.I]
-sgdf <- SpatialGridDataFrame(grid = grdtop, kdes)
-x = as.data.table(sgdf)[crimes.grid.dt, on='I'] # sanity check
-x[, .(x,s1,y,s2)]
+# # check for NAs
+# kdes[, I:=.I]
+# sgdf <- SpatialGridDataFrame(grid = grdtop, kdes)
+# x = as.data.table(sgdf)[crimes.grid.dt, on='I'] # sanity check
+# x[, .(x,s1,y,s2)]
+# xna = x[is.na(kde1),]
+# plot(sgdf[sgdf$I %in% xna$I, 'I'])
+# plot(portland.bdy, add=T)
+# xx = x[!is.na(kde1)]
 
-xna = x[is.na(kde1),]
-plot(sgdf[sgdf$I %in% xna$I, 'I'])
-plot(portland.bdy, add=T)
-
-xx = x[!is.na(kde1)]
 # ============================================================================
 # SUBCATEGORIES - CALLGROUPS
 # Compute KDE for last mont for top three callgroups
