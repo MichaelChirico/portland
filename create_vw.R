@@ -34,15 +34,19 @@ lambda = as.numeric(args[9L])
 delta = as.numeric(args[10L])
 t0.vw = as.numeric(args[11L])
 pp = as.numeric(args[12L])
+kde.bw = as.numeric(args[13L])
+kde.n = as.integer(args[14L])
+kde.lags = as.integer(args[15L])
 
 #outer parameters
-horizon = args[13L]
-crime.type = args[14L]
+horizon = args[16L]
+crime.type = args[17L]
 
 #baselines for testing:
 # delx=dely=600;alpha=0;eta=1.5;lt=4
 # features=100;l1=1e-5;l2=1e-4;lambda=.5
-# delta=1;t0.vw=0;pp=.5
+# delta=1;t0.vw=0;pp=.5;
+# kde.bw=1000;kde.n=7;kde.lags=6;kde.cg='top3'
 # horizon='2m';crime.type='all'
 # cat("**********************\n",
 #     "* TEST PARAMETERS ON *\n",
@@ -157,28 +161,24 @@ crimes.grid.dt[ , train := week_no > 0L]
 # KDEs
 # ============================================================================
 
-compute.kde <- function (pts, grd=grdtop, h0 = 1000,
-                         poly=portland.bdy.coords) {
-  spkernel2d(pts=pts, poly=poly, h0=h0, grd=grd, kernel='quartic')
-}
+compute.kde <- function(pts) 
+  spkernel2d(pts=pts, poly=portland.bdy.coords,
+             h0=kde.bw, grd=grdtop, kernel='quartic')
 
-pts.selection <- function (pts, month, nb_days=7){
+pts.selection <- function (pts, month)
   # pick random days from given month. Return sp object.
-  pts.month = pts[pts$month_no==month,]
-  days.month = sample(unique(pts.month$day_no), 7)
-  pts.month[pts.month$day_no %in% days.month, ]
+  pts[with(pts@data, (idx <- month_no == month) & 
+             day_no %in% sample(unique(day_no[idx]), kde.n)), ]
+
+
+compute.kde.list <- function (pts, months = seq_len(kde.lags)) {
+  # compute kde for each month, on a random pick of days.
+  # return data.table, each col stores results for one month
+  lapply(setNames(months, paste0('kde', months)),
+         function(month) compute.kde(pts.selection(pts, month)))
 }
 
-compute.kde.list <- function (pts, months = 1:6) {
-     # compute kde for each month, on a random pick of days.
-     # return data.table, each col stores results for one month
-     sp.list = lapply(months, function(month) pts.selection(pts, month))
-     kdes = setDT(lapply(sp.list, compute.kde))
-     setnames(kdes, sapply(names(kdes), 
-                           function(colname) gsub('V', 'kde', colname)))[]
-}
-
-kdes = compute.kde.list(crimes.sp)
+kdes = setDT(compute.kde.list(crimes.sp))
 
 # # check for NAs
 # kdes[, I:=.I]
@@ -196,11 +196,11 @@ kdes = compute.kde.list(crimes.sp)
 # ============================================================================
 
 # pick largest call groups
-callgroup.top = crimes[, .N, by=CALL_GROUP][order(-N)[1:3], CALL_GROUP]
-crimes.cgroup = lapply(callgroup.top, function (x) crimes.sp[crimes.sp$CALL_GROUP == x,])
-kdes.sub = lapply(crimes.cgroup, function (pts) compute.kde.list(pts, months=1))
-kdes.sub = as.data.table(kdes.sub)
-kdes.sub = setnames(kdes.sub, paste0('skde', 1L:ncol(kdes.sub)))
+
+callgroup.top = crimes[, .N, by=CALL_GROUP][order(-N), CALL_GROUP[1L:3L]]
+crimes.cgroup = lapply(callgroup.top, function(x) crimes.sp[crimes.sp$CALL_GROUP == x,])
+kdes.sub = setDT(sapply(crimes.cgroup, function(pts) compute.kde.list(pts, months=1L)))
+setnames(kdes.sub, paste0('cg.kde', 1L:ncol(kdes.sub)))
 
 # combine normal kdes and sub-kdes
 kdes = cbind(kdes, kdes.sub)
@@ -353,11 +353,12 @@ ff = paste0("scores/", crime.type, "_", horizon, ".csv")
 
 if (!file.exists(ff)) 
   cat("delx,dely,alpha,eta,lt,k,l1,l2,",
-      "lambda,delta,t0,p,pei,pai\n", 
+      "lambda,delta,t0,p,kde.bw,kde.n,kde.lags,pei,pai\n", 
       sep = "", file = ff)
 
 params = paste(delx, dely, alpha, eta, lt, features, l1, l2,
-               lambda, delta, t0.vw, pp, pei, pai, sep = ",")
+               lambda, delta, t0.vw, pp, kde.bw, 
+               kde.n, kde.lags, pei, pai, sep = ",")
 cat(params, "\n", sep = "", append = TRUE, file = ff)
 invisible(file.remove(cache, pred.vw))
 
@@ -365,8 +366,9 @@ t1 = proc.time()["elapsed"]
 ft = paste0("timings/", crime.type, "_", horizon, ".csv")
 if (!file.exists(ft)) 
   cat("delx,dely,alpha,eta,lt,k,l1,l2,",
-      "lambda,delta,t0,p,time\n", sep = "", file = ft)
+      "lambda,delta,t0,p,kde.bw,kde.n,kde.lags,time\n", sep = "", file = ft)
 params = paste(delx, dely, alpha, eta, lt, features, l1, l2,
-               lambda, delta, t0.vw, pp, t1 - t0, sep = ",")
+               lambda, delta, t0.vw, pp, kde.bw,
+               kde.n, kde.lags, t1 - t0, sep = ",")
 cat(params, "\n", sep = "", append = TRUE, file = ft)
 # cat(sprintf("%3.0fs", t1 - t0), "\n")
