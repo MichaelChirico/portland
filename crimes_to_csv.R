@@ -40,10 +40,14 @@ proj4string(portland) = CRS(proj4string(crimes.sp))
 portland.bdy <- gUnaryUnion(portland)
 
 # slect crimes within city boundaries
-idx = over(crimes.sp, prtland.bdy) 
+idx = over(crimes.sp, portland.bdy) 
 sum(is.na(idx))
 crimes = crimes[!is.na(idx)]
 
+# sanity check
+# par(mfrow=c(1,1))
+# plot(portland.bdy)
+# plot(crimes.sp[!is.na(idx),], add=T)
 
 fwrite(crimes, "crimes_all.csv")
 crimes.split = split(crimes, by = "CATEGORY")
