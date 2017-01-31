@@ -17,13 +17,19 @@
 #    10) decay rate, learning parameter for VW (delta)
 #    11) initial t, learning parameter for VW (t0)
 #    12) power t, learning parameter for VW (p)
-#    13) forecasting horizon h:
+#    13) KDE bandwidth (kde.bw)
+#    14) KDE days count, number of days chosen at random
+#          in each month to represent the
+#          full month's density (kde.n)
+#    15) KDE lag count, # of (month-long) lags to include
+#          as KDE features (kde.lags)
+#    16) forecasting horizon h:
 #         h = 1w : one week
 #         h = 2w : two weeks
 #         h = 1m : one month
 #         h = 2m : two months
 #         h = 3m : three months
-#    14) crime category c
+#    17) crime category c
 #         c = all : All Calls for Service
 #         c = street : Street Crime
 #         c = burglary : Burglary

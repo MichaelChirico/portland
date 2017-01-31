@@ -47,7 +47,7 @@ crime.type = args[17L]
 # features=100;l1=1e-5;l2=1e-4;lambda=.5
 # delta=1;t0.vw=0;pp=.5;
 # kde.bw=1000;kde.n=7;kde.lags=6;kde.cg='top3'
-# horizon='2m';crime.type='all'
+# horizon='2m';crime.type='street'
 # cat("**********************\n",
 #     "* TEST PARAMETERS ON *\n",
 #     "**********************\n")
@@ -196,13 +196,21 @@ kdes = setDT(compute.kde.list(crimes.sp))
 
 # pick largest call groups
 
-callgroup.top = crimes[, .N, by=CALL_GROUP][order(-N), CALL_GROUP[1L:3L]]
-crimes.cgroup = lapply(callgroup.top, function(x) crimes.sp[crimes.sp$CALL_GROUP == x,])
-kdes.sub = setDT(sapply(crimes.cgroup, function(pts) compute.kde.list(pts, months=1L)))
-setnames(kdes.sub, paste0('cg.kde', 1L:ncol(kdes.sub)))
-
-# combine normal kdes and sub-kdes
-kdes = cbind(kdes, kdes.sub)
+callgroup.top = 
+  crimes[, .N, by=CALL_GROUP
+         #all but 'all' have 2 or fewer call groups;
+         #  include at most N-1 of them to avoid collinearity
+         ][order(-N), if (.N > 1) CALL_GROUP[1L:min(3L, .N - 1L)]]
+if (!is.null(callgroup.top)) {
+  crimes.cgroup = lapply(callgroup.top, function(cg) 
+    crimes.sp[crimes.sp$CALL_GROUP == cg,])
+  kdes.sub = setDT(sapply(crimes.cgroup, function(pts) 
+    compute.kde.list(pts, months=1L)))
+  setnames(kdes.sub, paste0('cg.kde', 1L:ncol(kdes.sub)))
+  
+  # combine normal kdes and sub-kdes
+  kdes = cbind(kdes, kdes.sub)
+}
 
 # add cell id
 kdes[, I := .I]
