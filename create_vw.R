@@ -118,7 +118,7 @@ crimes.sp = with(crimes,
 # load  portland boundary
 # crimes.sp <- readOGR(dsn='data/combined', layer=crime.shapefile, verbose=FALSE)
 portland.bdy <- readOGR(dsn='data', layer='portland_boundary', verbose=FALSE)
-portland.bdy.coords <- portland.bdy.simp@polygons[[1L]]@Polygons[[1L]]@coords
+portland.bdy.coords <- portland.bdy@polygons[[1L]]@Polygons[[1L]]@coords
 
 getGTindices <- function (gt) {
   # Obtain indices to rearange data from image (eg. result frim pixellate)
@@ -183,7 +183,7 @@ compute.kde <- function (pts, grd=grdtop, h0 = 1000, poly=portland.bdy.coords) {
 
 pts.selection <- function (pts, month, nb_days=7){
   # pick random days from given month. Return sp object.
-  pts.month = pts[pts$month_no==1,]
+  pts.month = pts[pts$month_no==month,]
   days.month = sample(unique(pts.month$day_no), 7)
   pts.month[pts.month$day_no %in% days.month, ]
 }
@@ -199,9 +199,16 @@ compute.kde.list <- function (pts, months = 1:6) {
 
 kdes = compute.kde.list(crimes.sp)
 
-# sgdf <- SpatialGridDataFrame(grid = grdtop, kde)
-# as.data.table(sgdf)[crimes.grid.dt, on='I'] # sanity check
+kdes[, I:=.I]
+sgdf <- SpatialGridDataFrame(grid = grdtop, kdes)
+x = as.data.table(sgdf)[crimes.grid.dt, on='I'] # sanity check
+x[, .(x,s1,y,s2)]
 
+xna = x[is.na(kde1),]
+plot(sgdf[sgdf$I %in% xna$I, 'I'])
+plot(portland.bdy, add=T)
+
+xx = x[!is.na(kde1)]
 # ============================================================================
 # SUBCATEGORIES - CALLGROUPS
 # Compute KDE for last mont for top three callgroups
@@ -243,12 +250,11 @@ proj = crimes.grid.dt[ , cbind(x, y, week_no)] %*%
 #convert to data.table to use fwrite
 phi.dt = with(crimes.grid.dt,
               data.table(v = value,
-                         l = paste0(I, "_", week_no, "|")))
+                         l = paste0(I, "_", week_no, "|"),
+                         kde1 = sprintf('kde1:%.5f', kde1*1e5range)))
 
 # add KDEs to features matrix
-function (col) {
-  paste0
-}
+
 
 
 if (features > 500L) alloc.col(phi.dt, 3L*features)
