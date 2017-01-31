@@ -170,7 +170,6 @@ pts.selection <- function (pts, month)
   pts[with(pts@data, (idx <- month_no == month) & 
              day_no %in% sample(unique(day_no[idx]), kde.n)), ]
 
-
 compute.kde.list <- function (pts, months = seq_len(kde.lags)) {
   # compute kde for each month, on a random pick of days.
   # return data.table, each col stores results for one month
