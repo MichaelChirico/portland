@@ -6,7 +6,7 @@ Forecasting Crime in Portland
 
  2. Install required packages: `rgdal`, `spatstat`, `splancs`, `rgeos`, `data.table`, `foreach`, `maptools`
  
- 3. Get data
+ 3. Get [Police Districts shapefile](https://www.nij.gov/documents/crime-forecasting-challenge/portland-police-districts.zip) and extract to ./data/
 
 # Key Links
 
