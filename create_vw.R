@@ -105,7 +105,7 @@ crimes.sp = with(crimes,
 # load  portland boundary
 # crimes.sp <- readOGR(dsn='data/combined', layer=crime.shapefile, verbose=FALSE)
 portland.bdy <- readOGR(dsn='data', layer='portland_boundary', verbose=FALSE)
-portland.bdy.coords <- portland.bdy.simp@polygons[[1L]]@Polygons[[1L]]@coords
+portland.bdy.coords <- portland.bdy@polygons[[1L]]@Polygons[[1L]]@coords
 
 getGTindices <- function(gt) {
   # Obtain indices to rearange data from image (eg. result frim pixellate)
