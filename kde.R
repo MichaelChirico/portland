@@ -125,7 +125,8 @@ crimes[ , occ_wed := occ_date - occ_wday + 4L]
 #  determined the following common CRS for
 #  all project-associated shapefiles
 
-prj = CRS("+init=epsg:2913")
+s
+
 # prj <- CRS("+proj=longlat +datum=WGS84")
 # crimes.map = with(crimes,
 #                   SpatialPointsDataFrame(
