@@ -6,13 +6,14 @@
 # cat("Setup...\t")
 t0 = proc.time()["elapsed"]
 suppressMessages({
-  library(OGR)
+  library(rgdal)
   library(spatstat, quietly = TRUE)
   library(splancs, quietly = TRUE)
   #data.table after spatstat to
   #  access data.table::shift more easily
   library(data.table, warn.conflicts = FALSE, quietly = TRUE)
   library(foreach)
+  library(maptools)
 })
 
 #from random.org
@@ -20,45 +21,28 @@ set.seed(60251935)
 
 #inner parameters
 args = commandArgs(trailingOnly = TRUE)
-# delx = as.integer(args[1L])
-# dely = as.integer(args[2L])
-# alpha = as.numeric(args[3L])
-# eta = as.numeric(args[4L])
-# lt = as.numeric(args[5L])
-# features = as.integer(args[6L])
-# l1 = as.numeric(args[7L])
-# l2 = as.numeric(args[8L])
-# lambda = as.numeric(args[9L])
-# delta = as.numeric(args[10L])
-# t0.vw = as.numeric(args[11L])
-# pp = as.numeric(args[12L])
-# 
-# #outer parameters
-# horizon = args[13L]
-# crime.type = args[14L]
-
-delx = 600
-dely = 600 
-alpha = 0
-eta = 1.5
-lt = 4
-features = 100
-l1 = 1e-5
-l2 = 1e-4
-lambda = .5
-delta = 1
-t0.vw = 0
-pp = .5
+delx = as.integer(args[1L])
+dely = as.integer(args[2L])
+alpha = as.numeric(args[3L])
+eta = as.numeric(args[4L])
+lt = as.numeric(args[5L])
+features = as.integer(args[6L])
+l1 = as.numeric(args[7L])
+l2 = as.numeric(args[8L])
+lambda = as.numeric(args[9L])
+delta = as.numeric(args[10L])
+t0.vw = as.numeric(args[11L])
+pp = as.numeric(args[12L])
 
 #outer parameters
-horizon = '2m'
-crime.type = 'all'
+horizon = args[13L]
+crime.type = args[14L]
 
 #baselines for testing:
-delx=dely=600;alpha=0;eta=3;lt=4
-features=10;l1=1e-5;l2=1e-4;lambda=.5
-delta=1;t0.vw=1;pp=.5
-horizon='2w';crime.type='all'
+delx=dely=600;alpha=0;eta=1.5;lt=4
+features=100;l1=1e-5;l2=1e-4;lambda=.5
+delta=1;t0.vw=0;pp=.5
+horizon='2m';crime.type='all'
 cat("**********************\n",
     "* TEST PARAMETERS ON *\n",
     "**********************\n")
@@ -98,14 +82,16 @@ yrng = crimes[ , range(y_coordina)]
 # ============================================================================
 # GRID TOPOLOGY
 # Used to compute KDEs
-# Also create idx to reartange order of pixellate objects so they conform with
+# Also create idx to rearrange order of pixellate objects so they conform with
 # GT objects
 # ============================================================================
 # from pixel image create GridTopology
 pix <- crimes[occ_date <= end.date,
               pixellate(
-                ppp(x=x_coordina, y=y_coordina, xrange=xrng, yrange=yrng, check=FALSE),
-                eps=c(x=delx, dely))]
+                ppp(x=x_coordina, y=y_coordina, 
+                    xrange=xrng, yrange=yrng, check=FALSE),
+                eps=c(x=delx, dely)
+                )]
 grdtop <- as(as.SpatialGridDataFrame.im(pix), "GridTopology")
 
 # create sp object of crimes
@@ -121,17 +107,17 @@ crimes.sp = with(crimes,
 portland.bdy <- readOGR(dsn='data', layer='portland_boundary', verbose=FALSE)
 portland.bdy.coords <- portland.bdy.simp@polygons[[1L]]@Polygons[[1L]]@coords
 
-getGTindices <- function (gt) {
+getGTindices <- function(gt) {
   # Obtain indices to rearange data from image (eg. result frim pixellate)
   # so that it conforms with data from GridTopology objects (eg. results
   # from using spkernel2d).
   # Input: gt is a grid topology.
   # Returns an index.
-  dimx <- gt@cells.dim[1]
-  dimy <- gt@cells.dim[2]
+  dimx <- gt@cells.dim[1L]
+  dimy <- gt@cells.dim[2L]
   idx <- 1:(dimx*dimy)
   idx.mat <- matrix(idx, ncol = dimx)
-  idx.mat <- idx.mat[nrow(idx.mat):1,]
+  idx.mat <- idx.mat[nrow(idx.mat):1L, ]
   as.vector(t(idx.mat))
 }
 
