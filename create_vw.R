@@ -224,10 +224,13 @@ proj = crimes.grid.dt[ , cbind(x, y, week_no)] %*%
 # t0 = proc.time()["elapsed"]
 
 #convert to data.table to use fwrite
-excl = c("I", "week_no", "x", "y", "value", "train")
+incl = setdiff(names(crimes.grid.dt), 
+               c("I", "week_no", "x", "y", "value", "train"))
+names(incl) = incl
 phi.dt =
-  crimes.grid.dt[ , c(list(v = value, l = paste0(I, "_", week_no, "|")), .SD), 
-                  .SDcols = !excl]
+  crimes.grid.dt[ , c(list(v = value, l = paste0(I, "_", week_no, "|")), 
+                      lapply(incl, function(vn) 
+                        sprintf("%s:%.5f", vn, get(vn))))]
 
 if (features > 500L) alloc.col(phi.dt, 3L*features)
 #create the features
