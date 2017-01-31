@@ -165,7 +165,7 @@ compute.kde <- function (pts, grd=grdtop, h0 = 1000,
 pts.selection <- function (pts, month, nb_days=7){
   # pick random days from given month. Return sp object.
   pts.month = pts[pts$month_no==month,]
-  days.month = sample(unique(pts.month$day_no), 7)
+  days.month = sample(unique(pts.month$day_no), nb_days)
   pts.month[pts.month$day_no %in% days.month, ]
 }
 
