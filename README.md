@@ -1,8 +1,12 @@
 Forecasting Crime in Portland
 
-# Notes
+# Getting Going from Scratch
 
-* I installed the Git Large File Storage program so we can track the bigger data files within the repository -- see the [Git LFS](https://git-lfs.github.com/) page for instructions on installation. I'm not sure if everyone needs to have this.
+ 1. Clone or download .zip of the repository
+
+ 2. Install required packages: `rgdal`, `spatstat`, `splancs`, `rgeos`, `data.table`, `foreach`, `maptools`
+ 
+ 3. Run `create_vw.R`
 
 # Key Links
 

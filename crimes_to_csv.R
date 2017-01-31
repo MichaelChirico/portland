@@ -5,6 +5,9 @@
 library(data.table)
 library(foreign)
 library(zoo)
+library(sp)
+library(rgeos)
+library(rgdal)
 
 crimes = rbindlist(lapply(list.files(
   "./data", pattern = "^NIJ.*\\.dbf", full.names = TRUE),
@@ -26,7 +29,7 @@ crimes[, day_no := mday(occ_date)]
 # REMOVE POINTS OUTSIDE BORDERS
 # ============================================================================
 # create Spatial Points Data Frame
-prj = CRS("+init=epsg:2913")
+prj = CRS(prjs <- "+init=epsg:2913")
 crimes.sp = with(crimes,
              SpatialPointsDataFrame(
                coords = cbind(x_coordina, y_coordina),
@@ -35,8 +38,8 @@ crimes.sp = with(crimes,
            ))
 
 # load portland boundary
-portland = readOGR(dsn='data', layer='Portland_Police_Districts', verbose=FALSE)
-proj4string(portland) = CRS(proj4string(crimes.sp))
+portland = readOGR(dsn='data', layer='Portland_Police_Districts',
+                   verbose=FALSE, p4s = prjs)
 portland.bdy <- gUnaryUnion(portland)
 
 # slect crimes within city boundaries

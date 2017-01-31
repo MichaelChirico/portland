@@ -9,6 +9,7 @@ suppressMessages({
   library(rgdal)
   library(spatstat, quietly = TRUE)
   library(splancs, quietly = TRUE)
+  library(rgeos)
   #data.table after spatstat to
   #  access data.table::shift more easily
   library(data.table, warn.conflicts = FALSE, quietly = TRUE)
@@ -39,13 +40,13 @@ horizon = args[13L]
 crime.type = args[14L]
 
 #baselines for testing:
-delx=dely=600;alpha=0;eta=1.5;lt=4
-features=100;l1=1e-5;l2=1e-4;lambda=.5
-delta=1;t0.vw=0;pp=.5
-horizon='2m';crime.type='all'
-cat("**********************\n",
-    "* TEST PARAMETERS ON *\n",
-    "**********************\n")
+# delx=dely=600;alpha=0;eta=1.5;lt=4
+# features=100;l1=1e-5;l2=1e-4;lambda=.5
+# delta=1;t0.vw=0;pp=.5
+# horizon='2m';crime.type='all'
+# cat("**********************\n",
+#     "* TEST PARAMETERS ON *\n",
+#     "**********************\n")
 
 aa = delx*dely #forecasted area
 lx = eta*delx
@@ -61,12 +62,6 @@ crime.file = switch(crime.type,
                     street = "crimes_str.csv",
                     burglary = "crimes_bur.csv",
                     vehicle = "crimes_veh.csv")
-
-crime.shapefile = switch(crime.type,
-                    all = "crimes_all",
-                    street = "crimes_str",
-                    burglary = "crimes_bur",
-                    vehicle = "crimes_veh")
 
 crimes = fread(crime.file)
 crimes[ , occ_date := as.IDate(occ_date)]
@@ -104,7 +99,9 @@ crimes.sp = with(crimes,
 
 # load  portland boundary
 # crimes.sp <- readOGR(dsn='data/combined', layer=crime.shapefile, verbose=FALSE)
-portland.bdy <- readOGR(dsn='data', layer='portland_boundary', verbose=FALSE)
+portland.bdy <- gBuffer(
+  readOGR(dsn='data', layer='portland_boundary', verbose=FALSE), width = 500
+)
 portland.bdy.coords <- portland.bdy@polygons[[1L]]@Polygons[[1L]]@coords
 
 getGTindices <- function(gt) {
@@ -160,7 +157,8 @@ crimes.grid.dt[ , train := week_no > 0L]
 # KDEs
 # ============================================================================
 
-compute.kde <- function (pts, grd=grdtop, h0 = 1000, poly=portland.bdy.coords) {
+compute.kde <- function (pts, grd=grdtop, h0 = 1000,
+                         poly=portland.bdy.coords) {
   spkernel2d(pts=pts, poly=poly, h0=h0, grd=grd, kernel='quartic')
 }
 
@@ -175,34 +173,34 @@ compute.kde.list <- function (pts, months = 1:6) {
      # compute kde for each month, on a random pick of days.
      # return data.table, each col stores results for one month
      sp.list = lapply(months, function(month) pts.selection(pts, month))
-     kdes = as.data.table(lapply(sp.list, compute.kde))
-     setnames(kdes, names(kdes), sapply(names(kdes), function (colname) gsub('V', 'kde', colname)))
-     kdes
+     kdes = setDT(lapply(sp.list, compute.kde))
+     setnames(kdes, sapply(names(kdes), 
+                           function(colname) gsub('V', 'kde', colname)))[]
 }
 
 kdes = compute.kde.list(crimes.sp)
 
-kdes[, I:=.I]
-sgdf <- SpatialGridDataFrame(grid = grdtop, kdes)
-x = as.data.table(sgdf)[crimes.grid.dt, on='I'] # sanity check
-x[, .(x,s1,y,s2)]
+# # check for NAs
+# kdes[, I:=.I]
+# sgdf <- SpatialGridDataFrame(grid = grdtop, kdes)
+# x = as.data.table(sgdf)[crimes.grid.dt, on='I'] # sanity check
+# x[, .(x,s1,y,s2)]
+# xna = x[is.na(kde1),]
+# plot(sgdf[sgdf$I %in% xna$I, 'I'])
+# plot(portland.bdy, add=T)
+# xx = x[!is.na(kde1)]
 
-xna = x[is.na(kde1),]
-plot(sgdf[sgdf$I %in% xna$I, 'I'])
-plot(portland.bdy, add=T)
-
-xx = x[!is.na(kde1)]
 # ============================================================================
 # SUBCATEGORIES - CALLGROUPS
 # Compute KDE for last mont for top three callgroups
 # ============================================================================
 
 # pick largest call groups
-callgroup.top = crimes[, .N, by=CALL_GROUP][order(-N)][1:3, CALL_GROUP]
+callgroup.top = crimes[, .N, by=CALL_GROUP][order(-N)[1:3], CALL_GROUP]
 crimes.cgroup = lapply(callgroup.top, function (x) crimes.sp[crimes.sp$CALL_GROUP == x,])
 kdes.sub = lapply(crimes.cgroup, function (pts) compute.kde.list(pts, months=1))
 kdes.sub = as.data.table(kdes.sub)
-kdes.sub = setNames(kdes.sub, paste0('skde', 1:ncol(kdes.sub)))
+kdes.sub = setnames(kdes.sub, paste0('skde', 1L:ncol(kdes.sub)))
 
 # combine normal kdes and sub-kdes
 kdes = cbind(kdes, kdes.sub)
@@ -223,7 +221,7 @@ crimes.grid.dt <- kdes[crimes.grid.dt, on='I']
 # cat("Project...\t")
 # t0 = proc.time()["elapsed"]
 proj = crimes.grid.dt[ , cbind(x, y, week_no)] %*% 
-  (matrix(rnorm(3L*features), nrow = 3L)/c(lx, ly, lt))
+  (matrix(rt(3L*features, df = 2.5), nrow = 3L)/c(lx, ly, lt))
 
 # t1 = proc.time()["elapsed"]
 # cat(sprintf("%3.0fs", t1 - t0), "\n")
@@ -231,13 +229,17 @@ proj = crimes.grid.dt[ , cbind(x, y, week_no)] %*%
 # t0 = proc.time()["elapsed"]
 
 #convert to data.table to use fwrite
-incl = setdiff(names(crimes.grid.dt), 
+incl = setNames(
+  nm = setdiff(names(crimes.grid.dt), 
                c("I", "week_no", "x", "y", "value", "train"))
-names(incl) = incl
+)
 phi.dt =
   crimes.grid.dt[ , c(list(v = value, l = paste0(I, "_", week_no, "|")), 
-                      lapply(incl, function(vn) 
-                        sprintf("%s:%.5f", vn, get(vn))))]
+                      lapply(incl, function(vn) { 
+                        V = get(vn)
+                        #scale up by roughly the median order of KDE magnitude
+                        sprintf("%s:%.5f", vn, V/median(V))
+                      }))]
 
 if (features > 500L) alloc.col(phi.dt, 3L*features)
 #create the features
