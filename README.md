@@ -1,8 +1,14 @@
 Forecasting Crime in Portland
 
-# Notes
+# Getting Going from Scratch
 
-* I installed the Git Large File Storage program so we can track the bigger data files within the repository -- see the [Git LFS](https://git-lfs.github.com/) page for instructions on installation. I'm not sure if everyone needs to have this.
+ 1. Clone or download .zip of the repository
+
+ 2. Install required packages: `rgdal`, `spatstat`, `splancs`, `rgeos`, `data.table`, `foreach`, `maptools`
+ 
+ 3. Run create_portland_boundary.R
+ 
+ 4. Get [Police Districts shapefile](https://www.nij.gov/documents/crime-forecasting-challenge/portland-police-districts.zip) and extract to ./data/
 
 # Key Links
 
