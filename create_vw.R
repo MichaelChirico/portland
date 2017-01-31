@@ -9,6 +9,7 @@ suppressMessages({
   library(rgdal)
   library(spatstat, quietly = TRUE)
   library(splancs, quietly = TRUE)
+  library(rgeos)
   #data.table after spatstat to
   #  access data.table::shift more easily
   library(data.table, warn.conflicts = FALSE, quietly = TRUE)
@@ -104,7 +105,9 @@ crimes.sp = with(crimes,
 
 # load  portland boundary
 # crimes.sp <- readOGR(dsn='data/combined', layer=crime.shapefile, verbose=FALSE)
-portland.bdy <- readOGR(dsn='data', layer='portland_boundary', verbose=FALSE)
+portland.bdy <- gBuffer(
+  readOGR(dsn='data', layer='portland_boundary', verbose=FALSE), width = 500
+)
 portland.bdy.coords <- portland.bdy@polygons[[1L]]@Polygons[[1L]]@coords
 
 getGTindices <- function(gt) {
@@ -160,7 +163,8 @@ crimes.grid.dt[ , train := week_no > 0L]
 # KDEs
 # ============================================================================
 
-compute.kde <- function (pts, grd=grdtop, h0 = 1000, poly=portland.bdy.coords) {
+compute.kde <- function (pts, grd=grdtop, h0 = 1000,
+                         poly=portland.bdy.coords) {
   spkernel2d(pts=pts, poly=poly, h0=h0, grd=grd, kernel='quartic')
 }
 
@@ -175,9 +179,9 @@ compute.kde.list <- function (pts, months = 1:6) {
      # compute kde for each month, on a random pick of days.
      # return data.table, each col stores results for one month
      sp.list = lapply(months, function(month) pts.selection(pts, month))
-     kdes = as.data.table(lapply(sp.list, compute.kde))
-     setnames(kdes, names(kdes), sapply(names(kdes), function (colname) gsub('V', 'kde', colname)))
-     kdes
+     kdes = setDT(lapply(sp.list, compute.kde))
+     setnames(kdes, sapply(names(kdes), 
+                           function(colname) gsub('V', 'kde', colname)))[]
 }
 
 kdes = compute.kde.list(crimes.sp)
@@ -198,11 +202,11 @@ xx = x[!is.na(kde1)]
 # ============================================================================
 
 # pick largest call groups
-callgroup.top = crimes[, .N, by=CALL_GROUP][order(-N)][1:3, CALL_GROUP]
+callgroup.top = crimes[, .N, by=CALL_GROUP][order(-N)[1:3], CALL_GROUP]
 crimes.cgroup = lapply(callgroup.top, function (x) crimes.sp[crimes.sp$CALL_GROUP == x,])
 kdes.sub = lapply(crimes.cgroup, function (pts) compute.kde.list(pts, months=1))
 kdes.sub = as.data.table(kdes.sub)
-kdes.sub = setNames(kdes.sub, paste0('skde', 1:ncol(kdes.sub)))
+kdes.sub = setnames(kdes.sub, paste0('skde', 1L:ncol(kdes.sub)))
 
 # combine normal kdes and sub-kdes
 kdes = cbind(kdes, kdes.sub)
