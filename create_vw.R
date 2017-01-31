@@ -36,13 +36,13 @@ horizon = args[13L]
 crime.type = args[14L]
 
 #baselines for testing:
-# delx=dely=600;alpha=0;eta=3;lt=4
-# features=10;l1=1e-5;l2=1e-4;lambda=.5
-# delta=1;t0.vw=1;pp=.5
-# horizon='2w';crime.type='all'
-# cat("**********************\n",
-#     "* TEST PARAMETERS ON *\n",
-#     "**********************\n")
+delx=dely=600;alpha=0;eta=3;lt=4
+features=10;l1=1e-5;l2=1e-4;lambda=.5
+delta=1;t0.vw=1;pp=.5
+horizon='2w';crime.type='all'
+cat("**********************\n",
+    "* TEST PARAMETERS ON *\n",
+    "**********************\n")
 
 aa = delx*dely #forecasted area
 lx = eta*delx
@@ -71,8 +71,7 @@ crimes = crimes[occ_date >= '2015-09-01']
 xrng = crimes[ , range(x_coordina)]
 yrng = crimes[ , range(y_coordina)]
 
-#**TO DO: Check this Issue to be sure 
-#  the cells are actually sorted by x,y
+#Per here, these are always sorted by x,y:
 #  https://github.com/spatstat/spatstat/issues/37
 incl_ids = 
   with(crimes, setDT(as.data.frame(pixellate(ppp(
@@ -130,14 +129,12 @@ if (features > 500L) alloc.col(phi.dt, 3L*features)
 #  creating this as below by taking sin/cos 
 #  simultaneously with assigning to phi.dt.
 fkt = 1/sqrt(features)
-foreach(jj = 1L:features, .inorder = FALSE,
-        .combine = function(...) invisible(), 
-        .packages = 'data.table', .export = 'phi.dt') %do% {
-          pj = proj[ , jj]
-          set(phi.dt, j = paste0(c("cos", "sin"), jj), 
-              value = list(sprintf("cos%i:%.5f", jj, fkt*cos(pj)),
-                           sprintf("sin%i:%.5f", jj, fkt*sin(pj))))
-        }
+for (jj in 1L:features) {
+  pj = proj[ , jj]
+  set(phi.dt, j = paste0(c("cos", "sin"), jj), 
+      value = list(sprintf("cos%i:%.5f", jj, fkt*cos(pj)),
+                   sprintf("sin%i:%.5f", jj, fkt*sin(pj))))
+}
 rm(proj)
 
 # t1 = proc.time()["elapsed"]
