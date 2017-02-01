@@ -46,8 +46,8 @@ crime.type = args[17L]
 # delx=dely=600;alpha=0;eta=1.5;lt=4
 # features=100;l1=1e-5;l2=1e-4;lambda=.5
 # delta=1;t0.vw=0;pp=.5;
-# kde.bw=1000;kde.n=7;kde.lags=6;kde.cg='top3'
-# horizon='2m';crime.type='street'
+# kde.bw=1000;kde.n=7;kde.lags=6
+# horizon='2m';crime.type='all'
 # cat("**********************\n",
 #     "* TEST PARAMETERS ON *\n",
 #     "**********************\n")
@@ -246,8 +246,9 @@ phi.dt =
   crimes.grid.dt[ , c(list(v = value, l = paste0(I, "_", week_no, "|")), 
                       lapply(incl, function(vn) { 
                         V = get(vn)
+                        oom = abs(round(mean(log10(V[V>0]))))
                         #scale up by roughly the median order of KDE magnitude
-                        sprintf("%s:%.5f", vn, V/median(V))
+                        sprintf("%s:%.5f", vn, V*10^oom)
                       }))]
 
 if (features > 500L) alloc.col(phi.dt, 3L*features)
