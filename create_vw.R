@@ -43,14 +43,14 @@ horizon = args[16L]
 crime.type = args[17L]
 
 #baselines for testing:
-# delx=dely=600;alpha=0;eta=1.5;lt=4
-# features=100;l1=1e-5;l2=1e-4;lambda=.5
-# delta=1;t0.vw=0;pp=.5;
-# kde.bw=1000;kde.n=7;kde.lags=6
-# horizon='2m';crime.type='all'
-# cat("**********************\n",
-#     "* TEST PARAMETERS ON *\n",
-#     "**********************\n")
+delx=dely=600;alpha=0;eta=1.5;lt=4
+features=100;l1=1e-5;l2=1e-4;lambda=.5
+delta=1;t0.vw=0;pp=.5;
+kde.bw=1000;kde.n=7;kde.lags=6
+horizon='2m';crime.type='all'
+cat("**********************\n",
+    "* TEST PARAMETERS ON *\n",
+    "**********************\n")
 
 aa = delx*dely #forecasted area
 lx = eta*delx
@@ -163,20 +163,16 @@ crimes.grid.dt[ , train := week_no > 0L]
 # KDEs
 # ============================================================================
 
-compute.kde <- function(pts) 
-  spkernel2d(pts=pts, poly=portland.bdy.coords,
+compute.kde <- function(pts, month) 
+  spkernel2d(pts=pts[pts$month_no == month, ],
+             poly=portland.bdy.coords,
              h0=kde.bw, grd=grdtop, kernel='quartic')
-
-pts.selection <- function (pts, month)
-  # pick random days from given month. Return sp object.
-  pts[with(pts@data, (idx <- month_no == month) & 
-             day_no %in% sample(unique(day_no[idx]), kde.n)), ]
 
 compute.kde.list <- function (pts, months = seq_len(kde.lags)) {
   # compute kde for each month, on a random pick of days.
   # return data.table, each col stores results for one month
   lapply(setNames(months, paste0('kde', months)),
-         function(month) compute.kde(pts.selection(pts, month)))
+         function(month) compute.kde(pts, month))
 }
 
 kdes = setDT(compute.kde.list(crimes.sp))
