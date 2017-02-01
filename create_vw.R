@@ -35,22 +35,21 @@ delta = as.numeric(args[10L])
 t0.vw = as.numeric(args[11L])
 pp = as.numeric(args[12L])
 kde.bw = as.numeric(args[13L])
-kde.n = as.integer(args[14L])
-kde.lags = as.integer(args[15L])
+kde.lags = as.integer(args[14L])
 
 #outer parameters
-horizon = args[16L]
-crime.type = args[17L]
+horizon = args[15L]
+crime.type = args[16L]
 
 #baselines for testing:
-delx=dely=600;alpha=0;eta=1.5;lt=4
-features=100;l1=1e-5;l2=1e-4;lambda=.5
-delta=1;t0.vw=0;pp=.5;
-kde.bw=1000;kde.n=7;kde.lags=6
-horizon='2m';crime.type='all'
-cat("**********************\n",
-    "* TEST PARAMETERS ON *\n",
-    "**********************\n")
+# delx=dely=600;alpha=0;eta=1.5;lt=4
+# features=100;l1=1e-5;l2=1e-4;lambda=.5
+# delta=1;t0.vw=0;pp=.5;
+# kde.bw=1000;kde.lags=6
+# horizon='2m';crime.type='all'
+# cat("**********************\n",
+#     "* TEST PARAMETERS ON *\n",
+#     "**********************\n")
 
 aa = delx*dely #forecasted area
 lx = eta*delx
@@ -168,12 +167,11 @@ compute.kde <- function(pts, month)
              poly=portland.bdy.coords,
              h0=kde.bw, grd=grdtop, kernel='quartic')
 
-compute.kde.list <- function (pts, months = seq_len(kde.lags)) {
+compute.kde.list <- function (pts, months = seq_len(kde.lags)) 
   # compute kde for each month, on a random pick of days.
   # return data.table, each col stores results for one month
   lapply(setNames(months, paste0('kde', months)),
          function(month) compute.kde(pts, month))
-}
 
 kdes = setDT(compute.kde.list(crimes.sp))
 
