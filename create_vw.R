@@ -6,7 +6,7 @@
 # cat("Setup...\t")
 t0 = proc.time()["elapsed"]
 suppressMessages({
-  library(rgdal)
+  #library(rgdal)
   library(spatstat, quietly = TRUE)
   library(splancs, quietly = TRUE)
   library(rgeos)
@@ -104,7 +104,9 @@ crimes.sp = with(crimes,
 # load  portland boundary
 # crimes.sp <- readOGR(dsn='data/combined', layer=crime.shapefile, verbose=FALSE)
 portland.bdy <- gBuffer(
-  readOGR(dsn='data', layer='portland_boundary', verbose=FALSE), width = 500
+  #need rgdal; use readShapePoly for now
+  #readOGR(dsn='data', layer='portland_boundary', verbose=FALSE), width = 500
+  readShapePoly("data/portland_boundary", proj4string = prj), width = 500
 )
 portland.bdy.coords <- portland.bdy@polygons[[1L]]@Polygons[[1L]]@coords
 
