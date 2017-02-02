@@ -3,7 +3,6 @@
 # **     GPP Featurization      **
 # Michael Chirico, Seth Flaxman,
 # Charles Loeffler, Pau Pereira
-# cat("Setup...\t")
 t0 = proc.time()["elapsed"]
 suppressMessages({
   #library(rgdal)
@@ -28,24 +27,22 @@ alpha = as.numeric(args[3L])
 eta = as.numeric(args[4L])
 lt = as.numeric(args[5L])
 features = as.integer(args[6L])
-l1 = as.numeric(args[7L])
-l2 = as.numeric(args[8L])
-lambda = as.numeric(args[9L])
-delta = as.numeric(args[10L])
-t0.vw = as.numeric(args[11L])
-pp = as.numeric(args[12L])
-kde.bw = as.numeric(args[13L])
-kde.lags = as.integer(args[14L])
+kde.bw = as.numeric(args[7L])
+kde.lags = as.integer(args[8L])
+# l1 = as.numeric(args[7L])
+# l2 = as.numeric(args[8L])
+# lambda = as.numeric(args[9L])
+# delta = as.numeric(args[10L])
+# t0.vw = as.numeric(args[11L])
+# pp = as.numeric(args[12L])
 
 #outer parameters
-horizon = args[15L]
-crime.type = args[16L]
+horizon = args[9L]
+crime.type = args[10L]
 
 #baselines for testing:
 # delx=dely=600;alpha=0;eta=1.5;lt=4
-# features=100;l1=1e-5;l2=1e-4;lambda=.5
-# delta=1;t0.vw=0;pp=.5;
-# kde.bw=1000;kde.lags=6
+# features=10;kde.bw=1000;kde.lags=6
 # horizon='2m';crime.type='all'
 # cat("**********************\n",
 #     "* TEST PARAMETERS ON *\n",
@@ -142,10 +139,6 @@ incl_ids =
     #find cells that ever have a crime
   )[value > 0, which = TRUE]
 
-# t1 = proc.time()["elapsed"]
-# cat(sprintf("%3.0fs", t1 - t0), "\n")
-# cat("Pixellate&Delete Cells...\t")
-# t0 = proc.time()["elapsed"]
 crimes.grid.dt = 
   crimes[occ_date <= end.date, 
          as.data.table(pixellate(ppp(
@@ -191,7 +184,6 @@ kdes = setDT(compute.kde.list(crimes.sp))
 # ============================================================================
 
 # pick largest call groups
-
 callgroup.top = 
   crimes[, .N, by=CALL_GROUP
          #all but 'all' have 2 or fewer call groups;
@@ -219,17 +211,8 @@ crimes.grid.dt <- kdes[crimes.grid.dt, on='I']
 # ============================================================================
 
 #project -- these are the omega * xs
-# t1 = proc.time()["elapsed"]
-# cat(sprintf("%3.0fs", t1 - t0), "\n")
-# cat("Project...\t")
-# t0 = proc.time()["elapsed"]
 proj = crimes.grid.dt[ , cbind(x, y, week_no)] %*% 
   (matrix(rt(3L*features, df = 2.5), nrow = 3L)/c(lx, ly, lt))
-
-# t1 = proc.time()["elapsed"]
-# cat(sprintf("%3.0fs", t1 - t0), "\n")
-# cat("Featurize cos...\t")
-# t0 = proc.time()["elapsed"]
 
 #convert to data.table to use fwrite
 incl = setNames(
@@ -263,24 +246,12 @@ for (jj in 1L:features) {
 }
 rm(proj)
 
-# t1 = proc.time()["elapsed"]
-# cat(sprintf("%3.0fs", t1 - t0), "\n")
-# cat("VW Output...\n")
-# t0 = proc.time()["elapsed"]
-
 #temporary files
 tdir = "delete_me"
 train.vw = tempfile(tmpdir = tdir)
 test.vw = tempfile(tmpdir = tdir)
 cache = tempfile(tmpdir = tdir)
-model = tempfile(tmpdir = tdir)
 pred.vw = tempfile(tmpdir = tdir)
-
-# cat("Training file:", train.vw,
-#     "\nTesting file:", test.vw,
-#     "\nCache:", cache,
-#     "\nModel:", model,
-#     "\nPredictions:", pred.vw, "\n")
 
 fwrite(phi.dt[crimes.grid.dt$train], train.vw, 
        sep = " ", quote = FALSE, col.names = FALSE, 
@@ -288,45 +259,29 @@ fwrite(phi.dt[crimes.grid.dt$train], train.vw,
 fwrite(phi.dt[!crimes.grid.dt$train], test.vw, 
        sep = " ", quote = FALSE, col.names = FALSE,
        showProgress = FALSE)
+#can eliminate all the testing data now that it's written
+crimes.grid.dt = crimes.grid.dt[(!train)]
 rm(phi.dt)
 
-## **TO DO: eliminate the cache purge once the system's
-##          up and running properly**
-if (file.exists(cache)) system(paste('rm', cache))
-#train with VW
-# t1 = proc.time()["elapsed"]
-# cat("\n****************************\n",
-#     "VW Output...\t", sprintf("%3.0fs", t1 - t0), "\n")
-# cat("VW Training...\n")
-# t0 = proc.time()["elapsed"]
-system(paste('vw --loss_function poisson --l1', l1, '--l2', l2, 
-             '--learning_rate', lambda,
-             '--decay_learning_rate', delta,
-             '--initial_t', t0.vw, '--power_t', pp, train.vw,
-             '--cache_file', cache, '--passes 200 -f', model),
-       ignore.stderr = TRUE)
-invisible(file.remove(train.vw))
-#test with VW
-# t1 = proc.time()["elapsed"]
-# cat("\n****************************\n",
-#     "VW Training...\t", sprintf("%3.0fs", t1 - t0), "\n")
-# cat("Test&Score&Delete...\t")
-# t0 = proc.time()["elapsed"]
+tuning_variations =
+  data.table(l1 = c(1e-6, 1e-4, 1e-3, 5e-3, rep(1e-5, 23L)),
+             l2 = c(rep(1e-4, 4L), 1e-6, 5e-6, 
+                    1e-5, 5e-5, 5e-4, rep(1e-4, 18L)),
+             lambda = c(rep(.5, 9L), .01, .05,
+                        .1, .25, .75, 1, 1.5, rep(.5, 11L)),
+             delta = c(rep(1, 16L), .5, 1.5, rep(1, 9L)),
+             T0 = c(rep(0, 18L), .5, 1, 1.5, rep(0, 6L)),
+             pp = c(rep(.5, 21L), .25, .33, .5,
+                    .66, .75, 1))
+n_var = nrow(tuning_variations)
 
-system(paste('vw -t -i', model, '-p', pred.vw, 
-             test.vw, '--loss_function poisson'),
-       ignore.stderr = TRUE)
-invisible(file.remove(model, test.vw))
-
-preds = fread(pred.vw, sep = " ", header = FALSE, col.names = c("pred", "I_wk"))
-#wrote 2-variable label with _ to fit VW guidelines;
-#  now split back to constituents so we can join
-preds[ , c("I", "week_no", "I_wk") := 
-         c(lapply(tstrsplit(I_wk, split = "_"), as.integer),
-           list(NULL))]
-
-crimes.grid.dt[preds, pred.count := exp(i.pred), on = c("I", "week_no")]
-rm(preds)
+#initialize parameter records table
+scores = data.table(delx, dely, alpha, eta, lt, k = features,
+                    l1 = numeric(n_var), l2 = numeric(n_var),
+                    lambda = numeric(n_var), delta = numeric(n_var),
+                    t0 = numeric(n_var), p = numeric(n_var),
+                    kde.bw, kde.n = NA, kde.lags,
+                    pei = numeric(n_var), pai = numeric(n_var))
 
 #when we're at the minimum forecast area, we must round up
 #  to be sure we don't undershoot; when at the max,
@@ -338,41 +293,68 @@ which.round = function(x)
 
 n.cells = as.integer(which.round(alpha)(6969600*(1+2*alpha)/aa))
 
-hotspot.ids =
-  crimes.grid.dt[(!train), .(tot.pred = sum(pred.count)), by = I
-                 ][order(-tot.pred)[1L:n.cells], I]
-crimes.grid.dt[(!train), hotspot := I %in% hotspot.ids]
+#Calculate PEI & PAI denominators here since they are the
+#  same for all variations of tuning parameters,
+#  given the input parameters (delx, etc.)
+N_star = crimes.grid.dt[ , .(tot.crimes = sum(value)), by = I
+                         ][order(-tot.crimes)[1L:n.cells],
+                           sum(tot.crimes)]
+NN = crimes.grid.dt[ , sum(value)]
 
-#how well did we do? lower-case n in the PEI/PAI calculation
-nn = crimes.grid.dt[(hotspot), sum(value)]
-
-pei = nn/crimes.grid.dt[(!train), .(tot.crimes = sum(value)), by = I
-                        ][order(-tot.crimes)[1L:n.cells],
-                          sum(tot.crimes)]
-#rather than load the portland shapefile just to calculate
-#  the total area, pre-do that here
-pai = (nn/crimes.grid.dt[(!train), sum(value)])/(aa*n.cells/4117777129)
+for (ii in seq_len(nrow(tuning_variations))) {
+  model = tempfile(tmpdir = tdir)
+  #train with VW
+  with(tuning_variations[ii],
+       system(paste('vw --loss_function poisson --l1', l1, '--l2', l2, 
+                    '--learning_rate', lambda,
+                    '--decay_learning_rate', delta,
+                    '--initial_t', T0, '--power_t', pp, train.vw,
+                    '-c --cache_file', cache, '--passes 200 -f', model),
+              ignore.stderr = TRUE))
+  #training data now stored in cache format, so can delete original
+  if (file.exists(train.vw)) invisible(file.remove(train.vw))
+  #test with VW
+  system(paste('vw -t -i', model, '-p', pred.vw, '--cache_file', cache,
+               test.vw, '--loss_function poisson'),
+         ignore.stderr = TRUE)
+  invisible(file.remove(model))
+  
+  preds = 
+    fread(pred.vw, sep = " ", header = FALSE, col.names = c("pred", "I_wk"))
+  invisible(file.remove(pred.vw))
+  #wrote 2-variable label with _ to fit VW guidelines;
+  #  now split back to constituents so we can join
+  preds[ , c("I", "week_no", "I_wk") := 
+           c(lapply(tstrsplit(I_wk, split = "_"), as.integer),
+             list(NULL))]
+  
+  crimes.grid.dt[preds, pred.count := exp(i.pred), on = c("I", "week_no")]
+  rm(preds)
+  
+  hotspot.ids =
+    crimes.grid.dt[ , .(tot.pred = sum(pred.count)), by = I
+                    ][order(-tot.pred)[1L:n.cells], I]
+  crimes.grid.dt[ , hotspot := I %in% hotspot.ids]
+  
+  #how well did we do? lower-case n in the PEI/PAI calculation
+  nn = crimes.grid.dt[(hotspot), sum(value)]
+  
+  scores[ii, c('l1', 'l2', 'lambda', 'delta',
+               'to.vw', 'pp', 'pei', 'pai') :=
+           c(tuning_variations[ii],
+             list(pei = nn/N_star, 
+                  #pre-calculated the total area of portland
+                  pai = (nn/NN)/(aa*n.cells/4117777129)))]
+}
+system(paste('rm', cache, test.vw))
 
 ff = paste0("scores/", crime.type, "_", horizon, ".csv")
-
-if (!file.exists(ff)) 
-  cat("delx,dely,alpha,eta,lt,k,l1,l2,",
-      "lambda,delta,t0,p,kde.bw,kde.n,kde.lags,pei,pai\n", 
-      sep = "", file = ff)
-
-params = paste(delx, dely, alpha, eta, lt, features, l1, l2,
-               lambda, delta, t0.vw, pp, kde.bw, 
-               kde.n, kde.lags, pei, pai, sep = ",")
-cat(params, "\n", sep = "", append = TRUE, file = ff)
-invisible(file.remove(cache, pred.vw))
+fwrite(scores, ff, append = file.exists(ff))
 
 t1 = proc.time()["elapsed"]
 ft = paste0("timings/", crime.type, "_", horizon, ".csv")
 if (!file.exists(ft)) 
-  cat("delx,dely,alpha,eta,lt,k,l1,l2,",
-      "lambda,delta,t0,p,kde.bw,kde.n,kde.lags,time\n", sep = "", file = ft)
-params = paste(delx, dely, alpha, eta, lt, features, l1, l2,
-               lambda, delta, t0.vw, pp, kde.bw,
-               kde.n, kde.lags, t1 - t0, sep = ",")
+  cat("delx,dely,alpha,eta,lt,k,kde.bw,kde.lags,time\n", sep = "", file = ft)
+params = paste(delx, dely, alpha, eta, lt, features, 
+               kde.bw, kde.lags, t1 - t0, sep = ",")
 cat(params, "\n", sep = "", append = TRUE, file = ft)
-# cat(sprintf("%3.0fs", t1 - t0), "\n")
