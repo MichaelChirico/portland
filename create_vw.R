@@ -259,7 +259,9 @@ rm(proj)
 tdir = "delete_me"
 train.vw = tempfile(tmpdir = tdir, pattern = "train")
 test.vw = tempfile(tmpdir = tdir, pattern = "test")
-cache = tempfile(tmpdir = tdir, fileext = '.cache')
+#simply append .cache suffix to make it easier
+#  to track association when debugging
+cache = paste0(train.vw, '.cache')
 pred.vw = tempfile(tmpdir = tdir, pattern = "predict")
 
 fwrite(phi.dt[crimes.grid.dt$train], train.vw, 
@@ -357,7 +359,7 @@ for (ii in seq_len(nrow(tuning_variations))) {
                   #pre-calculated the total area of portland
                   pai = (nn/NN)/(aa*n.cells/4117777129)))]
 }
-system(paste('rm', cache, test.vw))
+invisible(file.remove(cache, test.vw))
 
 # ============================================================================
 # SCORES FOR KDE-ONLY
