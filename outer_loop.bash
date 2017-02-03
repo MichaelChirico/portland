@@ -20,4 +20,3 @@ qsub random_search_16.sh
 qsub random_search_17.sh
 qsub random_search_18.sh
 qsub random_search_19.sh
-qsub random_search_20.sh
