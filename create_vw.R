@@ -246,6 +246,15 @@ for (jj in 1L:features) {
 }
 rm(proj)
 
+# t1 = proc.time()["elapsed"]
+# cat(sprintf("%3.0fs", t1 - t0), "\n")
+# cat("VW Output...\n")
+# t0 = proc.time()["elapsed"]
+
+# ============================================================================
+# WRITE VW FILES
+# ============================================================================
+
 #temporary files
 tdir = "delete_me"
 train.vw = tempfile(tmpdir = tdir, pattern = "train")
@@ -350,13 +359,55 @@ for (ii in seq_len(nrow(tuning_variations))) {
 }
 system(paste('rm', cache, test.vw))
 
+# ============================================================================
+# SCORES FOR KDE-ONLY
+# ============================================================================
+# ad test values to kdes
+
+# construct SpatialGridDataFrame
+sgdf = SpatialGridDataFrame(grid = grdtop, data = kdes)
+
+# kde hotspots
+hotspot.ids.kde = kdes[order(-kde1)][1:n.cells, I]
+
+# plot(sgdf[sgdf$I %in% hotspot.ids.kde,,'kde1'])
+# plot(portland.bdy, add=T)
+
+## compute scores
+tot.crimes = crimes.grid.dt[(!train), sum(value)]
+hotspot.crimes = crimes.grid.dt[(!train) & I %in% hotspot.ids.kde, sum(value)]
+pai.kde = (hotspot.crimes/tot.crimes)/(aa*n.cells/4117777129)
+
+pei.kde = hotspot.crimes/crimes.grid.dt[(!train), .(tot.crimes = sum(value)), by = I
+               ][order(-tot.crimes)[1L:n.cells],
+                 sum(tot.crimes)]
+
+# ============================================================================
+# WRITE RESULTS FILE AND TIMINGS
+# ============================================================================
+
 ff = paste0("scores/", crime.type, "_", horizon, ".csv")
 fwrite(scores, ff, append = file.exists(ff))
 
 t1 = proc.time()["elapsed"]
 ft = paste0("timings/", crime.type, "_", horizon, ".csv")
 if (!file.exists(ft)) 
-  cat("delx,dely,alpha,eta,lt,k,kde.bw,kde.lags,time\n", sep = "", file = ft)
-params = paste(delx, dely, alpha, eta, lt, features, 
-               kde.bw, kde.lags, t1 - t0, sep = ",")
+  cat("delx,dely,alpha,eta,lt,k,l1,l2,",
+      "lambda,delta,t0,p,kde.bw,kde.n,kde.lags,time\n", sep = "", file = ft)
+params = paste(delx, dely, alpha, eta, lt, features, l1, l2,
+               lambda, delta, t0.vw, pp, kde.bw,
+               kde.n, kde.lags, t1 - t0, sep = ",")
+cat(params, "\n", sep = "", append = TRUE, file = ft)
+# cat(sprintf("%3.0fs", t1 - t0), "\n")
+
+# ============================================================================
+# WRITE KDE BASELINE RESULTS
+# ============================================================================
+
+if (!dir.exists("kde_baselines/")) dir.create("kde_baselines/")
+
+ft = paste0("kde_baselines/", crime.type, "_", horizon, ".csv")
+if (!file.exists(ft)) 
+  cat("delx,dely,alpha,kde.bw,kde.lags,horizon,crime.type, pei,pai\n", sep = "", file = ft)
+params = paste(delx, dely, alpha, kde.bw, kde.lags, horizon, crime.type, round(pei, 3), round(pai, 3) ,sep = ",")
 cat(params, "\n", sep = "", append = TRUE, file = ft)
