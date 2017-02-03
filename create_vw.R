@@ -248,10 +248,10 @@ rm(proj)
 
 #temporary files
 tdir = "delete_me"
-train.vw = tempfile(tmpdir = tdir)
-test.vw = tempfile(tmpdir = tdir)
-cache = tempfile(tmpdir = tdir)
-pred.vw = tempfile(tmpdir = tdir)
+train.vw = tempfile(tmpdir = tdir, pattern = "train")
+test.vw = tempfile(tmpdir = tdir, pattern = "test")
+cache = tempfile(tmpdir = tdir, fileext = '.cache')
+pred.vw = tempfile(tmpdir = tdir, pattern = "predict")
 
 fwrite(phi.dt[crimes.grid.dt$train], train.vw, 
        sep = " ", quote = FALSE, col.names = FALSE, 
@@ -302,19 +302,21 @@ N_star = crimes.grid.dt[ , .(tot.crimes = sum(value)), by = I
 NN = crimes.grid.dt[ , sum(value)]
 
 for (ii in seq_len(nrow(tuning_variations))) {
-  model = tempfile(tmpdir = tdir)
+  model = tempfile(tmpdir = tdir, pattern = "model")
   #train with VW
   with(tuning_variations[ii],
-       system(paste('vw --loss_function poisson --l1', l1, '--l2', l2, 
+       system(paste('vw --loss_function poisson --l1', l1, '--l2', l2,
                     '--learning_rate', lambda,
                     '--decay_learning_rate', delta,
                     '--initial_t', T0, '--power_t', pp, train.vw,
-                    '-c --cache_file', cache, '--passes 200 -f', model),
+                    '--cache_file', cache, '--passes 200 -f', model),
               ignore.stderr = TRUE))
-  #training data now stored in cache format, so can delete original
+  #training data now stored in cache format,
+  #  so can delete original (don't need to, but this is a useful
+  #  check to force an error if s.t. wrong with cache)
   if (file.exists(train.vw)) invisible(file.remove(train.vw))
   #test with VW
-  system(paste('vw -t -i', model, '-p', pred.vw, '--cache_file', cache,
+  system(paste('vw -t -i', model, '-p', pred.vw,
                test.vw, '--loss_function poisson'),
          ignore.stderr = TRUE)
   invisible(file.remove(model))
@@ -340,7 +342,7 @@ for (ii in seq_len(nrow(tuning_variations))) {
   nn = crimes.grid.dt[(hotspot), sum(value)]
   
   scores[ii, c('l1', 'l2', 'lambda', 'delta',
-               'to.vw', 'pp', 'pei', 'pai') :=
+               't0', 'p', 'pei', 'pai') :=
            c(tuning_variations[ii],
              list(pei = nn/N_star, 
                   #pre-calculated the total area of portland
