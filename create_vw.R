@@ -231,7 +231,7 @@ phi.dt =
                         sprintf("%s:%.5f", vn, val)
                       }))]
 
-if (features > 500L) alloc.col(phi.dt, 3L*features)
+if (features > 500L) invisible(alloc.col(phi.dt, 3L*features))
 #create the features
 #  previously explored alternative:
 #  assign cos/sin projection as matrix:
@@ -248,11 +248,6 @@ for (jj in 1L:features) {
                    sprintf("sin%i:%.5f", jj, fkt*sin(pj))))
 }
 rm(proj)
-
-# t1 = proc.time()["elapsed"]
-# cat(sprintf("%3.0fs", t1 - t0), "\n")
-# cat("VW Output...\n")
-# t0 = proc.time()["elapsed"]
 
 # ============================================================================
 # WRITE VW FILES
