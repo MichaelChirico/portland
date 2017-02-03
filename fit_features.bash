@@ -14,15 +14,16 @@
 #    7 ) KDE bandwidth (kde.bw)
 #    8 ) KDE lag count, # of (month-long) lags to include
 #          as KDE features (kde.lags)
-#    9 ) forecasting horizon h:
+#    9 ) crime category c
+#         c = all : All Calls for Service
+#         c = street : Street Crime
+#         c = burglary : Burglary
+#         c = vehicle : Motor Vehicle Theft
+#    10) forecasting horizon h:
 #         h = 1w : one week
 #         h = 2w : two weeks
 #         h = 1m : one month
 #         h = 2m : two months
 #         h = 3m : three months
-#    10) crime category c
-#         c = all : All Calls for Service
-#         c = street : Street Crime
-#         c = burglary : Burglary
-#         c = vehicle : Motor Vehicle Theft
+
 ./create_vw.R "$@"

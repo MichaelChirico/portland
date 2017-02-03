@@ -37,8 +37,8 @@ kde.lags = as.integer(args[8L])
 # pp = as.numeric(args[12L])
 
 #outer parameters
-horizon = args[9L]
-crime.type = args[10L]
+crime.type = args[9L]
+horizon = args[10L]
 
 #baselines for testing:
 # delx=dely=600;alpha=0;eta=1.5;lt=4
