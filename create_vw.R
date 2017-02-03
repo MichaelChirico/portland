@@ -224,7 +224,7 @@ phi.dt =
                       lapply(incl, function(vn) { 
                         V = get(vn)
                         val = V * 10^(abs(round(mean(log10(V[V>0])))))
-                        if (any(is.nan(val))
+                        if (any(is.nan(val)))
                             stop('NaNs detected! Current parameters:',
                                  paste(args, collapse = '/'))
                         #scale up by roughly the median order of KDE magnitude
