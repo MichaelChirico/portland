@@ -223,9 +223,12 @@ phi.dt =
   crimes.grid.dt[ , c(list(v = value, l = paste0(I, "_", week_no, "|")), 
                       lapply(incl, function(vn) { 
                         V = get(vn)
-                        oom = abs(round(mean(log10(V[V>0]))))
+                        val = V * 10^(abs(round(mean(log10(V[V>0])))))
+                        if (any(is.nan(val))
+                            stop('NaNs detected! Current parameters:',
+                                 paste(args, collapse = '/'))
                         #scale up by roughly the median order of KDE magnitude
-                        sprintf("%s:%.5f", vn, V*10^oom)
+                        sprintf("%s:%.5f", vn, val)
                       }))]
 
 if (features > 500L) alloc.col(phi.dt, 3L*features)
