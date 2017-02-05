@@ -29,12 +29,6 @@ lt = as.numeric(args[5L])
 features = as.integer(args[6L])
 kde.bw = as.numeric(args[7L])
 kde.lags = as.integer(args[8L])
-# l1 = as.numeric(args[7L])
-# l2 = as.numeric(args[8L])
-# lambda = as.numeric(args[9L])
-# delta = as.numeric(args[10L])
-# t0.vw = as.numeric(args[11L])
-# pp = as.numeric(args[12L])
 
 #outer parameters
 crime.type = args[9L]
@@ -261,7 +255,6 @@ test.vw = tempfile(tmpdir = tdir, pattern = "test")
 #  to track association when debugging
 cache = paste0(train.vw, '.cache')
 pred.vw = tempfile(tmpdir = tdir, pattern = "predict")
-
 fwrite(phi.dt[crimes.grid.dt$train], train.vw, 
        sep = " ", quote = FALSE, col.names = FALSE, 
        showProgress = FALSE)
@@ -289,7 +282,7 @@ scores = data.table(delx, dely, alpha, eta, lt, k = features,
                     l1 = numeric(n_var), l2 = numeric(n_var),
                     lambda = numeric(n_var), delta = numeric(n_var),
                     t0 = numeric(n_var), p = numeric(n_var),
-                    kde.bw, kde.n = NA, kde.lags,
+                    kde.bw, kde.n = 'all', kde.lags,
                     pei = numeric(n_var), pai = numeric(n_var))
 
 #when we're at the minimum forecast area, we must round up
