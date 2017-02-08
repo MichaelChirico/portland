@@ -40,13 +40,13 @@ kde.lags = as.integer(args[8L])
 crime.type = args[9L]
 horizon = args[10L]
 
-#baselines for testing:
-# delx=dely=600;alpha=0;eta=1.5;lt=4
-# features=10;kde.bw=1000;kde.lags=6
-# horizon='2m';crime.type='all'
-# cat("**********************\n",
-#     "* TEST PARAMETERS ON *\n",
-#     "**********************\n")
+# baselines for testing:
+delx=dely=600;alpha=0;eta=1.5;lt=4
+features=10;kde.bw=1000;kde.lags=6
+horizon='2m';crime.type='all'
+cat("**********************\n",
+    "* TEST PARAMETERS ON *\n",
+    "**********************\n")
 
 aa = delx*dely #forecasted area
 lx = eta*delx
@@ -248,6 +248,11 @@ for (jj in 1L:features) {
                    sprintf("sin%i:%.5f", jj, fkt*sin(pj))))
 }
 rm(proj)
+
+# add namespaces
+phi.dt[, `:=`(l = paste0(l,'kdes'),
+           cos1 = paste('|rff', cos1))]
+
 
 # ============================================================================
 # WRITE VW FILES
