@@ -29,18 +29,24 @@ lt = as.numeric(args[5L])
 features = as.integer(args[6L])
 kde.bw = as.numeric(args[7L])
 kde.lags = as.integer(args[8L])
+# l1 = as.numeric(args[7L])
+# l2 = as.numeric(args[8L])
+# lambda = as.numeric(args[9L])
+# delta = as.numeric(args[10L])
+# t0.vw = as.numeric(args[11L])
+# pp = as.numeric(args[12L])
 
 #outer parameters
 crime.type = args[9L]
 horizon = args[10L]
 
 # baselines for testing:
-delx=dely=600;alpha=0;eta=1.5;lt=4
-features=10;kde.bw=1000;kde.lags=6
-horizon='2m';crime.type='all'
-cat("**********************\n",
-    "* TEST PARAMETERS ON *\n",
-    "**********************\n")
+# delx=dely=600;alpha=0;eta=1.5;lt=4
+# features=10;kde.bw=1000;kde.lags=6
+# horizon='2m';crime.type='all'
+# cat("**********************\n",
+#     "* TEST PARAMETERS ON *\n",
+#     "**********************\n")
 
 aa = delx*dely #forecasted area
 lx = eta*delx
@@ -204,158 +210,154 @@ crimes.grid.dt <- kdes[crimes.grid.dt, on='I']
 # PROJECTION
 # ============================================================================
 
-#project -- these are the omega * xs
-proj = crimes.grid.dt[ , cbind(x, y, week_no)] %*% 
-  (matrix(rt(3L*features, df = 2.5), nrow = 3L)/c(lx, ly, lt))
-
-#convert to data.table to use fwrite
-incl = setNames(
-  nm = setdiff(names(crimes.grid.dt), 
-               c("I", "week_no", "x", "y", "value", "train"))
-)
-phi.dt =
-  crimes.grid.dt[ , c(list(v = value, l = paste0(I, "_", week_no, "|")), 
-                      lapply(incl, function(vn) { 
-                        V = get(vn)
-                        val = V * 10^(abs(round(mean(log10(V[V>0])))))
-                        if (any(is.nan(val)))
-                            stop('NaNs detected! Current parameters:',
-                                 paste(args, collapse = '/'))
-                        #scale up by roughly the median order of KDE magnitude
-                        sprintf("%s:%.5f", vn, val)
-                      }))]
-
-if (features > 500L) invisible(alloc.col(phi.dt, 3L*features))
-#create the features
-#  previously explored alternative:
-#  assign cos/sin projection as matrix:
-#  phi = cbind(cos(proj), sin(proj))/sqrt(features)
-#  then assign to phi.dt column-wise,
-#  but this _appears_ to be slower than implicitly
-#  creating this as below by taking sin/cos 
-#  simultaneously with assigning to phi.dt.
-fkt = 1/sqrt(features)
-for (jj in 1L:features) {
-  pj = proj[ , jj]
-  set(phi.dt, j = paste0(c("cos", "sin"), jj), 
-      value = list(sprintf("cos%i:%.5f", jj, fkt*cos(pj)),
-                   sprintf("sin%i:%.5f", jj, fkt*sin(pj))))
-}
-rm(proj)
-
-# add namespaces
-phi.dt[, `:=`(l = paste0(l,'kdes'),
-           cos1 = paste('|rff', cos1))]
-
-
-# ============================================================================
-# WRITE VW FILES
-# ============================================================================
-
-#temporary files
-tdir = "delete_me"
-train.vw = tempfile(tmpdir = tdir, pattern = "train")
-test.vw = tempfile(tmpdir = tdir, pattern = "test")
-#simply append .cache suffix to make it easier
-#  to track association when debugging
-cache = paste0(train.vw, '.cache')
-pred.vw = tempfile(tmpdir = tdir, pattern = "predict")
-fwrite(phi.dt[crimes.grid.dt$train], train.vw, 
-       sep = " ", quote = FALSE, col.names = FALSE, 
-       showProgress = FALSE)
-fwrite(phi.dt[!crimes.grid.dt$train], test.vw, 
-       sep = " ", quote = FALSE, col.names = FALSE,
-       showProgress = FALSE)
-#can eliminate all the testing data now that it's written
-crimes.grid.dt = crimes.grid.dt[(!train)]
-rm(phi.dt)
-
-tuning_variations =
-  data.table(l1 = c(1e-6, 1e-4, 1e-3, 5e-3, rep(1e-5, 23L)),
-             l2 = c(rep(1e-4, 4L), 1e-6, 5e-6, 
-                    1e-5, 5e-5, 5e-4, rep(1e-4, 18L)),
-             lambda = c(rep(.5, 9L), .01, .05,
-                        .1, .25, .75, 1, 1.5, rep(.5, 11L)),
-             delta = c(rep(1, 16L), .5, 1.5, rep(1, 9L)),
-             T0 = c(rep(0, 18L), .5, 1, 1.5, rep(0, 6L)),
-             pp = c(rep(.5, 21L), .25, .33, .5,
-                    .66, .75, 1))
-n_var = nrow(tuning_variations)
-
-#initialize parameter records table
-scores = data.table(delx, dely, alpha, eta, lt, k = features,
-                    l1 = numeric(n_var), l2 = numeric(n_var),
-                    lambda = numeric(n_var), delta = numeric(n_var),
-                    t0 = numeric(n_var), p = numeric(n_var),
-                    kde.bw, kde.n = 'all', kde.lags,
-                    pei = numeric(n_var), pai = numeric(n_var))
-
-#when we're at the minimum forecast area, we must round up
-#  to be sure we don't undershoot; when at the max,
-#  we must round down; otherwise, just round
-# **TO DO: if we predict any boundary cells and are using the minimum
-#          forecast area, WE'LL FALL BELOW IT WHEN WE CLIP TO PORTLAND **
+# #project -- these are the omega * xs
+# proj = crimes.grid.dt[ , cbind(x, y, week_no)] %*% 
+#   (matrix(rt(3L*features, df = 2.5), nrow = 3L)/c(lx, ly, lt))
+# 
+# #convert to data.table to use fwrite
+# incl = setNames(
+#   nm = setdiff(names(crimes.grid.dt), 
+#                c("I", "week_no", "x", "y", "value", "train"))
+# )
+# phi.dt =
+#   crimes.grid.dt[ , c(list(v = value, l = paste0(I, "_", week_no, "|")), 
+#                       lapply(incl, function(vn) { 
+#                         V = get(vn)
+#                         val = V * 10^(abs(round(mean(log10(V[V>0])))))
+#                         if (any(is.nan(val)))
+#                             stop('NaNs detected! Current parameters:',
+#                                  paste(args, collapse = '/'))
+#                         #scale up by roughly the median order of KDE magnitude
+#                         sprintf("%s:%.5f", vn, val)
+#                       }))]
+# 
+# if (features > 500L) invisible(alloc.col(phi.dt, 3L*features))
+# #create the features
+# #  previously explored alternative:
+# #  assign cos/sin projection as matrix:
+# #  phi = cbind(cos(proj), sin(proj))/sqrt(features)
+# #  then assign to phi.dt column-wise,
+# #  but this _appears_ to be slower than implicitly
+# #  creating this as below by taking sin/cos 
+# #  simultaneously with assigning to phi.dt.
+# fkt = 1/sqrt(features)
+# for (jj in 1L:features) {
+#   pj = proj[ , jj]
+#   set(phi.dt, j = paste0(c("cos", "sin"), jj), 
+#       value = list(sprintf("cos%i:%.5f", jj, fkt*cos(pj)),
+#                    sprintf("sin%i:%.5f", jj, fkt*sin(pj))))
+# }
+# rm(proj)
+# 
+# # ============================================================================
+# # WRITE VW FILES
+# # ============================================================================
+# 
+# #temporary files
+# tdir = "delete_me"
+# train.vw = tempfile(tmpdir = tdir, pattern = "train")
+# test.vw = tempfile(tmpdir = tdir, pattern = "test")
+# #simply append .cache suffix to make it easier
+# #  to track association when debugging
+# cache = paste0(train.vw, '.cache')
+# pred.vw = tempfile(tmpdir = tdir, pattern = "predict")
+# 
+# fwrite(phi.dt[crimes.grid.dt$train], train.vw, 
+#        sep = " ", quote = FALSE, col.names = FALSE, 
+#        showProgress = FALSE)
+# fwrite(phi.dt[!crimes.grid.dt$train], test.vw, 
+#        sep = " ", quote = FALSE, col.names = FALSE,
+#        showProgress = FALSE)
+# #can eliminate all the testing data now that it's written
+# crimes.grid.dt = crimes.grid.dt[(!train)]
+# rm(phi.dt)
+# 
+# tuning_variations =
+#   data.table(l1 = c(1e-6, 1e-4, 1e-3, 5e-3, rep(1e-5, 23L)),
+#              l2 = c(rep(1e-4, 4L), 1e-6, 5e-6, 
+#                     1e-5, 5e-5, 5e-4, rep(1e-4, 18L)),
+#              lambda = c(rep(.5, 9L), .01, .05,
+#                         .1, .25, .75, 1, 1.5, rep(.5, 11L)),
+#              delta = c(rep(1, 16L), .5, 1.5, rep(1, 9L)),
+#              T0 = c(rep(0, 18L), .5, 1, 1.5, rep(0, 6L)),
+#              pp = c(rep(.5, 21L), .25, .33, .5,
+#                     .66, .75, 1))
+# n_var = nrow(tuning_variations)
+# 
+# #initialize parameter records table
+# scores = data.table(delx, dely, alpha, eta, lt, k = features,
+#                     l1 = numeric(n_var), l2 = numeric(n_var),
+#                     lambda = numeric(n_var), delta = numeric(n_var),
+#                     t0 = numeric(n_var), p = numeric(n_var),
+#                     kde.bw, kde.n = NA, kde.lags,
+#                     pei = numeric(n_var), pai = numeric(n_var))
+# 
+# #when we're at the minimum forecast area, we must round up
+# #  to be sure we don't undershoot; when at the max,
+# #  we must round down; otherwise, just round
+# # **TO DO: if we predict any boundary cells and are using the minimum
+# #          forecast area, WE'LL FALL BELOW IT WHEN WE CLIP TO PORTLAND **
 which.round = function(x)
   if (x > 0) {if (x < 1) round else floor} else ceiling
 
 n.cells = as.integer(which.round(alpha)(6969600*(1+2*alpha)/aa))
-
-#Calculate PEI & PAI denominators here since they are the
-#  same for all variations of tuning parameters,
-#  given the input parameters (delx, etc.)
-N_star = crimes.grid.dt[ , .(tot.crimes = sum(value)), by = I
-                         ][order(-tot.crimes)[1L:n.cells],
-                           sum(tot.crimes)]
-NN = crimes.grid.dt[ , sum(value)]
-
-for (ii in seq_len(nrow(tuning_variations))) {
-  model = tempfile(tmpdir = tdir, pattern = "model")
-  #train with VW
-  with(tuning_variations[ii],
-       system(paste('vw --loss_function poisson --l1', l1, '--l2', l2,
-                    '--learning_rate', lambda,
-                    '--decay_learning_rate', delta,
-                    '--initial_t', T0, '--power_t', pp, train.vw,
-                    '--cache_file', cache, '--passes 200 -f', model),
-              ignore.stderr = TRUE))
-  #training data now stored in cache format,
-  #  so can delete original (don't need to, but this is a useful
-  #  check to force an error if s.t. wrong with cache)
-  if (file.exists(train.vw)) invisible(file.remove(train.vw))
-  #test with VW
-  system(paste('vw -t -i', model, '-p', pred.vw,
-               test.vw, '--loss_function poisson'),
-         ignore.stderr = TRUE)
-  invisible(file.remove(model))
-  
-  preds = 
-    fread(pred.vw, sep = " ", header = FALSE, col.names = c("pred", "I_wk"))
-  invisible(file.remove(pred.vw))
-  #wrote 2-variable label with _ to fit VW guidelines;
-  #  now split back to constituents so we can join
-  preds[ , c("I", "week_no", "I_wk") := 
-           c(lapply(tstrsplit(I_wk, split = "_"), as.integer),
-             list(NULL))]
-  
-  crimes.grid.dt[preds, pred.count := exp(i.pred), on = c("I", "week_no")]
-  rm(preds)
-  
-  hotspot.ids =
-    crimes.grid.dt[ , .(tot.pred = sum(pred.count)), by = I
-                    ][order(-tot.pred)[1L:n.cells], I]
-  crimes.grid.dt[ , hotspot := I %in% hotspot.ids]
-  
-  #how well did we do? lower-case n in the PEI/PAI calculation
-  nn = crimes.grid.dt[(hotspot), sum(value)]
-  
-  scores[ii, c('l1', 'l2', 'lambda', 'delta',
-               't0', 'p', 'pei', 'pai') :=
-           c(tuning_variations[ii],
-             list(pei = nn/N_star, 
-                  #pre-calculated the total area of portland
-                  pai = (nn/NN)/(aa*n.cells/4117777129)))]
-}
-invisible(file.remove(cache, test.vw))
+# 
+# #Calculate PEI & PAI denominators here since they are the
+# #  same for all variations of tuning parameters,
+# #  given the input parameters (delx, etc.)
+# N_star = crimes.grid.dt[ , .(tot.crimes = sum(value)), by = I
+#                          ][order(-tot.crimes)[1L:n.cells],
+#                            sum(tot.crimes)]
+# NN = crimes.grid.dt[ , sum(value)]
+# 
+# for (ii in seq_len(nrow(tuning_variations))) {
+#   model = tempfile(tmpdir = tdir, pattern = "model")
+#   #train with VW
+#   with(tuning_variations[ii],
+#        system(paste('vw --loss_function poisson --l1', l1, '--l2', l2,
+#                     '--learning_rate', lambda,
+#                     '--decay_learning_rate', delta,
+#                     '--initial_t', T0, '--power_t', pp, train.vw,
+#                     '--cache_file', cache, '--passes 200 -f', model),
+#               ignore.stderr = TRUE))
+#   #training data now stored in cache format,
+#   #  so can delete original (don't need to, but this is a useful
+#   #  check to force an error if s.t. wrong with cache)
+#   if (file.exists(train.vw)) invisible(file.remove(train.vw))
+#   #test with VW
+#   system(paste('vw -t -i', model, '-p', pred.vw,
+#                test.vw, '--loss_function poisson'),
+#          ignore.stderr = TRUE)
+#   invisible(file.remove(model))
+#   
+#   preds = 
+#     fread(pred.vw, sep = " ", header = FALSE, col.names = c("pred", "I_wk"))
+#   invisible(file.remove(pred.vw))
+#   #wrote 2-variable label with _ to fit VW guidelines;
+#   #  now split back to constituents so we can join
+#   preds[ , c("I", "week_no", "I_wk") := 
+#            c(lapply(tstrsplit(I_wk, split = "_"), as.integer),
+#              list(NULL))]
+#   
+#   crimes.grid.dt[preds, pred.count := exp(i.pred), on = c("I", "week_no")]
+#   rm(preds)
+#   
+#   hotspot.ids =
+#     crimes.grid.dt[ , .(tot.pred = sum(pred.count)), by = I
+#                     ][order(-tot.pred)[1L:n.cells], I]
+#   crimes.grid.dt[ , hotspot := I %in% hotspot.ids]
+#   
+#   #how well did we do? lower-case n in the PEI/PAI calculation
+#   nn = crimes.grid.dt[(hotspot), sum(value)]
+#   
+#   scores[ii, c('l1', 'l2', 'lambda', 'delta',
+#                't0', 'p', 'pei', 'pai') :=
+#            c(tuning_variations[ii],
+#              list(pei = nn/N_star, 
+#                   #pre-calculated the total area of portland
+#                   pai = (nn/NN)/(aa*n.cells/4117777129)))]
+# }
+# invisible(file.remove(cache, test.vw))
 
 # ============================================================================
 # SCORES FOR KDE-ONLY
@@ -384,16 +386,16 @@ pei.kde = hotspot.crimes/crimes.grid.dt[ , .(tot.crimes = sum(value)), by = I
 # WRITE RESULTS FILE AND TIMINGS
 # ============================================================================
 
-ff = paste0("scores/", crime.type, "_", horizon, ".csv")
-fwrite(scores, ff, append = file.exists(ff))
-
-t1 = proc.time()["elapsed"]
-ft = paste0("timings/", crime.type, "_", horizon, ".csv")
-if (!file.exists(ft)) 
-  cat("delx,dely,alpha,eta,lt,k,kde.bw,kde.lags,time\n", sep = "", file = ft)
-params = paste(delx, dely, alpha, eta, lt, features, 
-               kde.bw, kde.lags, t1 - t0, sep = ",")
-cat(params, "\n", sep = "", append = TRUE, file = ft)
+# ff = paste0("scores/", crime.type, "_", horizon, ".csv")
+# fwrite(scores, ff, append = file.exists(ff))
+# 
+# t1 = proc.time()["elapsed"]
+# ft = paste0("timings/", crime.type, "_", horizon, ".csv")
+# if (!file.exists(ft)) 
+#   cat("delx,dely,alpha,eta,lt,k,kde.bw,kde.lags,time\n", sep = "", file = ft)
+# params = paste(delx, dely, alpha, eta, lt, features, 
+#                kde.bw, kde.lags, t1 - t0, sep = ",")
+# cat(params, "\n", sep = "", append = TRUE, file = ft)
 
 # ============================================================================
 # WRITE KDE BASELINE RESULTS
@@ -401,10 +403,15 @@ cat(params, "\n", sep = "", append = TRUE, file = ft)
 
 if (!dir.exists("kde_baselines/")) dir.create("kde_baselines/")
 
-fk = paste0("kde_baselines/", crime.type, "_", horizon, ".csv")
-if (!file.exists(fk)) 
+if (!file.exists("kde_baselines/kde_baselines.csv")){
+  file.create("kde_baselines/kde_baselines.csv")
   cat("delx,dely,alpha,kde.bw,kde.lags,horizon,crime.type, pei,pai\n", 
       sep = "", file = fk)
+}
+
+# fk = paste0("kde_baselines/", crime.type, "_", horizon, ".csv")
+fk = 'kde_baselines/kde_baselines.csv'
 params = paste(delx, dely, alpha, kde.bw, kde.lags, horizon, crime.type,
                round(pei.kde, 3), round(pai.kde, 3) ,sep = ",")
 cat(params, "\n", sep = "", append = TRUE, file = fk)
+
