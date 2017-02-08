@@ -3,6 +3,8 @@
 # **     GPP Featurization      **
 # Michael Chirico, Seth Flaxman,
 # Charles Loeffler, Pau Pereira
+job_id = Sys.getenv("SLURM_JOB_ID")
+
 t0 = proc.time()["elapsed"]
 suppressMessages({
   #library(rgdal)
@@ -35,12 +37,12 @@ crime.type = args[9L]
 horizon = args[10L]
 
 # baselines for testing:
-delx=dely=600;alpha=0;eta=1.5;lt=4
-features=10;kde.bw=1000;kde.lags=6
-horizon='2m';crime.type='all'
-cat("**********************\n",
-    "* TEST PARAMETERS ON *\n",
-    "**********************\n")
+#delx=dely=600;alpha=0;eta=1.5;lt=4
+#features=10;kde.bw=1000;kde.lags=6
+#horizon='2m';crime.type='all'
+#cat("**********************\n",
+#    "* TEST PARAMETERS ON *\n",
+#    "**********************\n")
 
 aa = delx*dely #forecasted area
 lx = eta*delx
@@ -253,7 +255,8 @@ phi.dt[, `:=`(l = paste0(l,'kdes'),
 # ============================================================================
 
 #temporary files
-tdir = "delete_me"
+tdir = "/data/localhost/not-backed-up/flaxman"
+
 train.vw = tempfile(tmpdir = tdir, pattern = "train")
 test.vw = tempfile(tmpdir = tdir, pattern = "test")
 #simply append .cache suffix to make it easier
@@ -270,25 +273,15 @@ fwrite(phi.dt[!crimes.grid.dt$train], test.vw,
 crimes.grid.dt = crimes.grid.dt[(!train)]
 rm(phi.dt)
 
-tuning_variations =
-  data.table(l1 = c(1e-6, 1e-4, 1e-3, 5e-3, rep(1e-5, 23L)),
-             l2 = c(rep(1e-4, 4L), 1e-6, 5e-6, 
-                    1e-5, 5e-5, 5e-4, rep(1e-4, 18L)),
-             lambda = c(rep(.5, 9L), .01, .05,
-                        .1, .25, .75, 1, 1.5, rep(.5, 11L)),
-             delta = c(rep(1, 16L), .5, 1.5, rep(1, 9L)),
-             T0 = c(rep(0, 18L), .5, 1, 1.5, rep(0, 6L)),
-             pp = c(rep(.5, 21L), .25, .33, .5,
-                    .66, .75, 1))
-n_var = nrow(tuning_variations)
 
 #initialize parameter records table
-scores = data.table(delx, dely, alpha, eta, lt, k = features,
-                    l1 = numeric(n_var), l2 = numeric(n_var),
-                    lambda = numeric(n_var), delta = numeric(n_var),
-                    t0 = numeric(n_var), p = numeric(n_var),
-                    kde.bw, kde.n = 'all', kde.lags,
-                    pei = numeric(n_var), pai = numeric(n_var))
+scores = NULL
+#data.table(delx, dely, alpha, eta, lt, k = features,
+#                    l1 = numeric(n_var), l2 = numeric(n_var),
+#                    lambda = numeric(n_var), delta = numeric(n_var),
+#                    t0 = numeric(n_var), p = numeric(n_var),
+#                    kde.bw, kde.n = 'all', kde.lags,
+#                    pei = numeric(n_var), pai = numeric(n_var))
 
 #when we're at the minimum forecast area, we must round up
 #  to be sure we don't undershoot; when at the max,
@@ -308,24 +301,22 @@ N_star = crimes.grid.dt[ , .(tot.crimes = sum(value)), by = I
                            sum(tot.crimes)]
 NN = crimes.grid.dt[ , sum(value)]
 
-for (ii in seq_len(nrow(tuning_variations))) {
+for(l1 in c(1e-6, 1e-5, 1e-4, 1e-3, 5e-3, 1e-2, 5e-2, 1e-1, 5e-1,0 )) {
+    for(l2 in c(1e-6, 1e-5, 1e-4, 1e-3, 5e-3, 1e-2, 5e-2, 1e-1, 5e-1, 0)) {
   model = tempfile(tmpdir = tdir, pattern = "model")
   #train with VW
-  with(tuning_variations[ii],
-       system(paste('vw --loss_function poisson --l1', l1, '--l2', l2,
-                    '--learning_rate', lambda,
-                    '--decay_learning_rate', delta,
-                    '--initial_t', T0, '--power_t', pp, train.vw,
+       system(paste('./vw --ignore r --loss_function poisson --l1', l1, '--l2', l2,
+                    train.vw,
                     '--cache_file', cache, '--passes 200 -f', model),
-              ignore.stderr = TRUE))
+              ignore.stderr = F)
   #training data now stored in cache format,
   #  so can delete original (don't need to, but this is a useful
   #  check to force an error if s.t. wrong with cache)
   if (file.exists(train.vw)) invisible(file.remove(train.vw))
   #test with VW
-  system(paste('vw -t -i', model, '-p', pred.vw,
+  system(paste('./vw --ignore r -t -i', model, '-p', pred.vw,
                test.vw, '--loss_function poisson'),
-         ignore.stderr = TRUE)
+         ignore.stderr = F)
   invisible(file.remove(model))
   
   preds = 
@@ -348,12 +339,11 @@ for (ii in seq_len(nrow(tuning_variations))) {
   #how well did we do? lower-case n in the PEI/PAI calculation
   nn = crimes.grid.dt[(hotspot), sum(value)]
   
-  scores[ii, c('l1', 'l2', 'lambda', 'delta',
-               't0', 'p', 'pei', 'pai') :=
-           c(tuning_variations[ii],
-             list(pei = nn/N_star, 
+  scores = rbind(scores,
+           data.frame(l1=l1,l2=l2,pei = nn/N_star, 
                   #pre-calculated the total area of portland
-                  pai = (nn/NN)/(aa*n.cells/4117777129)))]
+                  pai = (nn/NN)/(aa*n.cells/4117777129)))
+}
 }
 invisible(file.remove(cache, test.vw))
 
@@ -384,11 +374,12 @@ pei.kde = hotspot.crimes/crimes.grid.dt[ , .(tot.crimes = sum(value)), by = I
 # WRITE RESULTS FILE AND TIMINGS
 # ============================================================================
 
-ff = paste0("scores/", crime.type, "_", horizon, ".csv")
+ff = paste0("scores/", crime.type, "_", horizon, "_", job_id, ".csv")
+
 fwrite(scores, ff, append = file.exists(ff))
 
 t1 = proc.time()["elapsed"]
-ft = paste0("timings/", crime.type, "_", horizon, ".csv")
+ft = paste0("timings/", crime.type, "_", horizon, "_", job_id, ".csv")
 if (!file.exists(ft)) 
   cat("delx,dely,alpha,eta,lt,k,kde.bw,kde.lags,time\n", sep = "", file = ft)
 params = paste(delx, dely, alpha, eta, lt, features, 
@@ -399,9 +390,9 @@ cat(params, "\n", sep = "", append = TRUE, file = ft)
 # WRITE KDE BASELINE RESULTS
 # ============================================================================
 
-if (!dir.exists("kde_baselines/")) dir.create("kde_baselines/")
+if (!dir.exists("/data/ziz/flaxman/kde_baselines/")) dir.create("/data/ziz/flaxman/kde_baselines/")
 
-fk = paste0("kde_baselines/", crime.type, "_", horizon, ".csv")
+fk = paste0("/data/ziz/flaxman/kde_baselines/", crime.type, "_", horizon, "_", job_id, ".csv")
 if (!file.exists(fk)) 
   cat("delx,dely,alpha,kde.bw,kde.lags,horizon,crime.type, pei,pai\n", 
       sep = "", file = fk)
