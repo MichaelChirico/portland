@@ -35,12 +35,12 @@ crime.type = args[9L]
 horizon = args[10L]
 
 # baselines for testing:
-delx=dely=600;alpha=0;eta=1.5;lt=4
-features=10;kde.bw=1000;kde.lags=6
-horizon='2m';crime.type='all'
-cat("**********************\n",
-    "* TEST PARAMETERS ON *\n",
-    "**********************\n")
+# delx=dely=521;alpha=0;eta=1.5;lt=4
+# features=50;kde.bw=1000;kde.lags=6
+# horizon='2m';crime.type='all'
+# cat("**********************\n",
+#     "* TEST PARAMETERS ON *\n",
+#     "**********************\n")
 
 aa = delx*dely #forecasted area
 lx = eta*delx
@@ -408,3 +408,5 @@ if (!file.exists(fk))
 params = paste(delx, dely, alpha, kde.bw, kde.lags, horizon, crime.type,
                round(pei.kde, 3), round(pai.kde, 3) ,sep = ",")
 cat(params, "\n", sep = "", append = TRUE, file = fk)
+
+
