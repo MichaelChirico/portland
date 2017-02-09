@@ -35,12 +35,12 @@ crime.type = args[9L]
 horizon = args[10L]
 
 # baselines for testing:
-# delx=dely=521;alpha=0;eta=1.5;lt=4
-# features=50;kde.bw=1000;kde.lags=6
-# horizon='2m';crime.type='all'
-# cat("**********************\n",
-#     "* TEST PARAMETERS ON *\n",
-#     "**********************\n")
+delx=dely=250;alpha=0;eta=1.5;lt=4
+features=10;kde.bw=250;kde.lags=6
+horizon='1w';crime.type='vehicle'
+cat("**********************\n",
+    "* TEST PARAMETERS ON *\n",
+    "**********************\n")
 
 aa = delx*dely #forecasted area
 lx = eta*delx
@@ -251,7 +251,7 @@ phi.dt[, `:=`(l = paste0(l,'kdes'),
 # ============================================================================
 # WRITE VW FILES
 # ============================================================================
-
+# 
 #temporary files
 tdir = "delete_me"
 train.vw = tempfile(tmpdir = tdir, pattern = "train")
@@ -260,19 +260,20 @@ test.vw = tempfile(tmpdir = tdir, pattern = "test")
 #  to track association when debugging
 cache = paste0(train.vw, '.cache')
 pred.vw = tempfile(tmpdir = tdir, pattern = "predict")
-fwrite(phi.dt[crimes.grid.dt$train], train.vw, 
-       sep = " ", quote = FALSE, col.names = FALSE, 
-       showProgress = FALSE)
-fwrite(phi.dt[!crimes.grid.dt$train], test.vw, 
+fwrite(phi.dt[crimes.grid.dt$train], train.vw,
        sep = " ", quote = FALSE, col.names = FALSE,
        showProgress = FALSE)
-#can eliminate all the testing data now that it's written
+fwrite(phi.dt[!crimes.grid.dt$train], test.vw,
+       sep = " ", quote = FALSE, col.names = FALSE,
+       showProgress = FALSE)
+
+# #can eliminate all the testing data now that it's written
 crimes.grid.dt = crimes.grid.dt[(!train)]
 rm(phi.dt)
 
 tuning_variations =
   data.table(l1 = c(1e-6, 1e-4, 1e-3, 5e-3, rep(1e-5, 23L)),
-             l2 = c(rep(1e-4, 4L), 1e-6, 5e-6, 
+             l2 = c(rep(1e-4, 4L), 1e-6, 5e-6,
                     1e-5, 5e-5, 5e-4, rep(1e-4, 18L)),
              lambda = c(rep(.5, 9L), .01, .05,
                         .1, .25, .75, 1, 1.5, rep(.5, 11L)),
@@ -327,31 +328,31 @@ for (ii in seq_len(nrow(tuning_variations))) {
                test.vw, '--loss_function poisson'),
          ignore.stderr = TRUE)
   invisible(file.remove(model))
-  
-  preds = 
+
+  preds =
     fread(pred.vw, sep = " ", header = FALSE, col.names = c("pred", "I_wk"))
   invisible(file.remove(pred.vw))
   #wrote 2-variable label with _ to fit VW guidelines;
   #  now split back to constituents so we can join
-  preds[ , c("I", "week_no", "I_wk") := 
+  preds[ , c("I", "week_no", "I_wk") :=
            c(lapply(tstrsplit(I_wk, split = "_"), as.integer),
              list(NULL))]
-  
+
   crimes.grid.dt[preds, pred.count := exp(i.pred), on = c("I", "week_no")]
   rm(preds)
-  
+
   hotspot.ids =
     crimes.grid.dt[ , .(tot.pred = sum(pred.count)), by = I
                     ][order(-tot.pred)[1L:n.cells], I]
   crimes.grid.dt[ , hotspot := I %in% hotspot.ids]
-  
+
   #how well did we do? lower-case n in the PEI/PAI calculation
   nn = crimes.grid.dt[(hotspot), sum(value)]
-  
+
   scores[ii, c('l1', 'l2', 'lambda', 'delta',
                't0', 'p', 'pei', 'pai') :=
            c(tuning_variations[ii],
-             list(pei = nn/N_star, 
+             list(pei = nn/N_star,
                   #pre-calculated the total area of portland
                   pai = (nn/NN)/(aa*n.cells/4117777129)))]
 }
@@ -372,8 +373,8 @@ hotspot.ids.kde = kdes[order(-kde1)][1:n.cells, I]
 # plot(portland.bdy, add=T)
 
 ## compute scores
-tot.crimes = crimes.grid.dt[ , sum(value)]
-hotspot.crimes = crimes.grid.dt[I %in% hotspot.ids.kde, sum(value)]
+tot.crimes = crimes.grid.dt[(!train) , sum(value)]
+hotspot.crimes = crimes.grid.dt[(!train) & I %in% hotspot.ids.kde, sum(value)]
 pai.kde = (hotspot.crimes/tot.crimes)/(aa*n.cells/4117777129)
 
 pei.kde = hotspot.crimes/crimes.grid.dt[ , .(tot.crimes = sum(value)), by = I
@@ -389,9 +390,9 @@ fwrite(scores, ff, append = file.exists(ff))
 
 t1 = proc.time()["elapsed"]
 ft = paste0("timings/", crime.type, "_", horizon, ".csv")
-if (!file.exists(ft)) 
+if (!file.exists(ft))
   cat("delx,dely,alpha,eta,lt,k,kde.bw,kde.lags,time\n", sep = "", file = ft)
-params = paste(delx, dely, alpha, eta, lt, features, 
+params = paste(delx, dely, alpha, eta, lt, features,
                kde.bw, kde.lags, t1 - t0, sep = ",")
 cat(params, "\n", sep = "", append = TRUE, file = ft)
 
@@ -407,6 +408,7 @@ if (!file.exists(fk))
       sep = "", file = fk)
 params = paste(delx, dely, alpha, kde.bw, kde.lags, horizon, crime.type,
                round(pei.kde, 3), round(pai.kde, 3) ,sep = ",")
+print(params)
 cat(params, "\n", sep = "", append = TRUE, file = fk)
 
 
