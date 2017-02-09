@@ -235,7 +235,7 @@ phi.dt =
     c(list(v = value, 
            l = paste0(I, "_", week_no, "|kdes")), 
       lapply(incl.kde, coln_to_vw),
-      list(cg_namespace = if (length(incl.cg)) '|cgkde' else ''),
+      list(cg_namespace = if (length(incl.cg)) '|cgkde'),
       lapply(incl.cg, coln_to_vw),
       list(rff_namespace = '|rff'))
   }]
