@@ -324,7 +324,7 @@ for (ii in seq_len(nrow(tuning_variations))) {
   #train with VW
   with(tuning_variations[ii],
        system(paste('vw --loss_function poisson --l1', l1, '--l2', l2,
-                    '--learning_rate', lambda,
+                    '--learning_rate', lambda, '--keep kdes',
                     '--decay_learning_rate', delta,
                     '--initial_t', T0, '--power_t', pp, train.vw,
                     '--cache_file', cache, '--passes 200 -f', model),
