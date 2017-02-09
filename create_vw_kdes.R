@@ -41,12 +41,12 @@ crime.type = args[9L]
 horizon = args[10L]
 
 # baselines for testing:
-# delx=dely=600;alpha=0;eta=1.5;lt=4
-# features=10;kde.bw=1000;kde.lags=6
-# horizon='2m';crime.type='all'
-# cat("**********************\n",
-#     "* TEST PARAMETERS ON *\n",
-#     "**********************\n")
+delx=dely=250;alpha=0;eta=1.5;lt=4
+features=10;kde.bw=250;kde.lags=1
+horizon='1w';crime.type='vehicle'
+cat("**********************\n",
+    "* TEST PARAMETERS ON *\n",
+    "**********************\n")
 
 aa = delx*dely #forecasted area
 lx = eta*delx
@@ -269,7 +269,7 @@ crimes.grid.dt <- kdes[crimes.grid.dt, on='I']
 #        sep = " ", quote = FALSE, col.names = FALSE,
 #        showProgress = FALSE)
 # #can eliminate all the testing data now that it's written
-# crimes.grid.dt = crimes.grid.dt[(!train)]
+crimes.grid.dt = crimes.grid.dt[(!train)]
 # rm(phi.dt)
 # 
 # tuning_variations =
