@@ -35,12 +35,12 @@ crime.type = args[9L]
 horizon = args[10L]
 
 # baselines for testing:
-# delx=dely=250;alpha=0;eta=1.5;lt=4
-# features=10;kde.bw=250;kde.lags=6
-# horizon='1w';crime.type='vehicle'
-# cat("**********************\n",
-#     "* TEST PARAMETERS ON *\n",
-#     "**********************\n")
+delx=dely=250;alpha=0;eta=1.5;lt=4
+features=10;kde.bw=250;kde.lags=6
+horizon='1w';crime.type='all'
+cat("**********************\n",
+    "* TEST PARAMETERS ON *\n",
+    "**********************\n")
 
 aa = delx*dely #forecasted area
 lx = eta*delx
@@ -246,6 +246,10 @@ rm(proj)
 # add namespaces
 phi.dt[, `:=`(l = paste0(l,'kdes'),
            cos1 = paste('|rff', cos1))]
+
+if (!is.null(callgroup.top)) {
+  phi.dt[, `:=`(cg.kde1 = paste('|cgkde', cg.kde1))]
+}
 
 
 # ============================================================================
