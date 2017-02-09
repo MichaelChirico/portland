@@ -213,17 +213,32 @@ incl = setNames(
   nm = setdiff(names(crimes.grid.dt), 
                c("I", "week_no", "x", "y", "value", "train"))
 )
+incl.kde = grep("^kde", incl, value = TRUE)
+incl.cg = grep("^cg.", incl, value = TRUE)
+
 phi.dt =
-  crimes.grid.dt[ , c(list(v = value, l = paste0(I, "_", week_no, "|")), 
-                      lapply(incl, function(vn) { 
-                        V = get(vn)
-                        val = V * 10^(abs(round(mean(log10(V[V>0])))))
-                        if (any(is.nan(val)))
-                            stop('NaNs detected! Current parameters:',
-                                 paste(args, collapse = '/'))
-                        #scale up by roughly the median order of KDE magnitude
-                        sprintf("%s:%.5f", vn, val)
-                      }))]
+  crimes.grid.dt[ , {
+    #some nonsense about how get works in j --
+    #  if we define coln_to_vw in global environment,
+    #  lapply(incl.kde, coln_to_vw) fails because
+    #  get doesn't find the variables.
+    #  Probably some workaround, but w/e
+    coln_to_vw = function(vn) { 
+      V = get(vn)
+      #scale up to minimize wasted 0s
+      val = V * 10^(abs(round(mean(log10(V[V>0])))))
+      if (any(is.nan(val)))
+        stop('NaNs detected! Current parameters:',
+             paste(args, collapse = '/'))
+      sprintf("%s:%.5f", vn, val)
+    }
+    c(list(v = value, 
+           l = paste0(I, "_", week_no, "|kdes")), 
+      lapply(incl.kde, coln_to_vw),
+      list(cg_namespace = if (length(incl.cg)) '|cgkde' else ''),
+      lapply(incl.cg, coln_to_vw),
+      list(rff_namespace = '|rff'))
+  }]
 
 if (features > 500L) invisible(alloc.col(phi.dt, 3L*features))
 #create the features
@@ -242,15 +257,6 @@ for (jj in 1L:features) {
                    sprintf("sin%i:%.5f", jj, fkt*sin(pj))))
 }
 rm(proj)
-
-# add namespaces
-phi.dt[, `:=`(l = paste0(l,'kdes'),
-           cos1 = paste('|rff', cos1))]
-
-if (!is.null(callgroup.top)) {
-  phi.dt[, `:=`(cg.kde1 = paste('|cgkde', cg.kde1))]
-}
-
 
 # ============================================================================
 # WRITE VW FILES
