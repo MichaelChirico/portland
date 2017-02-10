@@ -45,20 +45,24 @@ cat("**********************\n",
 aa = delx*dely #forecasted area
 lx = eta*delx
 ly = eta*dely
-#when is the last date included in the forecasted range?
-end.date = 
-  as.IDate(switch(
-    horizon, '1w' = '2016-03-06', '2w' = '2016-03-13',
-    '1m' = '2016-03-31', '2m' = '2016-04-30', '3m' = '2016-05-31'
-  ))
+#What days cover the recent past data
+#  and the furthest "future" date to forecast
+recent = 
+  as.IDate(
+    c('2016-09-01',
+      switch(
+        horizon, '1w' = '2016-03-06', '2w' = '2016-03-13',
+        '1m' = '2016-03-31', '2m' = '2016-04-30', '3m' = '2016-05-31'
+      )
+    ))
 
 #one year prior includes which dates?
 lag.range = 
   as.IDate(
-    c('2014-09-01',
+    c('2014-08-17',
     switch(horizon, 
-           '1w' = '2015-03-31', '2w' = '2015-03-31',
-           '1m' = '2015-03-31', '2m' = '2015-04-30', '3m' = '2015-05-31'
+           '1w' = '2015-04-14', '2w' = '2015-04-14',
+           '1m' = '2015-04-14', '2m' = '2015-05-14', '3m' = '2015-06-14'
     )))
 
 crime.file = switch(crime.type,
@@ -69,10 +73,6 @@ crime.file = switch(crime.type,
 
 crimes = fread(crime.file)
 crimes[ , occ_date := as.IDate(occ_date)]
-# trying to learn using only recent data 
-#  and one-year lag for now
-crimes = crimes[(occ_date %between% lag.range) | 
-                  occ_date >= '2015-09-01']
 
 #record range here, so that
 #  we have the same range 
@@ -80,53 +80,9 @@ crimes = crimes[(occ_date %between% lag.range) |
 xrng = crimes[ , range(x_coordina)]
 yrng = crimes[ , range(y_coordina)]
 
-# ============================================================================
-# GRID TOPOLOGY
-# Used to compute KDEs
-# Also create idx to rearrange order of pixellate objects so they conform with
-# GT objects
-# ============================================================================
-# from pixel image create GridTopology
-grdtop <- as(as.SpatialGridDataFrame.im(
-  pixellate(ppp(xrange=xrng, yrange=yrng), eps=c(delx, dely))), "GridTopology")
-
-# create sp object of crimes
-prj = CRS("+init=epsg:2913")
-crimes.sp = with(crimes,
-                 SpatialPointsDataFrame(
-                    coords = cbind(x_coordina, y_coordina),
-                    data = crimes[, -c('x_coordina', 'y_coordina'), with=FALSE],
-                    proj4string = prj))
-
-# load  portland boundary
-portland.bdy <- gBuffer(
-  #need rgdal; use readShapePoly for now
-  #readOGR(dsn='data', layer='portland_boundary', verbose=FALSE), width = 500
-  readShapePoly("data/portland_boundary", proj4string = prj), width = 500
-)
-portland.bdy.coords <- portland.bdy@polygons[[1L]]@Polygons[[1L]]@coords
-
-getGTindices <- function(gt) {
-  # Obtain indices to rearange data from image (eg. result frim pixellate)
-  # so that it conforms with data from GridTopology objects (eg. results
-  # from using spkernel2d).
-  # Input: gt is a grid topology.
-  # Returns an index.
-  dimx <- gt@cells.dim[1L]
-  dimy <- gt@cells.dim[2L]
-  c(matrix(1L:(dimx*dimy), ncol = dimy, byrow = TRUE)[ , dimy:1L])
-}
-
-# index to rearange rows in pixellate objects
-idx.new <- getGTindices(grdtop)
-
-# ============================================================================
-# CREATE DATA TABLE OF CRIMES
-# aggregate at week-cell level
-# ============================================================================
-
-#Per here, these are always sorted by x,y:
-#  https://github.com/spatstat/spatstat/issues/37
+#Before subsetting, get indices of ever-crime cells
+## Per here, these are always sorted by x,y:
+##   https://github.com/spatstat/spatstat/issues/37
 incl_ids = 
   with(crimes, as.data.table(pixellate(ppp(
     #pixellate counts dots over each cell,
@@ -139,8 +95,53 @@ incl_ids =
     #find cells that ever have a crime
   )[value > 0, which = TRUE]
 
+# trying to learn using only recent data 
+#  and one-year lag for now
+crimes = crimes[(occ_date %between% lag.range) | 
+                  (occ_date %between% recent)]
+
+# ============================================================================
+# GRID TOPOLOGY
+# Used to compute KDEs
+# Also create idx to rearrange order of pixellate objects so they conform with
+# GT objects
+# ============================================================================
+# from pixel image create GridTopology
+grdtop <- as(as.SpatialGridDataFrame.im(
+  pixellate(ppp(xrange=xrng, yrange=yrng), eps=c(delx, dely))), "GridTopology")
+
+# create sp object of crimes
+crimes.sp = 
+  SpatialPointsDataFrame(
+    coords = crimes[ , cbind(x_coordina, y_coordina)],
+    data = crimes[ , -c('x_coordina', 'y_coordina')],
+    proj4string = CRS("+init=epsg:2913")
+  )
+
+#boundary coordinates of portland
+portland = do.call(cbind, fread('data/portland_coords.csv'))
+
+getGTindices <- function(gt) {
+  # Obtain indices to rearange data from image (eg. result frim pixellate)
+  # so that it conforms with data from GridTopology objects (eg. results
+  # from using spkernel2d).
+  # Input: gt is a grid topology.
+  # Returns an index.
+  dimx <- gt@cells.dim[1L]
+  dimy <- gt@cells.dim[2L]
+  c(matrix(seq_len(dimx*dimy), ncol = dimy, byrow = TRUE)[ , dimy:1L])
+}
+
+# index to rearange rows in pixellate objects
+idx.new <- getGTindices(grdtop)
+
+# ============================================================================
+# CREATE DATA TABLE OF CRIMES
+# aggregate at week-cell level
+# ============================================================================
+
 crimes.grid.dt = 
-  crimes[occ_date %between% c(as.IDate('2015-09-01'),  end.date), 
+  crimes[occ_date %between% recent, 
          as.data.table(pixellate(ppp(
            x = x_coordina, y = y_coordina,
            xrange = xrng, yrange = yrng, check = FALSE),
@@ -158,7 +159,7 @@ crimes.grid.dt[ , train := week_no > 0L]
 
 compute.kde <- function(pts, month) 
   spkernel2d(pts=pts[pts$month_no == month, ],
-             poly=portland.bdy.coords,
+             poly=portland,
              h0=kde.bw, grd=grdtop, kernel='quartic')
 
 compute.kde.list <- function (pts, months = seq_len(kde.lags)) 
