@@ -5,7 +5,6 @@
 # Charles Loeffler, Pau Pereira
 t0 = proc.time()["elapsed"]
 suppressMessages({
-  #library(rgdal)
   library(spatstat, quietly = TRUE)
   library(splancs, quietly = TRUE)
   library(rgeos)
@@ -80,6 +79,24 @@ crimes[ , occ_date := as.IDate(occ_date)]
 xrng = crimes[ , range(x_coordina)]
 yrng = crimes[ , range(y_coordina)]
 
+getGTindices <- function(gt) {
+  # Obtain indices to rearange data from image (eg. result frim pixellate)
+  # so that it conforms with data from GridTopology objects (eg. results
+  # from using spkernel2d).
+  # Input: gt is a grid topology.
+  # Returns an index.
+  dimx <- gt@cells.dim[1L]
+  dimy <- gt@cells.dim[2L]
+  c(matrix(seq_len(dimx*dimy), ncol = dimy, byrow = TRUE)[ , dimy:1L])
+}
+
+# from create GridTopology corresponding to pixel image used for crime counts
+grdtop <- as(as.SpatialGridDataFrame.im(
+  pixellate(ppp(xrange=xrng, yrange=yrng), eps=c(delx, dely))), "GridTopology")
+
+# index to rearrange rows in pixellate objects
+idx.new <- getGTindices(grdtop)
+
 #Before subsetting, get indices of ever-crime cells
 ## Per here, these are always sorted by x,y:
 ##   https://github.com/spatstat/spatstat/issues/37
@@ -100,16 +117,6 @@ incl_ids =
 crimes = crimes[(occ_date %between% lag.range) | 
                   (occ_date %between% recent)]
 
-# ============================================================================
-# GRID TOPOLOGY
-# Used to compute KDEs
-# Also create idx to rearrange order of pixellate objects so they conform with
-# GT objects
-# ============================================================================
-# from pixel image create GridTopology
-grdtop <- as(as.SpatialGridDataFrame.im(
-  pixellate(ppp(xrange=xrng, yrange=yrng), eps=c(delx, dely))), "GridTopology")
-
 # create sp object of crimes
 crimes.sp = 
   SpatialPointsDataFrame(
@@ -120,20 +127,6 @@ crimes.sp =
 
 #boundary coordinates of portland
 portland = do.call(cbind, fread('data/portland_coords.csv'))
-
-getGTindices <- function(gt) {
-  # Obtain indices to rearange data from image (eg. result frim pixellate)
-  # so that it conforms with data from GridTopology objects (eg. results
-  # from using spkernel2d).
-  # Input: gt is a grid topology.
-  # Returns an index.
-  dimx <- gt@cells.dim[1L]
-  dimy <- gt@cells.dim[2L]
-  c(matrix(seq_len(dimx*dimy), ncol = dimy, byrow = TRUE)[ , dimy:1L])
-}
-
-# index to rearange rows in pixellate objects
-idx.new <- getGTindices(grdtop)
 
 # ============================================================================
 # CREATE DATA TABLE OF CRIMES
@@ -162,6 +155,8 @@ compute.kde <- function(pts, month)
              poly=portland,
              h0=kde.bw, grd=grdtop, kernel='quartic')
 
+
+
 compute.kde.list <- function (pts, months = seq_len(kde.lags)) 
   # compute kde for each month, on a random pick of days.
   # return data.table, each col stores results for one month
@@ -169,13 +164,6 @@ compute.kde.list <- function (pts, months = seq_len(kde.lags))
          function(month) compute.kde(pts, month))
 
 kdes = setDT(compute.kde.list(crimes.sp))
-
-lag.months = (12L - diff(month(lag.range))):12L
-lag.kdes = setDT(compute.kde.list(crimes.sp, months = lag.months))
-lag.kdes[ , I := .I]
-melt(lag.kdes, id.vars = 'I')
-
-kdes = cbind(kdes, lag.kdes)
 
 # ============================================================================
 # SUBCATEGORIES - CALLGROUPS
@@ -187,7 +175,7 @@ callgroup.top =
   crimes[, .N, by=CALL_GROUP
          #all but 'all' have 2 or fewer call groups;
          #  include at most N-1 of them to avoid collinearity
-         ][order(-N), if (.N > 1) CALL_GROUP[1L:min(3L, .N - 1L)]]
+         ][order(-N), if (.N > 1) CALL_GROUP[seq_len(min(3L, .N - 1L))]]
 if (!is.null(callgroup.top)) {
   crimes.cgroup = lapply(callgroup.top, function(cg) 
     crimes.sp[crimes.sp$CALL_GROUP == cg,])
