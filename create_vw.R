@@ -45,11 +45,21 @@ cat("**********************\n",
 aa = delx*dely #forecasted area
 lx = eta*delx
 ly = eta*dely
+#when is the last date included in the forecasted range?
 end.date = 
   as.IDate(switch(
     horizon, '1w' = '2016-03-06', '2w' = '2016-03-13',
-    '1m' = '2016-03-31', '2m' = '2016-04-30', '3m' = '2016-05-21'
+    '1m' = '2016-03-31', '2m' = '2016-04-30', '3m' = '2016-05-31'
   ))
+
+#one year prior includes which dates?
+lag.range = 
+  as.IDate(
+    c('2014-09-01',
+    switch(horizon, 
+           '1w' = '2015-03-31', '2w' = '2015-03-31',
+           '1m' = '2015-03-31', '2m' = '2015-04-30', '3m' = '2015-05-31'
+    )))
 
 crime.file = switch(crime.type,
                     all = "crimes_all.csv",
@@ -59,8 +69,10 @@ crime.file = switch(crime.type,
 
 crimes = fread(crime.file)
 crimes[ , occ_date := as.IDate(occ_date)]
-# trying to learn using only recent data for now
-crimes = crimes[occ_date >= '2015-09-01']
+# trying to learn using only recent data 
+#  and one-year lag for now
+crimes = crimes[(occ_date %between% lag.range) | 
+                  occ_date >= '2015-09-01']
 
 #record range here, so that
 #  we have the same range 
@@ -75,24 +87,18 @@ yrng = crimes[ , range(y_coordina)]
 # GT objects
 # ============================================================================
 # from pixel image create GridTopology
-pix <- crimes[occ_date <= end.date,
-              pixellate(
-                ppp(x=x_coordina, y=y_coordina, 
-                    xrange=xrng, yrange=yrng, check=FALSE),
-                eps=c(x=delx, dely)
-                )]
-grdtop <- as(as.SpatialGridDataFrame.im(pix), "GridTopology")
+grdtop <- as(as.SpatialGridDataFrame.im(
+  pixellate(ppp(xrange=xrng, yrange=yrng), eps=c(delx, dely))), "GridTopology")
 
 # create sp object of crimes
 prj = CRS("+init=epsg:2913")
 crimes.sp = with(crimes,
                  SpatialPointsDataFrame(
                     coords = cbind(x_coordina, y_coordina),
-                    data = crimes[, -c('x_coordina','y_coordina'), with=FALSE],
+                    data = crimes[, -c('x_coordina', 'y_coordina'), with=FALSE],
                     proj4string = prj))
 
 # load  portland boundary
-# crimes.sp <- readOGR(dsn='data/combined', layer=crime.shapefile, verbose=FALSE)
 portland.bdy <- gBuffer(
   #need rgdal; use readShapePoly for now
   #readOGR(dsn='data', layer='portland_boundary', verbose=FALSE), width = 500
@@ -122,23 +128,24 @@ idx.new <- getGTindices(grdtop)
 #Per here, these are always sorted by x,y:
 #  https://github.com/spatstat/spatstat/issues/37
 incl_ids = 
-  with(crimes, setDT(as.data.frame(pixellate(ppp(
+  with(crimes, as.data.table(pixellate(ppp(
     #pixellate counts dots over each cell,
     #  and appears to do so pretty quickly
     x = x_coordina, y = y_coordina,
     xrange = xrng, yrange = yrng, check = FALSE),
     #this must be done within-loop
     #  since it depends on delx & dely
-    eps = c(delx, dely)))[idx.new, ])
+    eps = c(delx, dely)))[idx.new, ]
     #find cells that ever have a crime
   )[value > 0, which = TRUE]
 
 crimes.grid.dt = 
-  crimes[occ_date <= end.date, 
+  crimes[occ_date %between% c(as.IDate('2015-09-01'),  end.date), 
          as.data.table(pixellate(ppp(
            x = x_coordina, y = y_coordina,
            xrange = xrng, yrange = yrng, check = FALSE),
-           eps = c(x = delx, dely)))[idx.new,],
+           #reorder using GridTopology - im mapping
+           eps = c(x = delx, dely)))[idx.new],
          #subset to eliminate never-crime cells
          by = week_no][ , I := rowid(week_no)][I %in% incl_ids]
 
@@ -162,15 +169,12 @@ compute.kde.list <- function (pts, months = seq_len(kde.lags))
 
 kdes = setDT(compute.kde.list(crimes.sp))
 
-# # check for NAs
-# kdes[, I:=.I]
-# sgdf <- SpatialGridDataFrame(grid = grdtop, kdes)
-# x = as.data.table(sgdf)[crimes.grid.dt, on='I'] # sanity check
-# x[, .(x,s1,y,s2)]
-# xna = x[is.na(kde1),]
-# plot(sgdf[sgdf$I %in% xna$I, 'I'])
-# plot(portland.bdy, add=T)
-# xx = x[!is.na(kde1)]
+lag.months = (12L - diff(month(lag.range))):12L
+lag.kdes = setDT(compute.kde.list(crimes.sp, months = lag.months))
+lag.kdes[ , I := .I]
+melt(lag.kdes, id.vars = 'I')
+
+kdes = cbind(kdes, lag.kdes)
 
 # ============================================================================
 # SUBCATEGORIES - CALLGROUPS
@@ -198,7 +202,7 @@ if (!is.null(callgroup.top)) {
 kdes[, I := .I]
 
 # append kdes
-crimes.grid.dt <- kdes[crimes.grid.dt, on='I']
+crimes.grid.dt = kdes[crimes.grid.dt, on = 'I']
 
 # ============================================================================
 # PROJECTION
