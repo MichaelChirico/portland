@@ -7,7 +7,7 @@ library(foreign)
 library(zoo)
 library(sp)
 library(rgeos)
-library(rgdal)
+library(maptools)
 
 crimes = rbindlist(lapply(list.files(
   "./data", pattern = "^NIJ.*\\.dbf", full.names = TRUE),
@@ -30,20 +30,18 @@ crimes[, day_no := mday(occ_date)]
 # ============================================================================
 # create Spatial Points Data Frame
 prj = CRS(prjs <- "+init=epsg:2913")
-crimes.sp = with(crimes,
-             SpatialPointsDataFrame(
-               coords = cbind(x_coordina, y_coordina),
-               data = crimes[, -c('x_coordina','y_coordina'), with=FALSE],
-               proj4string = prj
-           ))
+crimes.sp = SpatialPoints(
+  coords = crimes[ , cbind(x_coordina, y_coordina)],
+  proj4string = prj
+)
 
 # load portland boundary
-portland = readOGR(dsn='data', layer='Portland_Police_Districts',
-                   verbose=FALSE, p4s = prjs)
-portland.bdy <- gUnaryUnion(portland)
+portland.bdy <- 
+  readShapePoly("data/portland_boundary", 
+                proj4string = CRS("+init=epsg:2913"))
 
 # slect crimes within city boundaries
-idx = over(crimes.sp, portland.bdy) 
+idx = over(crimes.sp, portland.bdy)$dummy
 crimes = crimes[!is.na(idx)]
 
 fwrite(crimes, "crimes_all.csv")
