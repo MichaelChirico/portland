@@ -25,16 +25,17 @@ dely = as.integer(args[2L])
 alpha = as.numeric(args[3L])
 eta = as.numeric(args[4L])
 lt = as.numeric(args[5L])
-features = as.integer(args[6L])
-kde.bw = as.numeric(args[7L])
-kde.lags = as.integer(args[8L])
+theta = as.numeric(args[6L])
+features = as.integer(args[7L])
+kde.bw = as.numeric(args[8L])
+kde.lags = as.integer(args[9L])
 
 #outer parameters
-crime.type = args[9L]
-horizon = args[10L]
+crime.type = args[10L]
+horizon = args[11L]
 
 # baselines for testing:
-# delx=dely=250;alpha=0;eta=1.5;lt=4
+# delx=dely=250;alpha=0;eta=1.5;lt=4;theta=pi/36
 # features=10;kde.bw=250;kde.lags=6
 # horizon='1w';crime.type='all'
 # cat("**********************\n",
@@ -72,6 +73,27 @@ crime.file = switch(crime.type,
 
 crimes = fread(crime.file)
 crimes[ , occ_date := as.IDate(occ_date)]
+
+#rotation formula, relative to a point (x_0, y_0) that's not origin:
+#  [x_0, y_0] + R * [x - x_0, y - y_0]
+#  (i.e., rotate the distances from (x_0, y_0) about that point,
+#   then offset again by (x_0, y_0))
+#  Equivalently (implemented below):
+#  (I - R)[x_0, y_0] + R[x, y]
+rotate = function(points, theta, origin)
+  matrix(origin, nrow = nrow(points), 
+         ncol = 2L, byrow = TRUE) %*% (diag(2L) - RT(theta)) + 
+  points %*% RT(theta)
+#use the transpose of the rotation matrix to multiply against
+#  column vectors of coordinates
+RT = function(theta) matrix(c(cos(theta), -sin(theta), 
+                              sin(theta), cos(theta)), 
+                            nrow = 2L, ncol = 2L)
+
+point0 = crimes[ , c(min(x_coordina), min(y_coordina))]
+crimes[ , paste0(c('x', 'y'), '_coordina') :=
+          as.data.table(rotate(cbind(x_coordina, y_coordina),
+                               theta, point0))]
 
 #record range here, so that
 #  we have the same range 
@@ -125,7 +147,8 @@ crimes.sp =
   )
 
 #boundary coordinates of portland
-portland = do.call(cbind, fread('data/portland_coords.csv'))
+portland = 
+  rotate(do.call(cbind, fread('data/portland_coords.csv')), theta, point0)
 
 # ============================================================================
 # CREATE DATA TABLE OF CRIMES
@@ -407,8 +430,8 @@ fwrite(scores, ff, append = file.exists(ff))
 t1 = proc.time()["elapsed"]
 ft = paste0("timings/", crime.type, "_", horizon, ".csv")
 if (!file.exists(ft))
-  cat("delx,dely,alpha,eta,lt,k,kde.bw,kde.lags,time\n", sep = "", file = ft)
-params = paste(delx, dely, alpha, eta, lt, features,
+  cat("delx,dely,alpha,eta,lt,theta,k,kde.bw,kde.lags,time\n", sep = "", file = ft)
+params = paste(delx, dely, alpha, eta, lt, theta, features,
                kde.bw, kde.lags, t1 - t0, sep = ",")
 cat(params, "\n", sep = "", append = TRUE, file = ft)
 
@@ -420,9 +443,9 @@ if (!dir.exists("kde_baselines/")) dir.create("kde_baselines/")
 
 fk = paste0("kde_baselines/", crime.type, "_", horizon, ".csv")
 if (!file.exists(fk)) 
-  cat("delx,dely,alpha,kde.bw,kde.lags,horizon,crime.type, pei,pai\n", 
+  cat("delx,dely,alpha,theta,kde.bw,kde.lags,horizon,crime.type, pei,pai\n", 
       sep = "", file = fk)
-params = paste(delx, dely, alpha, kde.bw, kde.lags, horizon, crime.type,
+params = paste(delx, dely, alpha, theta, kde.bw, kde.lags, horizon, crime.type,
                round(pei.kde, 3), round(pai.kde, 3) ,sep = ",")
 print(params)
 cat(params, "\n", sep = "", append = TRUE, file = fk)
