@@ -48,7 +48,7 @@ ly = eta*dely
 #  and the furthest "future" date to forecast
 recent = 
   as.IDate(
-    c('2016-09-01',
+    c('2015-09-01',
       switch(
         horizon, '1w' = '2016-03-06', '2w' = '2016-03-13',
         '1m' = '2016-03-31', '2m' = '2016-04-30', '3m' = '2016-05-31'
@@ -114,8 +114,7 @@ incl_ids =
 
 # trying to learn using only recent data 
 #  and one-year lag for now
-crimes = crimes[(occ_date %between% lag.range) | 
-                  (occ_date %between% recent)]
+crimes = crimes[(occ_date %between% lag.range) | (occ_date %between% recent)]
 
 # create sp object of crimes
 crimes.sp = 
@@ -151,11 +150,17 @@ crimes.grid.dt[ , train := week_no > 0L]
 # ============================================================================
 
 compute.kde <- function(pts, month) 
-  spkernel2d(pts=pts[pts$month_no == month, ],
-             poly=portland,
-             h0=kde.bw, grd=grdtop, kernel='quartic')
+  spkernel2d(pts = pts[pts$month_no == month, ],
+             #quartic kernel used by default
+             poly = portland, h0 = kde.bw, grd = grdtop)
 
-
+#input _current_ week number,
+#  output KDE for 50-54 weeks _prior_
+#  (i.e., one year ago, with 2 week window)
+compute.lag = function(pts, week_no)
+  spkernel2d(pts = pts[pts$week_no %between% 
+                         (week_no + c(50L, 54L)), ],
+             poly = portland, h0 = kde.bw, grd = grdtop)
 
 compute.kde.list <- function (pts, months = seq_len(kde.lags)) 
   # compute kde for each month, on a random pick of days.
@@ -192,6 +197,12 @@ kdes[, I := .I]
 
 # append kdes
 crimes.grid.dt = kdes[crimes.grid.dt, on = 'I']
+
+crimes.grid.dt[ , lg.kde := {
+  kde = compute.lag(crimes.sp, .BY$week_no)
+  idx = data.table(kde, I = seq_len(length(kde)))[.SD, on = 'I', which = TRUE]
+  kde[idx]
+}, by = week_no]
 
 # ============================================================================
 # PROJECTION
@@ -230,6 +241,8 @@ phi.dt =
       lapply(incl.kde, coln_to_vw),
       list(cg_namespace = if (length(incl.cg)) '|cgkde'),
       lapply(incl.cg, coln_to_vw),
+      list(lag_namespace = '|lgkde',
+           kdel = coln_to_vw('lg.kde')),
       list(rff_namespace = '|rff'))
   }]
 
