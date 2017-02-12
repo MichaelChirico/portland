@@ -292,13 +292,18 @@ rm(proj)
 # ============================================================================
 # 
 #temporary files
-tdir = "delete_me"
+source("local_setup.R")
 train.vw = tempfile(tmpdir = tdir, pattern = "train")
 test.vw = tempfile(tmpdir = tdir, pattern = "test")
 #simply append .cache suffix to make it easier
 #  to track association when debugging
 cache = paste0(train.vw, '.cache')
 pred.vw = tempfile(tmpdir = tdir, pattern = "predict")
+#write.table(phi.dt[crimes.grid.dt$train], train.vw,
+#       sep = " ", quote = FALSE, col.names = FALSE)
+#test.out = phi.dt[crimes.grid.dt$train]
+#save(test.out,file="test.out.rdata")
+#       showProgress = FALSE)
 fwrite(phi.dt[crimes.grid.dt$train], train.vw,
        sep = " ", quote = FALSE, col.names = FALSE,
        showProgress = FALSE)
@@ -352,7 +357,7 @@ for (ii in seq_len(nrow(tuning_variations))) {
   model = tempfile(tmpdir = tdir, pattern = "model")
   #train with VW
   with(tuning_variations[ii],
-       system(paste('vw --loss_function poisson --l1', l1, '--l2', l2,
+       system(paste(path_to_vw, '--loss_function poisson --l1', l1, '--l2', l2,
                     '--learning_rate', lambda, '--keep kdes',
                     '--decay_learning_rate', delta,
                     '--initial_t', T0, '--power_t', pp, train.vw,
@@ -363,7 +368,7 @@ for (ii in seq_len(nrow(tuning_variations))) {
   #  check to force an error if s.t. wrong with cache)
   if (file.exists(train.vw)) invisible(file.remove(train.vw))
   #test with VW
-  system(paste('vw -t -i', model, '-p', pred.vw,
+  system(paste(path_to_vw, '-t -i', model, '-p', pred.vw,
                test.vw, '--loss_function poisson'),
          ignore.stderr = TRUE)
   invisible(file.remove(model))
@@ -424,11 +429,11 @@ pei.kde = hotspot.crimes/crimes.grid.dt[ , .(tot.crimes = sum(value)), by = I
 # WRITE RESULTS FILE AND TIMINGS
 # ============================================================================
 
-ff = paste0("scores/", crime.type, "_", horizon, ".csv")
+ff = paste0("scores/", crime.type, "_", horizon, job_id, ".csv")
 fwrite(scores, ff, append = file.exists(ff))
 
 t1 = proc.time()["elapsed"]
-ft = paste0("timings/", crime.type, "_", horizon, ".csv")
+ft = paste0("timings/", crime.type, "_", horizon, job_id, ".csv")
 if (!file.exists(ft))
   cat("delx,dely,alpha,eta,lt,theta,k,kde.bw,kde.lags,time\n", sep = "", file = ft)
 params = paste(delx, dely, alpha, eta, lt, theta, features,
@@ -441,7 +446,7 @@ cat(params, "\n", sep = "", append = TRUE, file = ft)
 
 if (!dir.exists("kde_baselines/")) dir.create("kde_baselines/")
 
-fk = paste0("kde_baselines/", crime.type, "_", horizon, ".csv")
+fk = paste0("kde_baselines/", crime.type, "_", horizon, job_id, ".csv")
 if (!file.exists(fk)) 
   cat("delx,dely,alpha,theta,kde.bw,kde.lags,horizon,crime.type, pei,pai\n", 
       sep = "", file = fk)
