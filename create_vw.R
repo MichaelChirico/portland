@@ -323,7 +323,7 @@ tuning_variations =
 n_var = nrow(tuning_variations)
 
 #initialize parameter records table
-scores = data.table(delx, dely, alpha, eta, lt, k = features,
+scores = data.table(delx, dely, alpha, eta, lt, theta, k = features,
                     l1 = numeric(n_var), l2 = numeric(n_var),
                     lambda = numeric(n_var), delta = numeric(n_var),
                     t0 = numeric(n_var), p = numeric(n_var),
