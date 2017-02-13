@@ -14,7 +14,7 @@
 #Memory per cpu in megabytes      
 #SBATCH --output=/data/localhost/not-backed-up/flaxman/portland_%j.txt
 
-Rscript create_vw.R 250 425 0 1.5 4 2000 .01 1e-4 .5 1 0 .5 1w all
+Rscript evaluate_params.R 250 425 0 1.5 4 2000 .01 1e-4 .5 1 0 .5 1w all
 
 #print environment variables: the job ID.
 echo "SLURM_JOBID: " $SLURM_JOBID

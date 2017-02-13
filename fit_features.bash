@@ -29,4 +29,4 @@
 #         h = 2m : two months
 #         h = 3m : three months
 
-./create_vw.R "$@"
+./evaluate_params.R "$@"
