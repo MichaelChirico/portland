@@ -1,6 +1,16 @@
 #!/usr/bin/env Rscript
 # Forecasting Crime in Portland
-# **     GPP Featurization      **
+# *** Parameter Evaluation (PEI & PAI) ***
+# * For a given set of hyperparameters,  *
+# * create test & training data and fit  *
+# * Poisson regression with VW on        *
+# * training data for a few dozen chosen *
+# * alternative VW hyperparameters, then *
+# * calculate PEI & PAI on the implied   *
+# * optimal prediction; write to output  *
+# * the following: PEI, PAI, evaluation  *
+# * time, and baseline KDE estimate      *
+# ****************************************
 # Michael Chirico, Seth Flaxman,
 # Charles Loeffler, Pau Pereira
 t0 = proc.time()["elapsed"]
