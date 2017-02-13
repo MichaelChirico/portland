@@ -6,7 +6,7 @@ Forecasting Crime in Portland
 
  2. Install required packages: `rgdal`, `spatstat`, `splancs`, `rgeos`, `data.table`, `foreach`, `maptools`
  
- 3. Run `create_vw.R`
+ 3. Run `evaluate_params.R`
 
 # Key Links
 

@@ -9,21 +9,24 @@
 #          alpha = 1 : maximum forecast area
 #    4 ) spatial lengthscale factor (eta):
 #          lengthscale_{x,y} = eta*del{x,y}
-#    5 ) temporal lengthscale (lt):
-#    6 ) # of features (k)
-#    7 ) KDE bandwidth (kde.bw)
-#    8 ) KDE lag count, # of (month-long) lags to include
+#    5 ) temporal lengthscale (lt)
+#    6 ) angle of rotation (theta)
+#          theta = 0 : rotate 0 degrees through lower-left corner
+#          theta = pi/2: rotate 90 degrees "                    "
+#    7 ) # of features (k)
+#    8 ) KDE bandwidth (kde.bw)
+#    9 ) KDE lag count, # of (month-long) lags to include
 #          as KDE features (kde.lags)
-#    9 ) crime category c
+#    10) crime category c
 #         c = all : All Calls for Service
 #         c = street : Street Crime
 #         c = burglary : Burglary
 #         c = vehicle : Motor Vehicle Theft
-#    10) forecasting horizon h:
+#    11) forecasting horizon h:
 #         h = 1w : one week
 #         h = 2w : two weeks
 #         h = 1m : one month
 #         h = 2m : two months
 #         h = 3m : three months
 
-./create_vw.R "$@"
+./evaluate_params.R "$@"
