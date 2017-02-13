@@ -1,0 +1,13 @@
+hostname = Sys.info()["nodename"]
+cat("running on ", hostname, "\n")
+
+if(grep("ziz",hostname)) { # Seth's setup
+    source("cleanup.R")
+    tdir = "/data/localhost/not-backed-up/flaxman"
+    job_id = paste0("_",Sys.getenv("SLURM_JOB_ID"))
+    path_to_vw = "./vw"
+} else  {
+    tdir = "delete_me"
+    job_id = ""
+    path_to_vw = "vw"
+}
