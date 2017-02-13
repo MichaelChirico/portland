@@ -34,7 +34,7 @@ prj = CRS("+init=epsg:2913")
 portland = readOGR('data', 'portland_boundary')
 
 #3 triangle sizes -- min, max, average (in square feet)
-aa = 600*600
+aa = 250*250
   #given area, side of
   #  equilateral triangle with that area is
   side = 2*sqrt(aa/sqrt(3)) #in feet
@@ -116,12 +116,19 @@ aa = 600*600
       proj4string = prj
     )
   
-  triangles2 = 
-    SpatialPolygonsDataFrame(triangles1, 
-                             data = data.frame(ID = seq_len(length(triangles1))),
+  #clip to portland
+  triangles = 
+    gIntersection(
+      triangles[which(gIntersects(triangles, portland, byid = TRUE)), ], 
+      portland, byid = TRUE
+    )
+  
+  triangles = 
+    SpatialPolygonsDataFrame(triangles, 
+                             data = data.frame(ID = seq_len(length(triangles))),
                              match.ID = FALSE)
   # writePolyShape(triangles2, "./data/triangles2000")
-  writeOGR(triangles2, dsn = './data/grids/',
+  writeOGR(triangles, dsn = './data/grids/',
            layer = paste0("triA", aa/100), driver = "ESRI Shapefile", overwrite_layer = TRUE)
 
   

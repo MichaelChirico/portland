@@ -8,7 +8,7 @@ library(tidyr)
 library(data.table)
 
 # load triangular grid
-grd.tri = readOGR('data/grids', 'triA3600')
+grd.tri = readOGR('data/grids', 'triA625')
 plot(grd.tri)
 prj = CRS(proj4string(grd.tri))
 
