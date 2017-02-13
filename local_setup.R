@@ -11,9 +11,7 @@ if(grepl("ziz",hostname)) { # Seth's setup
     job_id = ""
     path_to_vw = "vw"
 } else if (grepl('gpc', hostname)) {
-  #should start pushing to loefllerlab which
-  #  apparently has much higher hard disk cap
-  tdir = "delete_me"
+  tdir = "/data2/shared/loefflerlab/portland_temp"
   job_id = ""
   path_to_vw = "vw"
 } else {
