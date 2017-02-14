@@ -34,12 +34,13 @@ names(args) = c('delx', 'dely', 'alpha', 'eta', 'lt', 'theta',
 attach(args)
 
 # baselines for testing:
-# delx=dely=250;alpha=0;eta=1.5;lt=4;theta=pi/36
-# features=10;kde.bw=250;kde.lags=6
-# horizon='1w';crime.type='all'
-# cat("**********************\n",
-#     "* TEST PARAMETERS ON *\n",
-#     "**********************\n")
+delx=dely=250;alpha=0;eta=1.5;lt=4;theta=pi/36
+features=10;kde.bw=250;kde.lags=6;
+l1=1e-4;l2=1e-5;lambda=.5;delta=1;T0=0;pp=.5;
+horizon='1w';crime.type='all'
+cat("**********************\n",
+    "* TEST PARAMETERS ON *\n",
+    "**********************\n")
 
 aa = delx*dely
 lx = eta*delx
@@ -52,6 +53,13 @@ lag.range =
            '1w' = '2016-04-14', '2w' = '2016-04-14',
            '1m' = '2016-04-14', '2m' = '2016-05-14', '3m' = '2016-06-14'
     )))
+
+end.date = 
+  as.IDate(switch(
+    horizon, '1w' = '2017-03-07', '2w' = '2017-03-14',
+    '1m' = '2017-03-31', '2m' = '2017-04-30', '3m' = '2017-05-31'
+  ))
+
 
 crime.file = switch(crime.type,
                     all = "crimes_all.csv",
@@ -157,7 +165,11 @@ crimes.grid.dt[ , lg.kde := {
 #add some fake crimes for future dates
 ## calculated the integer values of these dates by hand
 ##   to save space
-new_weeks = seq.int(-65L, -52L)
+new_weeks = 
+  #getting the week number (same as in crimes_to_csv.R)
+  #  of the end date (will be more negative since it's
+  #  further into the future from 2016 March)
+  seq.int(unclass(as.IDate("2017-02-28") - end.date) %/% 7L + 1L, 0L)
 crimes.grid.dt =
   crimes.grid.dt[CJ(I = I, week_no = c(unique(week_no), new_weeks),
                     unique = TRUE), on = c('I', 'week_no')]
@@ -205,6 +217,7 @@ rm(proj)
 
 source("local_setup.R")
 train.vw = tempfile(tmpdir = tdir, pattern = "train")
+test.vw = tempfile(tmpdir = tdir, pattern = "test")
 pred.vw = tempfile(tmpdir = tdir, pattern = "predict")
 fwrite(phi.dt[crimes.grid.dt$train], train.vw,
        sep = " ", quote = FALSE, col.names = FALSE,
@@ -241,3 +254,9 @@ preds[ , c("I", "week_no", "I_wk") :=
 
 crimes.grid.dt[preds, pred.count := exp(i.pred), on = c("I", "week_no")]
 rm(preds)
+
+hotspot.ids =
+  crimes.grid.dt[ , .(tot.pred = sum(pred.count)), by = I
+                  ][order(-tot.pred)[1L:n.cells], I]
+hotspots = unique(crimes.grid.dt[I %in% hotspot.ids, .(I, x, y)])
+
