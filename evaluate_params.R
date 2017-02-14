@@ -188,7 +188,7 @@ compute.lag = function(pts, week_no)
                          (week_no + c(50L, 54L)), ],
              poly = portland, h0 = kde.bw, grd = grdtop)
 
-compute.kde.list <- function (pts, months = seq_len(kde.lags)) 
+compute.kde.list <- function (pts, months = seq_len(kde.lags) + 12L) 
   # compute kde for each month.
   # return data.table, each col stores results for one month
   lapply(setNames(months, paste0('kde', months)),
@@ -211,7 +211,7 @@ if (!is.null(callgroup.top)) {
   crimes.cgroup = lapply(callgroup.top, function(cg) 
     crimes.sp[crimes.sp$CALL_GROUP == cg,])
   kdes.sub = setDT(sapply(crimes.cgroup, function(pts) 
-    compute.kde.list(pts, months=1L)))
+    compute.kde.list(pts, months=13L)))
   setnames(kdes.sub, paste0('cg.kde', 1L:ncol(kdes.sub)))
   
   # combine normal kdes and sub-kdes
