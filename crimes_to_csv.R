@@ -15,12 +15,12 @@ crimes = rbindlist(lapply(list.files(
   #  also, some missing data snuck in on one line
   read.dbf, as.is = TRUE))[!is.na(occ_date)]
 
-#number of weeks before March 1, 2016
-crimes[ , week_no := unclass(as.IDate("2016-02-29") - 
+#number of weeks before March 1, 2017
+crimes[ , week_no := unclass(as.IDate("2017-02-28") - 
                                as.IDate(occ_date)) %/% 7L + 1L]
 
-# number of months before March 2016
-crimes[, month_no := round((as.yearmon("2016-03-01") - as.yearmon(occ_date))*12)]
+# number of months before March 2017
+crimes[, month_no := round((as.yearmon("2017-03-01") - as.yearmon(occ_date))*12)]
 
 # day of the month
 crimes[, day_no := mday(occ_date)]
