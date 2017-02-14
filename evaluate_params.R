@@ -18,8 +18,6 @@ suppressMessages({
   library(spatstat, quietly = TRUE)
   library(splancs, quietly = TRUE)
   library(rgeos)
-  #data.table after spatstat to
-  #  access data.table::shift more easily
   library(data.table, warn.conflicts = FALSE, quietly = TRUE)
   library(foreach)
   library(maptools)
@@ -196,7 +194,7 @@ compute.lag = function(pts, week_no)
              poly = portland, h0 = kde.bw, grd = grdtop)
 
 compute.kde.list <- function (pts, months = seq_len(kde.lags)) 
-  # compute kde for each month, on a random pick of days.
+  # compute kde for each month.
   # return data.table, each col stores results for one month
   lapply(setNames(months, paste0('kde', months)),
          function(month) compute.kde(pts, month))
@@ -368,7 +366,7 @@ for (ii in seq_len(nrow(tuning_variations))) {
   #train with VW
   with(tuning_variations[ii],
        system(paste(path_to_vw, '--loss_function poisson --l1', l1, '--l2', l2,
-                    '--learning_rate', lambda, '--keep kdes',
+                    '--learning_rate', lambda,
                     '--decay_learning_rate', delta,
                     '--initial_t', T0, '--power_t', pp, train.vw,
                     '--cache_file', cache, '--passes 200 -f', model),
