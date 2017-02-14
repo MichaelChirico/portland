@@ -77,7 +77,6 @@ crime.file = switch(crime.type,
 
 crimes = fread(crime.file)
 crimes[ , occ_date := as.IDate(occ_date)]
-
 #rotation formula, relative to a point (x_0, y_0) that's not origin:
 #  [x_0, y_0] + R * [x - x_0, y - y_0]
 #  (i.e., rotate the distances from (x_0, y_0) about that point,
@@ -105,7 +104,7 @@ crimes[ , paste0(c('x', 'y'), '_coordina') :=
 xrng = crimes[ , range(x_coordina)]
 yrng = crimes[ , range(y_coordina)]
 
-getGTindices <- function(gt) {
+  getGTindices <- function(gt) {
   # Obtain indices to rearange data from image (eg. result frim pixellate)
   # so that it conforms with data from GridTopology objects (eg. results
   # from using spkernel2d).
@@ -303,11 +302,6 @@ test.vw = tempfile(tmpdir = tdir, pattern = "test")
 #  to track association when debugging
 cache = paste0(train.vw, '.cache')
 pred.vw = tempfile(tmpdir = tdir, pattern = "predict")
-#write.table(phi.dt[crimes.grid.dt$train], train.vw,
-#       sep = " ", quote = FALSE, col.names = FALSE)
-#test.out = phi.dt[crimes.grid.dt$train]
-#save(test.out,file="test.out.rdata")
-#       showProgress = FALSE)
 fwrite(phi.dt[crimes.grid.dt$train], train.vw,
        sep = " ", quote = FALSE, col.names = FALSE,
        showProgress = FALSE)
