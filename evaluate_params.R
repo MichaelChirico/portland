@@ -26,21 +26,17 @@ suppressMessages({
 #from random.org
 set.seed(60251935)
 
-#inner parameters
-args = commandArgs(trailingOnly = TRUE)
-delx = as.integer(args[1L])
-dely = as.integer(args[2L])
-alpha = as.numeric(args[3L])
-eta = as.numeric(args[4L])
-lt = as.numeric(args[5L])
-theta = as.numeric(args[6L])
-features = as.integer(args[7L])
-kde.bw = as.numeric(args[8L])
-kde.lags = as.integer(args[9L])
-
-#outer parameters
-crime.type = args[10L]
-horizon = args[11L]
+#each argument read in as a string in a character vector;
+#  would rather have them as a list. basically do
+#  that by converting them to a form read.table
+#  understands and then attaching from a data.frame
+args = read.table(text = paste(commandArgs(trailingOnly = TRUE), 
+                               collapse = '\t'),
+                  stringsAsFactors = FALSE)
+names(args) = 
+  c('delx', 'dely', 'alpha', 'eta', 'lt', 'theta',
+    'features', 'kde.bw', 'kde.lags', 'crime.type', 'horizon')
+attach(args)
 
 # baselines for testing:
 # delx=dely=250;alpha=0;eta=1.5;lt=4;theta=pi/36

@@ -24,24 +24,14 @@ library(zoo)
 #  as evaluation_params.R
 set.seed(60251935)
 
-args = commandArgs(trailingOnly = TRUE)
-delx = as.integer(args[1L])
-dely = as.integer(args[2L])
-alpha = as.numeric(args[3L])
-eta = as.numeric(args[4L])
-lt = as.numeric(args[5L])
-theta = as.numeric(args[6L])
-features = as.integer(args[7L])
-kde.bw = as.numeric(args[8L])
-kde.lags = as.integer(args[9L])
-l1 = as.numeric(args[10L])
-l2 = as.numeric(args[11L])
-lambda = as.numeric(args[12L])
-delta = as.numeric(args[13L])
-T0 = as.numeric(args[14L])
-pp = as.numeric(args[15L])
-crime.type = args[16L]
-horizon = args[17L]
+args = read.table(text = paste(commandArgs(trailingOnly = TRUE), 
+                               collapse = '\t'),
+                  stringsAsFactors = FALSE)
+names(args) = c('delx', 'dely', 'alpha', 'eta', 'lt', 'theta',
+                'features', 'kde.bw', 'kde.lags', 'l1', 'l2',
+                'lambda', 'delta', 'T0', 'pp',
+                'crime.type', 'horizon')
+attach(args)
 
 # baselines for testing:
 # delx=dely=250;alpha=0;eta=1.5;lt=4;theta=pi/36
@@ -55,10 +45,10 @@ aa = delx*dely
 lx = eta*delx
 ly = eta*dely
 
-lag.range = 
+lag.range =
   as.IDate(
     c('2015-08-17',
-    switch(horizon, 
+    switch(horizon,
            '1w' = '2016-04-14', '2w' = '2016-04-14',
            '1m' = '2016-04-14', '2m' = '2016-05-14', '3m' = '2016-06-14'
     )))
@@ -73,11 +63,11 @@ crimes = fread(crime.file)
 crimes[ , occ_date := as.IDate(occ_date)]
 
 rotate = function(points, theta, origin)
-  matrix(origin, nrow = nrow(points), 
-         ncol = 2L, byrow = TRUE) %*% (diag(2L) - RT(theta)) + 
+  matrix(origin, nrow = nrow(points),
+         ncol = 2L, byrow = TRUE) %*% (diag(2L) - RT(theta)) +
   points %*% RT(theta)
-RT = function(theta) matrix(c(cos(theta), -sin(theta), 
-                              sin(theta), cos(theta)), 
+RT = function(theta) matrix(c(cos(theta), -sin(theta),
+                              sin(theta), cos(theta)),
                             nrow = 2L, ncol = 2L)
 
 point0 = crimes[ , c(min(x_coordina), min(y_coordina))]
@@ -99,7 +89,7 @@ grdtop <- as(as.SpatialGridDataFrame.im(
 
 idx.new <- getGTindices(grdtop)
 
-incl_ids = 
+incl_ids =
   with(crimes, as.data.table(pixellate(ppp(
     x = x_coordina, y = y_coordina,
     xrange = xrng, yrange = yrng, check = FALSE),
@@ -108,47 +98,47 @@ incl_ids =
 
 crimes = crimes[(occ_date %between% lag.range) | (occ_date >= '2016-09-01')]
 
-crimes.sp = 
+crimes.sp =
   SpatialPointsDataFrame(
     coords = crimes[ , cbind(x_coordina, y_coordina)],
     data = crimes[ , -c('x_coordina', 'y_coordina')],
     proj4string = CRS("+init=epsg:2913")
   )
 
-portland = 
+portland =
   rotate(do.call(cbind, fread('data/portland_coords.csv')), theta, point0)
 
-crimes.grid.dt = 
-  crimes[occ_date >= '2016-09-01', 
+crimes.grid.dt =
+  crimes[occ_date >= '2016-09-01',
          as.data.table(pixellate(ppp(
            x = x_coordina, y = y_coordina,
            xrange = xrng, yrange = yrng, check = FALSE),
            eps = c(x = delx, dely)))[idx.new],
          by = week_no][ , I := rowid(week_no)][I %in% incl_ids]
 
-compute.kde <- function(pts, month) 
+compute.kde <- function(pts, month)
   spkernel2d(pts = pts[pts$month_no == month, ],
              poly = portland, h0 = kde.bw, grd = grdtop)
 
 compute.lag = function(pts, week_no)
-  spkernel2d(pts = pts[pts$week_no %between% 
+  spkernel2d(pts = pts[pts$week_no %between%
                          (week_no + c(50L, 54L)), ],
              poly = portland, h0 = kde.bw, grd = grdtop)
 
-compute.kde.list <- function (pts, months = seq_len(kde.lags)) 
+compute.kde.list <- function (pts, months = seq_len(kde.lags))
   lapply(setNames(months, paste0('kde', months)),
          function(month) compute.kde(pts, month))
 
 kdes = setDT(compute.kde.list(crimes.sp))
 
 ## **TO DO: deal with this properly
-callgroup.top = 
+callgroup.top =
   crimes[, .N, by=CALL_GROUP
          ][order(-N), if (.N > 1) CALL_GROUP[seq_len(min(3L, .N - 1L))]]
 if (!is.null(callgroup.top)) {
-  crimes.cgroup = lapply(callgroup.top, function(cg) 
+  crimes.cgroup = lapply(callgroup.top, function(cg)
     crimes.sp[crimes.sp$CALL_GROUP == cg,])
-  kdes.sub = setDT(sapply(crimes.cgroup, function(pts) 
+  kdes.sub = setDT(sapply(crimes.cgroup, function(pts)
     compute.kde.list(pts, months=1L)))
   setnames(kdes.sub, paste0('cg.kde', 1L:ncol(kdes.sub)))
   kdes = cbind(kdes, kdes.sub)
@@ -168,19 +158,19 @@ crimes.grid.dt[ , lg.kde := {
 ## calculated the integer values of these dates by hand
 ##   to save space
 new_weeks = seq.int(-65L, -52L)
-crimes.grid.dt = 
-  crimes.grid.dt[CJ(I = I, week_no = c(unique(week_no), new_weeks), 
+crimes.grid.dt =
+  crimes.grid.dt[CJ(I = I, week_no = c(unique(week_no), new_weeks),
                     unique = TRUE), on = c('I', 'week_no')]
 crimes.grid.dt[ , train := !is.na(kde1)]
 #used cell ID to create dummy rows; now
 #  use cell ID to reincorporate x/y data
 crimes.grid.dt[ , c('x', 'y') := .SD[!is.na(kde1)][1L, .(x, y)], by = I]
 
-proj = crimes.grid.dt[ , cbind(x, y, week_no)] %*% 
+proj = crimes.grid.dt[ , cbind(x, y, week_no)] %*%
   (matrix(rt(3L*features, df = 2.5), nrow = 3L)/c(lx, ly, lt))
 
 incl = setNames(
-  nm = setdiff(names(crimes.grid.dt), 
+  nm = setdiff(names(crimes.grid.dt),
                c("I", "week_no", "x", "y", "value", "train"))
 )
 incl.kde = grep("^kde", incl, value = TRUE)
@@ -188,13 +178,13 @@ incl.cg = grep("^cg.", incl, value = TRUE)
 
 phi.dt =
   crimes.grid.dt[ , {
-    coln_to_vw = function(vn) { 
+    coln_to_vw = function(vn) {
       V = get(vn)
       val = V * 10^(abs(round(mean(log10(V[V>0])))))
       sprintf("%s:%.5f", vn, val)
     }
-    c(list(v = value, 
-           l = paste0(I, "_", week_no, "|kdes")), 
+    c(list(v = value,
+           l = paste0(I, "_", week_no, "|kdes")),
       lapply(incl.kde, coln_to_vw),
       list(cg_namespace = if (length(incl.cg)) '|cgkde'),
       lapply(incl.cg, coln_to_vw),
@@ -207,7 +197,7 @@ if (features > 500L) invisible(alloc.col(phi.dt, 3L*features))
 fkt = 1/sqrt(features)
 for (jj in 1L:features) {
   pj = proj[ , jj]
-  set(phi.dt, j = paste0(c("cos", "sin"), jj), 
+  set(phi.dt, j = paste0(c("cos", "sin"), jj),
       value = list(sprintf("cos%i:%.5f", jj, fkt*cos(pj)),
                    sprintf("sin%i:%.5f", jj, fkt*sin(pj))))
 }
