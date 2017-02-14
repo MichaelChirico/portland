@@ -39,7 +39,7 @@ names(args) =
 attach(args)
 
 # baselines for testing:
-delx=dely=250;alpha=0;eta=1.5;lt=4;theta=pi/36
+delx=dely=600;alpha=0;eta=1.5;lt=4;theta=0
 features=10;kde.bw=250;kde.lags=6
 horizon='1w';crime.type='all'
 cat("**********************\n",
@@ -153,6 +153,11 @@ crimes.sp =
 portland = 
   rotate(do.call(cbind, fread('data/portland_coords.csv')), theta, point0)
 
+# >>>>>> plot boundary
+par(mfrow=c(1,1))
+p = Polygon(rbind(portland, portland[1, ]))
+plot(SpatialPolygons(list(Polygons(list(p),c('1')))))
+
 # ============================================================================
 # CREATE DATA TABLE OF CRIMES
 # aggregate at week-cell level
@@ -256,6 +261,40 @@ crimes.grid.dt[ , lg.kde := {
 
 # sgdf = SpatialGridDataFrame(grdtop, kdes[, 'cd.kde3'])
 # plot(sgdf)
+
+# ============================================================================
+# POLICE DISTRICT DUMMY
+# 1) load police districts shapefile
+# 2) transfrom grid to SpatialPolygons
+# 3) spatial overlay of the two objects using centroids of each cell
+# ============================================================================
+crs = CRS("+init=epsg:2913")
+portland.pd = readShapePoly("./data/Portland_Police_Districts.shp", 
+                            proj4string = crs)
+grd.sp = as.SpatialPolygons.GridTopology(grdtop, proj4string = crs)
+
+# grd.sgdf = SpatialGridDataFrame(
+#   grid = grdtop, 
+#   data = over(
+#     gCentroid(grd.sp, byid = TRUE), portland.pd)
+#   )
+# grd.sgdf$I = 1:nrow(grd.sgdf)
+
+cell.districts = data.table(over(gCentroid(grd.sp, byid = TRUE), portland.pd))[, I := .I]
+
+# merge with feautures
+crimes.grid.dt = cell.districts[, .(I, DISTRICT)][crimes.grid.dt, on='I']
+
+# >>>>> check NAs in DISTRICT variable
+par(mfrow=c(1,1), mar=c(3,3,3,3))
+ii = crimes.grid.dt[is.na(DISTRICT), I]
+print(paste('Number of NAs =', length(ii)))
+plot(grd.sgdf[grd.sgdf$I %in% ii, 'I'])
+plot(portland.pd, add=T)
+plot(grd.sgdf[grd.sgdf$DISTRICT==890,])
+crimes.grid.dt[is.na(DISTRICT), ]
+plot(grd.sgdf[grd.sgdf$I %in% crimes.grid.dt[, unique(I)], 'I'])
+
 # ============================================================================
 # PROJECTION
 # ============================================================================
@@ -296,6 +335,8 @@ phi.dt =
       lapply(incl.cg, coln_to_vw),
       list(cd_namespace = '|cdkde'),
       lapply(incl.cd, coln_to_vw),
+      list(pd_namespace = '|pd',
+           pd = DISTRICT),
       list(lag_namespace = '|lgkde',
            kdel = coln_to_vw('lg.kde')),
       list(rff_namespace = '|rff'))
