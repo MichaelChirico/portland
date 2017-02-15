@@ -47,18 +47,15 @@ lx = eta*delx
 ly = eta*dely
 
 week_0 = 0L
-recent = week_0 + 
-  c(switch(horizon, '1w' = 0, '2w' = -1L,
-           '1m' = -4L, '2m' = -8L, '3m' = -12L), 26L)
-
 lag.range = week_0 + 
   c(switch(horizon, '1w' = 54L, '2w' = 53L,
            '1m' = 50L, '2m' = 46L, '3m' = 42L), 80L)
 
-end.week = 
-  switch(horizon, '1w' = 0, '2w' = -1L,
-         '1m' = -4L, '2m' = -8L, '3m' = -12L)
+recent = week_0 + 
+  c(switch(horizon, '1w' = 0, '2w' = -1L,
+           '1m' = -4L, '2m' = -8L, '3m' = -12L), 26L)
 
+prj = CRS("+init=epsg:2913")
 
 crime.file = switch(crime.type,
                     all = "crimes_all.csv",
@@ -92,6 +89,7 @@ getGTindices <- function(gt) {
 
 grdtop <- as(as.SpatialGridDataFrame.im(
   pixellate(ppp(xrange=xrng, yrange=yrng), eps=c(delx, dely))), "GridTopology")
+grdSPDF = as.SpatialPolygons.GridTopology(grdtop, proj4string = prj)
 
 idx.new <- getGTindices(grdtop)
 
@@ -102,25 +100,40 @@ incl_ids =
     eps = c(delx, dely)))[idx.new, ]
   )[value > 0, which = TRUE]
 
-crimes = crimes[(occ_date %between% lag.range) | (occ_date >= '2016-09-01')]
+#join some missing crimes from unseen dates
+seq_rng = function(rng) seq.int(rng[1L], rng[2L])
+fake_crimes = 
+  data.table(week_no = c(seq_rng(lag.range),
+                         seq_rng(recent)))
+crimes = crimes[fake_crimes, on = 'week_no']
+#crimes.sp throws a hissy fit if fed NA coordinates
+real_crimes = crimes[!is.na(x_coordina), which = TRUE]
 
 crimes.sp =
   SpatialPointsDataFrame(
-    coords = crimes[ , cbind(x_coordina, y_coordina)],
-    data = crimes[ , -c('x_coordina', 'y_coordina')],
-    proj4string = CRS("+init=epsg:2913")
+    coords = crimes[(real_crimes), cbind(x_coordina, y_coordina)],
+    data = crimes[(real_crimes), -c('x_coordina', 'y_coordina')],
+    proj4string = prj
   )
 
 portland = 
   with(fread('data/portland_coords.csv'),
        rotate(x, y, theta, point0))
 
+#See https://github.com/spatstat/spatstat/issues/44
+#  and https://github.com/spatstat/spatstat/issues/45
+fix_empty = function(DT) DT[ , value := as.integer(value)][]
 crimes.grid.dt =
-  crimes[occ_date >= '2016-09-01',
-         as.data.table(pixellate(ppp(
-           x = x_coordina, y = y_coordina,
-           xrange = xrng, yrange = yrng, check = FALSE),
-           eps = c(x = delx, dely)))[idx.new],
+  crimes[week_no %between% recent, 
+         fix_empty(as.data.table(pixellate(
+           #for faux weeks, ppp will fail
+           #  if all x are missing
+           if (all(is.na(x_coordina)))
+             ppp(xrange = xrng, yrange = yrng, check = FALSE)
+           else 
+             ppp(x = x_coordina, y = y_coordina,
+                 xrange = xrng, yrange = yrng, check = FALSE),
+           eps = c(delx, dely))))[idx.new],
          by = week_no][ , I := rowid(week_no)][I %in% incl_ids]
 
 compute.kde <- function(pts, month)
@@ -132,7 +145,7 @@ compute.lag = function(pts, week_no)
                          (week_no + c(50L, 54L)), ],
              poly = portland, h0 = kde.bw, grd = grdtop)
 
-compute.kde.list <- function (pts, months = seq_len(kde.lags))
+compute.kde.list <- function (pts, months = seq_len(kde.lags) + 12L)
   lapply(setNames(months, paste0('kde', months)),
          function(month) compute.kde(pts, month))
 
@@ -146,7 +159,7 @@ if (!is.null(callgroup.top)) {
   crimes.cgroup = lapply(callgroup.top, function(cg)
     crimes.sp[crimes.sp$CALL_GROUP == cg,])
   kdes.sub = setDT(sapply(crimes.cgroup, function(pts)
-    compute.kde.list(pts, months=1L)))
+    compute.kde.list(pts, months=13L)))
   setnames(kdes.sub, paste0('cg.kde', 1L:ncol(kdes.sub)))
   kdes = cbind(kdes, kdes.sub)
 }
@@ -161,21 +174,7 @@ crimes.grid.dt[ , lg.kde := {
   kde[idx]
 }, by = week_no]
 
-#add some fake crimes for future dates
-## calculated the integer values of these dates by hand
-##   to save space
-new_weeks = 
-  #getting the week number (same as in crimes_to_csv.R)
-  #  of the end date (will be more negative since it's
-  #  further into the future from 2016 March)
-  seq.int(unclass(as.IDate("2017-02-28") - end.date) %/% 7L + 1L, 0L)
-crimes.grid.dt =
-  crimes.grid.dt[CJ(I = I, week_no = c(unique(week_no), new_weeks),
-                    unique = TRUE), on = c('I', 'week_no')]
-crimes.grid.dt[ , train := !is.na(kde1)]
-#used cell ID to create dummy rows; now
-#  use cell ID to reincorporate x/y data
-crimes.grid.dt[ , c('x', 'y') := .SD[!is.na(kde1)][1L, .(x, y)], by = I]
+crimes.grid.dt[ , train := week_no > week_0]
 
 proj = crimes.grid.dt[ , cbind(x, y, week_no)] %*%
   (matrix(rt(3L*features, df = 2.5), nrow = 3L)/c(lx, ly, lt))
@@ -257,5 +256,4 @@ rm(preds)
 hotspot.ids =
   crimes.grid.dt[ , .(tot.pred = sum(pred.count)), by = I
                   ][order(-tot.pred)[1L:n.cells], I]
-hotspots = unique(crimes.grid.dt[I %in% hotspot.ids, .(I, x, y)])
-
+crimes.grid.dt[ , hotspot := I %in% hotspot.ids]
