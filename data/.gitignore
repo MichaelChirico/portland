@@ -2,4 +2,4 @@
 #  respect directory structure
 *
 !.gitignore
-!portland*
+!portland_coords.csv
