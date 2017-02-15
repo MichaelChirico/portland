@@ -49,25 +49,22 @@ cat("**********************\n",
 aa = delx*dely #forecasted area
 lx = eta*delx
 ly = eta*dely
-#What days cover the recent past data
+#What weeks cover the recent past data
 #  and the furthest "future" date to forecast
-recent = 
-  as.IDate(
-    c('2015-09-01',
-      switch(
-        horizon, '1w' = '2016-03-07', '2w' = '2016-03-14',
-        '1m' = '2016-03-31', '2m' = '2016-04-30', '3m' = '2016-05-31'
-      )
-    ))
+## training period ends:
+###  (week_no = 0 is March 1 - March 7, 2017)
+week_0 = 52L
+## note: perhaps confusingly, "left" endpoint is
+##   later in time (since we count down weeks
+##   to the forecasting period)
+recent = wk_0 + 
+  c(switch(horizon, '1w' = 0, '2w' = -1L,
+           '1m' = -4L, '2m' = -8L, '3m' = -12L), 26L)
 
-#one year prior includes which dates?
-lag.range = 
-  as.IDate(
-    c('2014-08-17',
-    switch(horizon, 
-           '1w' = '2015-04-14', '2w' = '2015-04-14',
-           '1m' = '2015-04-14', '2m' = '2015-05-14', '3m' = '2015-06-14'
-    )))
+#one "year" prior (+/- 2 weeks) includes which weeks?
+lag.range = wk_0 + 
+  c(switch(horizon, '1w' = 54L, '2w' = 53L,
+           '1m' = 50L, '2m' = 46L, '3m' = 42L), 80L)
 
 crime.file = switch(crime.type,
                     all = "crimes_all.csv",
@@ -83,10 +80,10 @@ crimes[ , occ_date := as.IDate(occ_date)]
 #   then offset again by (x_0, y_0))
 #  Equivalently (implemented below):
 #  (I - R)[x_0, y_0] + R[x, y]
-rotate = function(points, theta, origin)
-  matrix(origin, nrow = nrow(points), 
+rotate = function(x, y, theta, origin)
+  matrix(origin, nrow = length(x), 
          ncol = 2L, byrow = TRUE) %*% (diag(2L) - RT(theta)) + 
-  points %*% RT(theta)
+  cbind(x, y) %*% RT(theta)
 #use the transpose of the rotation matrix to multiply against
 #  column vectors of coordinates
 RT = function(theta) matrix(c(cos(theta), -sin(theta), 
@@ -95,8 +92,7 @@ RT = function(theta) matrix(c(cos(theta), -sin(theta),
 
 point0 = crimes[ , c(min(x_coordina), min(y_coordina))]
 crimes[ , paste0(c('x', 'y'), '_coordina') :=
-          as.data.table(rotate(cbind(x_coordina, y_coordina),
-                               theta, point0))]
+          as.data.table(rotate(x_coordina, y_coordina, theta, point0))]
 
 #record range here, so that
 #  we have the same range 
@@ -151,7 +147,8 @@ crimes.sp =
 
 #boundary coordinates of portland
 portland = 
-  rotate(do.call(cbind, fread('data/portland_coords.csv')), theta, point0)
+  with(fread('data/portland_coords.csv'),
+       rotate(x, y, theta, point0))
 
 # plot boundary
 # par(mfrow=c(1,1))
@@ -174,7 +171,7 @@ crimes.grid.dt =
          by = week_no][ , I := rowid(week_no)][I %in% incl_ids]
 
 #can use this to split into train & test
-crimes.grid.dt[ , train := week_no > 0L]
+crimes.grid.dt[ , train := week_no > wk_0]
 
 # ============================================================================
 # KDEs

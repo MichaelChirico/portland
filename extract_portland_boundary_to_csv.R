@@ -20,7 +20,7 @@ out = which.max(sapply(portland@polygons[[1L]]@Polygons,
                        #ringDir = 2: inner boundary (hole)
                        function(p) if (p@ringDir > 0) nrow(p@coords) else 0))
 #extract the actual boundary polygon to a
-#  new object (there's gotta be a better way??)
+#  new object (que feo there's gotta be a better way??)
 portland.boundary = 
   SpatialPolygons(list(Polygons(list(
     portland@polygons[[1L]]@Polygons[[out]]
