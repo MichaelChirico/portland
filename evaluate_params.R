@@ -39,12 +39,12 @@ names(args) =
 attach(args)
 
 # baselines for testing:
-delx=dely=600;alpha=0;eta=1.5;lt=4;theta=0
-features=10;kde.bw=250;kde.lags=6
-horizon='1w';crime.type='all'
-cat("**********************\n",
-    "* TEST PARAMETERS ON *\n",
-    "**********************\n")
+# delx=dely=600;alpha=0;eta=1.5;lt=4;theta=0
+# features=10;kde.bw=250;kde.lags=6
+# horizon='1w';crime.type='all'
+# cat("**********************\n",
+#     "* TEST PARAMETERS ON *\n",
+#     "**********************\n")
 
 aa = delx*dely #forecasted area
 lx = eta*delx
@@ -153,10 +153,10 @@ crimes.sp =
 portland = 
   rotate(do.call(cbind, fread('data/portland_coords.csv')), theta, point0)
 
-# >>>>>> plot boundary
-par(mfrow=c(1,1))
-p = Polygon(rbind(portland, portland[1, ]))
-plot(SpatialPolygons(list(Polygons(list(p),c('1')))))
+# plot boundary
+# par(mfrow=c(1,1))
+# p = Polygon(rbind(portland, portland[1, ]))
+# plot(SpatialPolygons(list(Polygons(list(p),c('1')))))
 
 # ============================================================================
 # CREATE DATA TABLE OF CRIMES
@@ -271,29 +271,52 @@ crimes.grid.dt[ , lg.kde := {
 crs = CRS("+init=epsg:2913")
 portland.pd = readShapePoly("./data/Portland_Police_Districts.shp", 
                             proj4string = crs)
-grd.sp = as.SpatialPolygons.GridTopology(grdtop, proj4string = crs)
 
+# create SpatialPOlygonsDataFrame with grid
+grd.sp = as.SpatialPolygons.GridTopology(grdtop, proj4string = crs)
+poly.rownames = sapply(grd.sp@polygons, function(x) slot(x, 'ID'))
+poly.df = data.frame(I=1:prod(grdtop@cells.dim))
+rownames(poly.df) = poly.rownames
+grd.spdf = SpatialPolygonsDataFrame(
+  grd.sp,
+  data = poly.df, match.ID = FALSE
+  )
+
+# >>>>>
 # grd.sgdf = SpatialGridDataFrame(
-#   grid = grdtop, 
+#   grid = grdtop,
 #   data = over(
 #     gCentroid(grd.sp, byid = TRUE), portland.pd)
 #   )
 # grd.sgdf$I = 1:nrow(grd.sgdf)
 
-cell.districts = data.table(over(gCentroid(grd.sp, byid = TRUE), portland.pd))[, I := .I]
+# note: using centroids for the overlay means that
+# some cells in the boundary of the city will have
+# their centroids outside the boundary. To not get
+# NA values for those we do a second round overlay
+# for those cells without using centroids.
+cell.districts = data.table(over(gCentroid(grd.spdf, byid = TRUE), portland.pd))[, I := .I]
+id.nas = cell.districts[is.na(DISTRICT), I]
+cell.unmatched = grd.spdf[grd.spdf$I %in% id.nas, ]
+cell.districts2 = data.table(over(cell.unmatched, portland.pd))[, I:=id.nas]
+setkey(cell.districts, I)
+cell.districts[cell.districts2$I, DISTRICT := cell.districts2$DISTRICT]
 
 # merge with feautures
 crimes.grid.dt = cell.districts[, .(I, DISTRICT)][crimes.grid.dt, on='I']
 
+# make up value for remaining NAs in DISTRICT (all in airport)
+crimes.grid.dt[is.na(DISTRICT), DISTRICT := factor(0)]
+
 # >>>>> check NAs in DISTRICT variable
-par(mfrow=c(1,1), mar=c(3,3,3,3))
-ii = crimes.grid.dt[is.na(DISTRICT), I]
-print(paste('Number of NAs =', length(ii)))
-plot(grd.sgdf[grd.sgdf$I %in% ii, 'I'])
-plot(portland.pd, add=T)
-plot(grd.sgdf[grd.sgdf$DISTRICT==890,])
-crimes.grid.dt[is.na(DISTRICT), ]
-plot(grd.sgdf[grd.sgdf$I %in% crimes.grid.dt[, unique(I)], 'I'])
+# par(mfrow=c(1,1), mar=c(3,3,3,3))
+# ii = crimes.grid.dt[is.na(DISTRICT), I]
+# print(paste('Number of NAs =', length(ii)))
+# plot(grd.sgdf[grd.sgdf$I %in% ii, 'I'])
+# plot(portland.pd, add=T)
+# plot(grd.sgdf[grd.sgdf$DISTRICT==890,])
+# crimes.grid.dt[is.na(DISTRICT), ]
+# plot(grd.sgdf[grd.sgdf$I %in% crimes.grid.dt[, unique(I)], 'I'])
 
 # ============================================================================
 # PROJECTION
