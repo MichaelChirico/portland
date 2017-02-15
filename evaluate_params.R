@@ -100,7 +100,7 @@ crimes[ , paste0(c('x', 'y'), '_coordina') :=
 xrng = crimes[ , range(x_coordina)]
 yrng = crimes[ , range(y_coordina)]
 
-  getGTindices <- function(gt) {
+getGTindices <- function(gt) {
   # Obtain indices to rearange data from image (eg. result frim pixellate)
   # so that it conforms with data from GridTopology objects (eg. results
   # from using spkernel2d).
@@ -135,7 +135,7 @@ incl_ids =
 
 # trying to learn using only recent data 
 #  and one-year lag for now
-crimes = crimes[(occ_date %between% lag.range) | (occ_date %between% recent)]
+crimes = crimes[(week_no %between% lag.range) | (week_no %between% recent)]
 
 # create sp object of crimes
 crimes.sp = 
@@ -190,6 +190,7 @@ compute.lag = function(pts, week_no)
                          (week_no + c(50L, 54L)), ],
              poly = portland, h0 = kde.bw, grd = grdtop)
 
+#always use months 12:(kde.lags + 1)
 compute.kde.list <- function (pts, months = seq_len(kde.lags) + 12L) 
   # compute kde for each month.
   # return data.table, each col stores results for one month
