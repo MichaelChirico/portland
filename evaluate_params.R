@@ -268,55 +268,55 @@ crimes.grid.dt[ , lg.kde := {
 # 2) transfrom grid to SpatialPolygons
 # 3) spatial overlay of the two objects using centroids of each cell
 # ============================================================================
-crs = CRS("+init=epsg:2913")
-portland.pd = readShapePoly("./data/Portland_Police_Districts.shp", 
-                            proj4string = crs)
-
-# create SpatialPOlygonsDataFrame with grid
-grd.sp = as.SpatialPolygons.GridTopology(grdtop, proj4string = crs)
-poly.rownames = sapply(grd.sp@polygons, function(x) slot(x, 'ID'))
-poly.df = data.frame(I=1:prod(grdtop@cells.dim))
-rownames(poly.df) = poly.rownames
-grd.spdf = SpatialPolygonsDataFrame(
-  grd.sp,
-  data = poly.df, match.ID = FALSE
-  )
-
-# >>>>>
-# grd.sgdf = SpatialGridDataFrame(
-#   grid = grdtop,
-#   data = over(
-#     gCentroid(grd.sp, byid = TRUE), portland.pd)
+# crs = CRS("+init=epsg:2913")
+# portland.pd = readShapePoly("./data/Portland_Police_Districts.shp", 
+#                             proj4string = crs)
+# 
+# # create SpatialPOlygonsDataFrame with grid
+# grd.sp = as.SpatialPolygons.GridTopology(grdtop, proj4string = crs)
+# poly.rownames = sapply(grd.sp@polygons, function(x) slot(x, 'ID'))
+# poly.df = data.frame(I=1:prod(grdtop@cells.dim))
+# rownames(poly.df) = poly.rownames
+# grd.spdf = SpatialPolygonsDataFrame(
+#   grd.sp,
+#   data = poly.df, match.ID = FALSE
 #   )
-# grd.sgdf$I = 1:nrow(grd.sgdf)
-
-# note: using centroids for the overlay means that
-# some cells in the boundary of the city will have
-# their centroids outside the boundary. To not get
-# NA values for those we do a second round overlay
-# for those cells without using centroids.
-cell.districts = data.table(over(gCentroid(grd.spdf, byid = TRUE), portland.pd))[, I := .I]
-id.nas = cell.districts[is.na(DISTRICT), I]
-cell.unmatched = grd.spdf[grd.spdf$I %in% id.nas, ]
-cell.districts2 = data.table(over(cell.unmatched, portland.pd))[, I:=id.nas]
-setkey(cell.districts, I)
-cell.districts[cell.districts2$I, DISTRICT := cell.districts2$DISTRICT]
-
-# merge with feautures
-crimes.grid.dt = cell.districts[, .(I, DISTRICT)][crimes.grid.dt, on='I']
-
-# make up value for remaining NAs in DISTRICT (all in airport)
-crimes.grid.dt[is.na(DISTRICT), DISTRICT := factor(0)]
-
-# >>>>> check NAs in DISTRICT variable
-# par(mfrow=c(1,1), mar=c(3,3,3,3))
-# ii = crimes.grid.dt[is.na(DISTRICT), I]
-# print(paste('Number of NAs =', length(ii)))
-# plot(grd.sgdf[grd.sgdf$I %in% ii, 'I'])
-# plot(portland.pd, add=T)
-# plot(grd.sgdf[grd.sgdf$DISTRICT==890,])
-# crimes.grid.dt[is.na(DISTRICT), ]
-# plot(grd.sgdf[grd.sgdf$I %in% crimes.grid.dt[, unique(I)], 'I'])
+# 
+# # >>>>>
+# # grd.sgdf = SpatialGridDataFrame(
+# #   grid = grdtop,
+# #   data = over(
+# #     gCentroid(grd.sp, byid = TRUE), portland.pd)
+# #   )
+# # grd.sgdf$I = 1:nrow(grd.sgdf)
+# 
+# # note: using centroids for the overlay means that
+# # some cells in the boundary of the city will have
+# # their centroids outside the boundary. To not get
+# # NA values for those we do a second round overlay
+# # for those cells without using centroids.
+# cell.districts = data.table(over(gCentroid(grd.spdf, byid = TRUE), portland.pd))[, I := .I]
+# id.nas = cell.districts[is.na(DISTRICT), I]
+# cell.unmatched = grd.spdf[grd.spdf$I %in% id.nas, ]
+# cell.districts2 = data.table(over(cell.unmatched, portland.pd))[, I:=id.nas]
+# setkey(cell.districts, I)
+# cell.districts[cell.districts2$I, DISTRICT := cell.districts2$DISTRICT]
+# 
+# # merge with feautures
+# crimes.grid.dt = cell.districts[, .(I, DISTRICT)][crimes.grid.dt, on='I']
+# 
+# # make up value for remaining NAs in DISTRICT (all in airport)
+# crimes.grid.dt[is.na(DISTRICT), DISTRICT := factor(0)]
+# 
+# # >>>>> check NAs in DISTRICT variable
+# # par(mfrow=c(1,1), mar=c(3,3,3,3))
+# # ii = crimes.grid.dt[is.na(DISTRICT), I]
+# # print(paste('Number of NAs =', length(ii)))
+# # plot(grd.sgdf[grd.sgdf$I %in% ii, 'I'])
+# # plot(portland.pd, add=T)
+# # plot(grd.sgdf[grd.sgdf$DISTRICT==890,])
+# # crimes.grid.dt[is.na(DISTRICT), ]
+# # plot(grd.sgdf[grd.sgdf$I %in% crimes.grid.dt[, unique(I)], 'I'])
 
 # ============================================================================
 # PROJECTION
@@ -358,8 +358,8 @@ phi.dt =
       lapply(incl.cg, coln_to_vw),
       list(cd_namespace = '|cdkde'),
       lapply(incl.cd, coln_to_vw),
-      list(pd_namespace = '|pd',
-           pd = DISTRICT),
+      # list(pd_namespace = '|pd',
+      #      pd = DISTRICT),
       list(lag_namespace = '|lgkde',
            kdel = coln_to_vw('lg.kde')),
       list(rff_namespace = '|rff'))
