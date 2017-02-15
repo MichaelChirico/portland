@@ -358,8 +358,8 @@ phi.dt =
       lapply(incl.cg, coln_to_vw),
       list(cd_namespace = '|cdkde'),
       lapply(incl.cd, coln_to_vw),
-      # list(pd_namespace = '|pd',
-      #      pd = DISTRICT),
+      list(pd_namespace = '|pd',
+           pd = DISTRICT),
       list(lag_namespace = '|lgkde',
            kdel = coln_to_vw('lg.kde')),
       list(rff_namespace = '|rff'))
