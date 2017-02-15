@@ -39,12 +39,12 @@ set.seed(60251935)
 # attach(args)
 
 # baselines for testing: 
-delx=dely=600;alpha=0;eta=1;lt=1;theta=0
-features=2;kde.bw=1000;kde.lags=3
-horizon='1w';crime.type='vehicle'
-cat("**********************\n",
-    "* TEST PARAMETERS ON *\n",
-    "**********************\n")
+# delx=dely=600;alpha=0;eta=1;lt=1;theta=0
+# features=2;kde.bw=1000;kde.lags=3
+# horizon='1w';crime.type='vehicle'
+# cat("**********************\n",
+#     "* TEST PARAMETERS ON *\n",
+#     "**********************\n")
 
 aa = delx*dely #forecasted area
 lx = eta*delx
@@ -174,7 +174,7 @@ crimes.grid.dt =
          by = week_no][ , I := rowid(week_no)][I %in% incl_ids]
 
 #can use this to split into train & test
-crimes.grid.dt[ , train := week_no > 0L]
+crimes.grid.dt[ , train := week_no > 52L]
 
 # ============================================================================
 # KDEs
@@ -385,6 +385,12 @@ for (jj in 1L:features) {
                    sprintf("sin%i:%.5f", jj, fkt*sin(pj))))
 }
 rm(proj)
+
+# ============================================================================
+# CROSS-CRIME KDES
+# ============================================================================
+
+
 
 # ============================================================================
 # WRITE VW FILES
