@@ -46,19 +46,18 @@ aa = delx*dely
 lx = eta*delx
 ly = eta*dely
 
-lag.range =
-  as.IDate(
-    c('2015-08-17',
-    switch(horizon,
-           '1w' = '2016-04-14', '2w' = '2016-04-14',
-           '1m' = '2016-04-14', '2m' = '2016-05-14', '3m' = '2016-06-14'
-    )))
+week_0 = 0L
+recent = week_0 + 
+  c(switch(horizon, '1w' = 0, '2w' = -1L,
+           '1m' = -4L, '2m' = -8L, '3m' = -12L), 26L)
 
-end.date = 
-  as.IDate(switch(
-    horizon, '1w' = '2017-03-07', '2w' = '2017-03-14',
-    '1m' = '2017-03-31', '2m' = '2017-04-30', '3m' = '2017-05-31'
-  ))
+lag.range = week_0 + 
+  c(switch(horizon, '1w' = 54L, '2w' = 53L,
+           '1m' = 50L, '2m' = 46L, '3m' = 42L), 80L)
+
+end.week = 
+  switch(horizon, '1w' = 0, '2w' = -1L,
+         '1m' = -4L, '2m' = -8L, '3m' = -12L)
 
 
 crime.file = switch(crime.type,
@@ -70,18 +69,17 @@ crime.file = switch(crime.type,
 crimes = fread(crime.file)
 crimes[ , occ_date := as.IDate(occ_date)]
 
-rotate = function(points, theta, origin)
-  matrix(origin, nrow = nrow(points),
-         ncol = 2L, byrow = TRUE) %*% (diag(2L) - RT(theta)) +
-  points %*% RT(theta)
+rotate = function(x, y, theta, origin)
+  matrix(origin, nrow = length(x), 
+         ncol = 2L, byrow = TRUE) %*% (diag(2L) - RT(theta)) + 
+  cbind(x, y) %*% RT(theta)
 RT = function(theta) matrix(c(cos(theta), -sin(theta),
                               sin(theta), cos(theta)),
                             nrow = 2L, ncol = 2L)
 
 point0 = crimes[ , c(min(x_coordina), min(y_coordina))]
 crimes[ , paste0(c('x', 'y'), '_coordina') :=
-          as.data.table(rotate(cbind(x_coordina, y_coordina),
-                               theta, point0))]
+          as.data.table(rotate(x_coordina, y_coordina, theta, point0))]
 
 xrng = crimes[ , range(x_coordina)]
 yrng = crimes[ , range(y_coordina)]
@@ -113,8 +111,9 @@ crimes.sp =
     proj4string = CRS("+init=epsg:2913")
   )
 
-portland =
-  rotate(do.call(cbind, fread('data/portland_coords.csv')), theta, point0)
+portland = 
+  with(fread('data/portland_coords.csv'),
+       rotate(x, y, theta, point0))
 
 crimes.grid.dt =
   crimes[occ_date >= '2016-09-01',

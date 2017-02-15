@@ -57,12 +57,12 @@ week_0 = 52L
 ## note: perhaps confusingly, "left" endpoint is
 ##   later in time (since we count down weeks
 ##   to the forecasting period)
-recent = wk_0 + 
+recent = week_0 + 
   c(switch(horizon, '1w' = 0, '2w' = -1L,
            '1m' = -4L, '2m' = -8L, '3m' = -12L), 26L)
 
 #one "year" prior (+/- 2 weeks) includes which weeks?
-lag.range = wk_0 + 
+lag.range = week_0 + 
   c(switch(horizon, '1w' = 54L, '2w' = 53L,
            '1m' = 50L, '2m' = 46L, '3m' = 42L), 80L)
 
@@ -171,7 +171,7 @@ crimes.grid.dt =
          by = week_no][ , I := rowid(week_no)][I %in% incl_ids]
 
 #can use this to split into train & test
-crimes.grid.dt[ , train := week_no > wk_0]
+crimes.grid.dt[ , train := week_no > week_0]
 
 # ============================================================================
 # KDEs
@@ -276,14 +276,13 @@ portland.pd = readShapePoly("./data/Portland_Police_Districts.shp",
 # create SpatialPOlygonsDataFrame with grid
 grd.sp = as.SpatialPolygons.GridTopology(grdtop, proj4string = crs)
 poly.rownames = sapply(grd.sp@polygons, function(x) slot(x, 'ID'))
-poly.df = data.frame(I=1:prod(grdtop@cells.dim))
-rownames(poly.df) = poly.rownames
+poly.df = data.frame(I = seq_len(prod(grdtop@cells.dim)), 
+                     row.names = poly.rownames)
 grd.spdf = SpatialPolygonsDataFrame(
   grd.sp,
   data = poly.df, match.ID = FALSE
-  )
+)
 
-# >>>>>
 # grd.sgdf = SpatialGridDataFrame(
 #   grid = grdtop,
 #   data = over(
@@ -309,7 +308,7 @@ crimes.grid.dt = cell.districts[, .(I, DISTRICT)][crimes.grid.dt, on='I']
 # make up value for remaining NAs in DISTRICT (all in airport)
 crimes.grid.dt[is.na(DISTRICT), DISTRICT := factor(0)]
 
-# >>>>> check NAs in DISTRICT variable
+# check NAs in DISTRICT variable
 # par(mfrow=c(1,1), mar=c(3,3,3,3))
 # ii = crimes.grid.dt[is.na(DISTRICT), I]
 # print(paste('Number of NAs =', length(ii)))
