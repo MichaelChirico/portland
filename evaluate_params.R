@@ -39,7 +39,7 @@ names(args) =
 attach(args)
 
 # baselines for testing:
-# delx=dely=250;alpha=0;eta=1.5;lt=4;theta=pi/36
+# delx=dely=600;alpha=0;eta=1.5;lt=4;theta=0
 # features=10;kde.bw=250;kde.lags=6
 # horizon='1w';crime.type='all'
 # cat("**********************\n",
@@ -153,6 +153,11 @@ crimes.sp =
 portland = 
   rotate(do.call(cbind, fread('data/portland_coords.csv')), theta, point0)
 
+# plot boundary
+# par(mfrow=c(1,1))
+# p = Polygon(rbind(portland, portland[1, ]))
+# plot(SpatialPolygons(list(Polygons(list(p),c('1')))))
+
 # ============================================================================
 # CREATE DATA TABLE OF CRIMES
 # aggregate at week-cell level
@@ -207,11 +212,14 @@ callgroup.top =
          #all but 'all' have 2 or fewer call groups;
          #  include at most N-1 of them to avoid collinearity
          ][order(-N), if (.N > 1) CALL_GROUP[seq_len(min(3L, .N - 1L))]]
+
 if (!is.null(callgroup.top)) {
   crimes.cgroup = lapply(callgroup.top, function(cg) 
     crimes.sp[crimes.sp$CALL_GROUP == cg,])
+  
   kdes.sub = setDT(sapply(crimes.cgroup, function(pts) 
     compute.kde.list(pts, months=13L)))
+  
   setnames(kdes.sub, paste0('cg.kde', 1L:ncol(kdes.sub)))
   
   # combine normal kdes and sub-kdes
@@ -221,14 +229,94 @@ if (!is.null(callgroup.top)) {
 # add cell id
 kdes[, I := .I]
 
+# ============================================================================
+# SUBCATEGORIES - CALL PRIORITIES
+# ============================================================================
+
+# select CASE_DESC cases as boolean vectors
+cd.cases = with(crimes.sp@data,
+                data.frame(
+                  cd.kde1 = grepl('COLD', CASE_DESC),
+                  cd.kde2 = grepl('PRIORITY', CASE_DESC) & !grepl('*H', CASE_DESC),
+                  cd.kde3 = grepl('PRIORITY[[:space:]][*]', CASE_DESC))
+                )
+
+# compute kdes for each CASE_DESC case selected
+cd.kdes = setDT(lapply(cd.cases, function(cd) {
+  spkernel2d(pts = crimes.sp[cd & crimes.sp$month_no %between% c(13L, 19L),],
+             poly = portland, h0 = kde.bw, grd = grdtop)
+}))
+
+kdes = cbind(kdes, cd.kdes)
+
 # append kdes
 crimes.grid.dt = kdes[crimes.grid.dt, on = 'I']
 
+# compute one year lag kdes for each cell-week
 crimes.grid.dt[ , lg.kde := {
   kde = compute.lag(crimes.sp, .BY$week_no)
   idx = data.table(kde, I = seq_len(length(kde)))[.SD, on = 'I', which = TRUE]
   kde[idx]
 }, by = week_no]
+
+# sgdf = SpatialGridDataFrame(grdtop, kdes[, 'cd.kde3'])
+# plot(sgdf)
+
+# ============================================================================
+# POLICE DISTRICT DUMMY
+# 1) load police districts shapefile
+# 2) transfrom grid to SpatialPolygons
+# 3) spatial overlay of the two objects using centroids of each cell
+# ============================================================================
+crs = CRS("+init=epsg:2913")
+portland.pd = readShapePoly("./data/Portland_Police_Districts.shp", 
+                            proj4string = crs)
+
+# create SpatialPOlygonsDataFrame with grid
+grd.sp = as.SpatialPolygons.GridTopology(grdtop, proj4string = crs)
+poly.rownames = sapply(grd.sp@polygons, function(x) slot(x, 'ID'))
+poly.df = data.frame(I=1:prod(grdtop@cells.dim))
+rownames(poly.df) = poly.rownames
+grd.spdf = SpatialPolygonsDataFrame(
+  grd.sp,
+  data = poly.df, match.ID = FALSE
+  )
+
+# >>>>>
+# grd.sgdf = SpatialGridDataFrame(
+#   grid = grdtop,
+#   data = over(
+#     gCentroid(grd.sp, byid = TRUE), portland.pd)
+#   )
+# grd.sgdf$I = 1:nrow(grd.sgdf)
+
+# note: using centroids for the overlay means that
+# some cells in the boundary of the city will have
+# their centroids outside the boundary. To not get
+# NA values for those we do a second round overlay
+# for those cells without using centroids.
+cell.districts = data.table(over(gCentroid(grd.spdf, byid = TRUE), portland.pd))[, I := .I]
+id.nas = cell.districts[is.na(DISTRICT), I]
+cell.unmatched = grd.spdf[grd.spdf$I %in% id.nas, ]
+cell.districts2 = data.table(over(cell.unmatched, portland.pd))[, I:=id.nas]
+setkey(cell.districts, I)
+cell.districts[cell.districts2$I, DISTRICT := cell.districts2$DISTRICT]
+
+# merge with feautures
+crimes.grid.dt = cell.districts[, .(I, DISTRICT)][crimes.grid.dt, on='I']
+
+# make up value for remaining NAs in DISTRICT (all in airport)
+crimes.grid.dt[is.na(DISTRICT), DISTRICT := factor(0)]
+
+# >>>>> check NAs in DISTRICT variable
+# par(mfrow=c(1,1), mar=c(3,3,3,3))
+# ii = crimes.grid.dt[is.na(DISTRICT), I]
+# print(paste('Number of NAs =', length(ii)))
+# plot(grd.sgdf[grd.sgdf$I %in% ii, 'I'])
+# plot(portland.pd, add=T)
+# plot(grd.sgdf[grd.sgdf$DISTRICT==890,])
+# crimes.grid.dt[is.na(DISTRICT), ]
+# plot(grd.sgdf[grd.sgdf$I %in% crimes.grid.dt[, unique(I)], 'I'])
 
 # ============================================================================
 # PROJECTION
@@ -245,6 +333,7 @@ incl = setNames(
 )
 incl.kde = grep("^kde", incl, value = TRUE)
 incl.cg = grep("^cg.", incl, value = TRUE)
+incl.cd = grep("^cd.", incl, value = TRUE)
 
 phi.dt =
   crimes.grid.dt[ , {
@@ -267,6 +356,10 @@ phi.dt =
       lapply(incl.kde, coln_to_vw),
       list(cg_namespace = if (length(incl.cg)) '|cgkde'),
       lapply(incl.cg, coln_to_vw),
+      list(cd_namespace = '|cdkde'),
+      lapply(incl.cd, coln_to_vw),
+      list(pd_namespace = '|pd',
+           pd = DISTRICT),
       list(lag_namespace = '|lgkde',
            kdel = coln_to_vw('lg.kde')),
       list(rff_namespace = '|rff'))
