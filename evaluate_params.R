@@ -38,12 +38,12 @@ names(args) =
 attach(args)
 
 # baselines for testing: 
-# delx=dely=250;alpha=0;eta=1;lt=1;theta=0
-# features=2;kde.bw=400;kde.lags=3
-# horizon='1w';crime.type='all'
-# cat("**********************\n",
-#     "* TEST PARAMETERS ON *\n",
-#     "**********************\n")
+delx=dely=250;alpha=0;eta=1;lt=1;theta=0
+features=2;kde.bw=400;kde.lags=3
+horizon='1w';crime.type='all'
+cat("**********************\n",
+    "* TEST PARAMETERS ON *\n",
+    "**********************\n")
 
 aa = delx*dely #forecasted area
 lx = eta*delx
@@ -207,19 +207,16 @@ kdes = setDT(compute.kde.list(crimes.sp))
 
 # pick largest call groups
 callgroup.top = 
-  crimes[, .N, by=CALL_GROUP
-         #all but 'all' have 2 or fewer call groups;
-         #  include at most N-1 of them to avoid collinearity
-         ][order(-N), if (.N > 1) CALL_GROUP[seq_len(min(3L, .N - 1L))]]
+  fread('top_callgroups_by_crime.csv')[crime == crime.type, cg]
 
-if (!is.null(callgroup.top)) {
+if (length(callgroup.top)) {
   crimes.cgroup = lapply(callgroup.top, function(cg) 
-    crimes.sp[crimes.sp$CALL_GROUP == cg,])
+    crimes.sp[crimes.sp$CALL_GROUP == cg, ])
   
-  kdes.sub = setDT(sapply(crimes.cgroup, function(pts) 
+  kdes.sub = setDT(lapply(crimes.cgroup, function(pts) 
     compute.kde.list(pts, months=13L)))
   
-  setnames(kdes.sub, paste0('cg.kde', 1L:ncol(kdes.sub)))
+  setnames(kdes.sub, paste0('cg.kde', seq_len(ncol(kdes.sub))))
   
   # combine normal kdes and sub-kdes
   kdes = cbind(kdes, kdes.sub)
@@ -300,12 +297,11 @@ crimes.grid.dt = other.crimes.kdes[crimes.grid.dt, on='I']
 # 2) transfrom grid to SpatialPolygons
 # 3) spatial overlay of the two objects using centroids of each cell
 # ============================================================================
-crs = CRS("+init=epsg:2913")
 portland.pd = readShapePoly("./data/Portland_Police_Districts.shp",
-                            proj4string = crs)
+                            proj4string = prj)
 
 # create SpatialPOlygonsDataFrame with grid
-grd.sp = as.SpatialPolygons.GridTopology(grdtop, proj4string = crs)
+grd.sp = as.SpatialPolygons.GridTopology(grdtop, proj4string = prj)
 poly.rownames = sapply(grd.sp@polygons, function(x) slot(x, 'ID'))
 poly.df = data.frame(I = seq_len(prod(grdtop@cells.dim)), 
                      row.names = poly.rownames)
