@@ -123,20 +123,12 @@ portland_r =
   with(fread('data/portland_coords.csv'),
        rotate(x, y, theta, point0))
 
-#See https://github.com/spatstat/spatstat/issues/44
-#  and https://github.com/spatstat/spatstat/issues/45
-fix_empty = function(DT) DT[ , value := as.integer(value)][]
 crimes.grid.dt =
   crimes[week_no %between% recent, 
-         fix_empty(as.data.table(pixellate(
-           #for faux weeks, ppp will fail
-           #  if all x are missing
-           if (all(is.na(x_coordina)))
-             ppp(xrange = xrng, yrange = yrng, check = FALSE)
-           else 
-             ppp(x = x_coordina, y = y_coordina,
-                 xrange = xrng, yrange = yrng, check = FALSE),
-           eps = c(delx, dely))))[idx.new],
+         as.data.table(pixellate(ppp(
+           x = x_coordina, y = y_coordina,
+           xrange = xrng, yrange = yrng, check = FALSE),
+           eps = c(delx, dely)))[idx.new],
          by = week_no][ , I := rowid(week_no)][I %in% incl_ids]
 
 compute.kde <- function(pts, month)
