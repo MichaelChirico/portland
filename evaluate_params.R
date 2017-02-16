@@ -464,6 +464,8 @@ scores = data.table(delx, dely, alpha, eta, lt, theta, k = features,
 which.round = function(x)
   if (x > 0) {if (x < 1) round else floor} else ceiling
 
+#6969600 ft^2 = .25 mi^2 (minimum forecast area);
+#triple this is maximum forecast area
 n.cells = as.integer(which.round(alpha)(6969600*(1+2*alpha)/aa))
 
 #Calculate PEI & PAI denominators here since they are the
@@ -472,7 +474,6 @@ n.cells = as.integer(which.round(alpha)(6969600*(1+2*alpha)/aa))
 N_star = crimes.grid.dt[ , .(tot.crimes = sum(value)), by = I
                          ][order(-tot.crimes)[1L:n.cells],
                            sum(tot.crimes)]
-NN = crimes.grid.dt[ , sum(value)]
 
 for (ii in seq_len(nrow(tuning_variations))) {
   model = tempfile(tmpdir = tdir, pattern = "model")
@@ -519,7 +520,7 @@ for (ii in seq_len(nrow(tuning_variations))) {
            c(tuning_variations[ii],
              list(pei = nn/N_star,
                   #pre-calculated the total area of portland
-                  pai = (nn/NN)/(aa*n.cells/4117777129)))]
+                  pai = nn/(aa*n.cells)))]
 }
 invisible(file.remove(cache, test.vw))
 
@@ -538,9 +539,8 @@ hotspot.ids.kde = kdes[order(-kde13)][1:n.cells, I]
 # plot(portland.bdy, add=T)
 
 ## compute scores
-tot.crimes = crimes.grid.dt[(!train) , sum(value)]
 hotspot.crimes = crimes.grid.dt[(!train) & I %in% hotspot.ids.kde, sum(value)]
-pai.kde = (hotspot.crimes/tot.crimes)/(aa*n.cells/4117777129)
+pai.kde = hotspot.crimes/(aa*n.cells)
 
 pei.kde = hotspot.crimes/crimes.grid.dt[ , .(tot.crimes = sum(value)), by = I
                ][order(-tot.crimes)[1L:n.cells],
