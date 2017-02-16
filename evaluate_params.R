@@ -133,11 +133,12 @@ incl_ids =
   )[value > 0, which = TRUE]
 
 # create sp object of crimes
+prj = CRS("+init=epsg:2913")
 crimes.sp = 
   SpatialPointsDataFrame(
     coords = crimes[ , cbind(x_coordina, y_coordina)],
     data = crimes[ , -c('x_coordina', 'y_coordina')],
-    proj4string = CRS("+init=epsg:2913")
+    proj4string = prj
   )
 
 # trying to learn using only recent data 
