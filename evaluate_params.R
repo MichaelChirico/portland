@@ -133,10 +133,6 @@ incl_ids =
     #find cells that ever have a crime
   )[value > 0, which = TRUE]
 
-# trying to learn using only recent data 
-#  and one-year lag for now
-crimes = crimes[(week_no %between% lag.range) | (week_no %between% recent)]
-
 # create sp object of crimes
 crimes.sp = 
   SpatialPointsDataFrame(
@@ -144,6 +140,10 @@ crimes.sp =
     data = crimes[ , -c('x_coordina', 'y_coordina')],
     proj4string = CRS("+init=epsg:2913")
   )
+
+# trying to learn using only recent data 
+#  and one-year lag for now
+crimes = crimes[(week_no %between% lag.range) | (week_no %between% recent)]
 
 #boundary coordinates of portland
 portland = 
