@@ -39,25 +39,12 @@ set.seed(60251935)
 # attach(args)
 
 # baselines for testing: 
-delx=dely=600;alpha=0;eta=1;lt=1;theta=0
-features=2;kde.bw=1000;kde.lags=3
-horizon='1w';crime.type='vehicle'
-cat("**********************\n",
-    "* TEST PARAMETERS ON *\n",
-    "**********************\n")
-
-delx=673
-dely=273
-alpha=0.136734
-eta=2.209049
-lt=8.732539
-theta=0
-featurs=36
-kde.bw=361.873856
-kde.lags=6
-crime.type='burglary'
-horizon='1m'
-
+# delx=dely=600;alpha=0;eta=1;lt=1;theta=0
+# features=2;kde.bw=1000;kde.lags=3
+# horizon='1w';crime.type='vehicle'
+# cat("**********************\n",
+#     "* TEST PARAMETERS ON *\n",
+#     "**********************\n")
 
 aa = delx*dely #forecasted area
 lx = eta*delx
