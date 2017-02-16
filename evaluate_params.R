@@ -46,6 +46,19 @@ cat("**********************\n",
     "* TEST PARAMETERS ON *\n",
     "**********************\n")
 
+delx=673
+dely=273
+alpha=0.136734
+eta=2.209049
+lt=8.732539
+theta=0
+featurs=36
+kde.bw=361.873856
+kde.lags=6
+crime.type='burglary'
+horizon='1m'
+
+
 aa = delx*dely #forecasted area
 lx = eta*delx
 ly = eta*dely
@@ -161,7 +174,7 @@ portland =
 # ============================================================================
 
 crimes.grid.dt = 
-  crimes[occ_date %between% recent, 
+  crimes[week_no %between% recent, 
          as.data.table(pixellate(ppp(
            x = x_coordina, y = y_coordina,
            xrange = xrng, yrange = yrng, check = FALSE),
