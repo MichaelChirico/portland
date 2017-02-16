@@ -39,12 +39,12 @@ set.seed(60251935)
 # attach(args)
 
 # baselines for testing: 
-# delx=dely=600;alpha=0;eta=1;lt=1;theta=0
-# features=2;kde.bw=1000;kde.lags=8
-# horizon='1w';crime.type='vehicle'
-# cat("**********************\n",
-#     "* TEST PARAMETERS ON *\n",
-#     "**********************\n")
+delx=dely=600;alpha=0;eta=1;lt=1;theta=0
+features=2;kde.bw=400;kde.lags=3
+horizon='1w';crime.type='all'
+cat("**********************\n",
+    "* TEST PARAMETERS ON *\n",
+    "**********************\n")
 
 aa = delx*dely #forecasted area
 lx = eta*delx
@@ -134,12 +134,13 @@ incl_ids =
   )[value > 0, which = TRUE]
 
 # create sp object of crimes
-crimes.sp = 
+to.spdf = function(dt) {
   SpatialPointsDataFrame(
-    coords = crimes[ , cbind(x_coordina, y_coordina)],
-    data = crimes[ , -c('x_coordina', 'y_coordina')],
-    proj4string = CRS("+init=epsg:2913")
-  )
+    coords = dt[ , cbind(x_coordina, y_coordina)],
+    data = dt[ , -c('x_coordina', 'y_coordina')],
+    proj4string = CRS("+init=epsg:2913"))
+}
+crimes.sp = to.spdf(crimes)
 
 # trying to learn using only recent data 
 #  and one-year lag for now
@@ -264,6 +265,36 @@ crimes.grid.dt[ , lg.kde := {
 # plot(sgdf)
 
 # ============================================================================
+# CROSS-CRIME KDES
+# 1) laod csv data fro other crimes
+# 2) turn into sp objects
+# 3) compute KDEs
+# ============================================================================
+
+get.crime.file = function (crime.type) {
+    switch(crime.type,
+    all = "crimes_all.csv",
+    street = "crimes_str.csv",
+    burglary = "crimes_bur.csv",
+    vehicle = "crimes_veh.csv")
+}
+
+crimes = fread(crime.file)
+crimes[ , occ_date := as.IDate(occ_date)]
+
+categories = c('all','street','burglary','vehicle')
+other.crimes = setdiff(categories, crime.type)
+other.crimes.files = sapply(other.crimes, get.crime.file)
+other.crimes.dt = lapply(other.crimes.files, fread)
+other.crimes.spdf = sapply(other.crimes.dt, to.spdf)
+other.crimes.kdes = lapply(other.crimes.spdf, compute.kde.list)
+
+# add to features
+other.crimes.kdes = setDT(unlist(other.crimes.kdes, recursive = FALSE))
+other.crimes.kdes[, I := .I]
+crimes.grid.dt = other.crimes.kdes[crimes.grid.dt, on='I']
+
+# ============================================================================
 # POLICE DISTRICT DUMMY
 # 1) load police districts shapefile
 # 2) transfrom grid to SpatialPolygons
@@ -334,6 +365,7 @@ incl = setNames(
 incl.kde = grep("^kde", incl, value = TRUE)
 incl.cg = grep("^cg.", incl, value = TRUE)
 incl.cd = grep("^cd.", incl, value = TRUE)
+incl.xkde = grep(".kde\\d", incl, value = TRUE)
 
 phi.dt =
   crimes.grid.dt[ , {
@@ -362,6 +394,8 @@ phi.dt =
            pd = DISTRICT),
       list(lag_namespace = '|lgkde',
            kdel = coln_to_vw('lg.kde')),
+      list(xk_namespace = '|xkde'),
+      lapply(incl.xkde, coln_to_vw),
       list(rff_namespace = '|rff'))
   }]
 
