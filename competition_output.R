@@ -24,9 +24,8 @@ library(zoo)
 #  as evaluation_params.R
 set.seed(60251935)
 
-args = read.table(text = paste(commandArgs(trailingOnly = TRUE), 
-                               collapse = '\t'),
-                  stringsAsFactors = FALSE)
+args = read.table(text = commandArgs(trailingOnly = TRUE), 
+                  sep = ' ', stringsAsFactors = FALSE)
 names(args) = c('delx', 'dely', 'alpha', 'eta', 'lt', 'theta',
                 'features', 'kde.bw', 'kde.lags', 'l1', 'l2',
                 'lambda', 'delta', 'T0', 'pp',
@@ -34,7 +33,7 @@ names(args) = c('delx', 'dely', 'alpha', 'eta', 'lt', 'theta',
 attach(args)
 
 # baselines for testing:
-delx=dely=250;alpha=0;eta=1.5;lt=4;theta=pi/36
+delx=dely=1000;alpha=0;eta=1.5;lt=4;theta=pi/36
 features=10;kde.bw=250;kde.lags=6;
 l1=1e-4;l2=1e-5;lambda=.5;delta=1;T0=0;pp=.5;
 horizon='1w';crime.type='all'
@@ -54,8 +53,6 @@ lag.range = week_0 +
 recent = week_0 + 
   c(switch(horizon, '1w' = 0, '2w' = -1L,
            '1m' = -4L, '2m' = -8L, '3m' = -12L), 26L)
-
-prj = CRS("+init=epsg:2913")
 
 crime.file = switch(crime.type,
                     all = "crimes_all.csv",
@@ -87,9 +84,15 @@ getGTindices <- function(gt) {
   c(matrix(seq_len(dimx*dimy), ncol = dimy, byrow = TRUE)[ , dimy:1L])
 }
 
+prj = CRS("+init=epsg:2913")
 grdtop <- as(as.SpatialGridDataFrame.im(
   pixellate(ppp(xrange=xrng, yrange=yrng), eps=c(delx, dely))), "GridTopology")
-grdSPDF = as.SpatialPolygons.GridTopology(grdtop, proj4string = prj)
+grdSPDF = SpatialPolygonsDataFrame(
+  as.SpatialPolygons.GridTopology(grdtop, proj4string = prj),
+  data = data.frame(I = seq_len(prod(grdtop@cells.dim)),
+                    row.names = sprintf('g%d', seq_len(prod(grdtop@cells.dim)))), 
+  match.ID = FALSE
+)
 
 idx.new <- getGTindices(grdtop)
 
@@ -116,7 +119,7 @@ crimes.sp =
     proj4string = prj
   )
 
-portland = 
+portland_r = 
   with(fread('data/portland_coords.csv'),
        rotate(x, y, theta, point0))
 
@@ -138,12 +141,12 @@ crimes.grid.dt =
 
 compute.kde <- function(pts, month)
   spkernel2d(pts = pts[pts$month_no == month, ],
-             poly = portland, h0 = kde.bw, grd = grdtop)
+             poly = portland_r, h0 = kde.bw, grd = grdtop)
 
 compute.lag = function(pts, week_no)
   spkernel2d(pts = pts[pts$week_no %between%
                          (week_no + c(50L, 54L)), ],
-             poly = portland, h0 = kde.bw, grd = grdtop)
+             poly = portland_r, h0 = kde.bw, grd = grdtop)
 
 compute.kde.list <- function (pts, months = seq_len(kde.lags) + 12L)
   lapply(setNames(months, paste0('kde', months)),
@@ -256,4 +259,43 @@ rm(preds)
 hotspot.ids =
   crimes.grid.dt[ , .(tot.pred = sum(pred.count)), by = I
                   ][order(-tot.pred)[1L:n.cells], I]
-crimes.grid.dt[ , hotspot := I %in% hotspot.ids]
+
+#define hotspots on grid's SPDF
+grdSPDF$hotspot = grdSPDF$I %in% hotspot.ids
+
+#reverse rotation -- rotated points to
+#  fit grid, now rotate grid to fit
+#  original orientation of points
+#  ** rotate expects angles in degrees **
+grdSPDF = elide(grdSPDF, rotate = -180/pi * theta)
+
+#load clipping polygon -- Police Districts shapefile
+police_districts = 
+  readShapeSpatial('data/Portland_Police_Districts.shp', 
+                   proj4string = prj)
+
+portland = gUnaryUnion(gBuffer(
+  police_districts, width = 1e6*.Machine$double.eps
+))
+
+#clip to polygon; sadly gIntersection
+#  drops data, so need the gIntersects step to
+#  prevent this from happening
+grdSPDF = 
+  SpatialPolygonsDataFrame(
+    gIntersection(grdSPDF, portland, byid = TRUE),
+    data = grdSPDF@data[gIntersects(grdSPDF, portland, byid = TRUE), ],
+    match.ID = FALSE
+  )
+
+#add area per contest guidelines
+grdSPDF$area = gArea(grdSPDF, byid = TRUE)
+
+out.horizon = switch(horizon, '1w' = '1WK', '2w' = '2WK',
+                     '1m' = '1MO', '2m' = '2MO', '3m' = '3MO')
+out.crime.type = switch(crime.type, 'all' = 'ACFS', 'street' = 'SC',
+                        'burglary' = 'Burg', 'vehicle' = 'TOA')
+out.fn = paste0('submission/', out.crime.type, '/',
+                out.horizon, '/TEAM_CFLP_', toupper(out.crime.type),
+                '_', out.horizon)
+writeSpatialShape(grdSPDF, out.fn)
