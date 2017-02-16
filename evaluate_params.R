@@ -499,10 +499,10 @@ invisible(file.remove(cache, test.vw))
 # add test values to kdes
 
 # construct SpatialGridDataFrame
-sgdf = SpatialGridDataFrame(grid = grdtop, data = kdes)
+# sgdf = SpatialGridDataFrame(grid = grdtop, data = kdes)
 
-# kde hotspots
-hotspot.ids.kde = kdes[order(-kde1)][1:n.cells, I]
+# kde hotspots based on Feb 2016
+hotspot.ids.kde = kdes[order(-kde13)][1:n.cells, I]
 
 # plot(sgdf[sgdf$I %in% hotspot.ids.kde,,'kde1'])
 # plot(portland.bdy, add=T)
