@@ -38,12 +38,17 @@ names(args) =
 attach(args)
 
 # baselines for testing: 
-delx=dely=250;alpha=0;eta=1;lt=1;theta=0
-features=2;kde.bw=400;kde.lags=3
-horizon='1w';crime.type='all'
-cat("**********************\n",
-    "* TEST PARAMETERS ON *\n",
-    "**********************\n")
+# delx=dely=250;alpha=0;eta=1;lt=1;theta=0
+# features=2;kde.bw=400;kde.lags=3
+# crime.type='all';horizon='1w'
+# cat("**********************\n",
+#     "* TEST PARAMETERS ON *\n",
+#     "**********************\n")
+# delx = dely = 600; alpha = 0;
+# eta = 1; lt = 1; theta =0;
+# features = 50; kde.bw = 500;
+# kde.lags = 1; crime.type = 'all'; horizon = '1m'
+
 
 aa = delx*dely #forecasted area
 lx = eta*delx
@@ -65,11 +70,14 @@ lag.range = week_0 +
   c(switch(horizon, '1w' = 54L, '2w' = 53L,
            '1m' = 50L, '2m' = 46L, '3m' = 42L), 80L)
 
-crime.file = switch(crime.type,
-                    all = "crimes_all.csv",
-                    street = "crimes_str.csv",
-                    burglary = "crimes_bur.csv",
-                    vehicle = "crimes_veh.csv")
+get.crime.file = function(ct) {
+  switch(ct, all = "crimes_all.csv",
+         street = "crimes_str.csv",
+         burglary = "crimes_bur.csv",
+         vehicle = "crimes_veh.csv")
+}
+
+crime.file = get.crime.file(crime.type) 
 
 crimes = fread(crime.file)
 crimes[ , occ_date := as.IDate(occ_date)]
@@ -167,7 +175,7 @@ crimes.grid.dt =
            x = x_coordina, y = y_coordina,
            xrange = xrng, yrange = yrng, check = FALSE),
            #reorder using GridTopology - im mapping
-           eps = c(x = delx, dely)))[idx.new],
+           eps = c(delx, dely)))[idx.new],
          #subset to eliminate never-crime cells
          by = week_no][ , I := rowid(week_no)][I %in% incl_ids]
 
@@ -213,8 +221,8 @@ if (length(callgroup.top)) {
   crimes.cgroup = lapply(callgroup.top, function(cg) 
     crimes.sp[crimes.sp$CALL_GROUP == cg, ])
   
-  kdes.sub = setDT(lapply(crimes.cgroup, function(pts) 
-    compute.kde.list(pts, months=13L)))
+  kdes.sub = setDT(sapply(crimes.cgroup, function(pts) 
+    compute.kde.list(pts, months = 13L)))
   
   setnames(kdes.sub, paste0('cg.kde', seq_len(ncol(kdes.sub))))
   
@@ -223,7 +231,7 @@ if (length(callgroup.top)) {
 }
 
 # add cell id
-kdes[, I := .I]
+kdes[ , I := .I]
 
 # ============================================================================
 # SUBCATEGORIES - CALL PRIORITIES
@@ -232,11 +240,11 @@ kdes[, I := .I]
 # select CASE_DESC cases as boolean vectors
 cd.cases = with(crimes.sp@data,
                 data.frame(
-                  cd.kde1 = grepl('COLD', CASE_DESC),
-                  cd.kde2 = grepl('PRIORITY', CASE_DESC) & !grepl('*H', CASE_DESC),
-                  cd.kde3 = grepl('PRIORITY[[:space:]][*]', CASE_DESC))
+                  cd.kde1 = grepl('COLD', CASE_DESC, fixed = TRUE),
+                  cd.kde2 = grepl('PRIORITY[^*]+', CASE_DESC),
+                  cd.kde3 = grepl('PRIORITY.*[*]', CASE_DESC))
                 )
-cd.all0 = sapply(cd.cases, function (x) sum(is.na(x))==0)
+cd.all0 = sapply(cd.cases, function(x) all(is.na(x)))
 cd.cases = cd.cases[!cd.all0]
 
 # compute kdes for each CASE_DESC case selected
@@ -248,8 +256,28 @@ if (length(cd.cases)) {
    kdes = cbind(kdes, cd.kdes)
 }
 
-# append kdes
+# ============================================================================
+# CROSS-CRIME KDES
+# 1) load csv data for other crimes
+# 2) turn into sp objects
+# 3) compute KDEs
+# ============================================================================
+
+categories = c('all', 'street', 'burglary', 'vehicle')
+other.crimes = setdiff(categories, crime.type)
+other.crimes.files = sapply(other.crimes, get.crime.file)
+other.crimes.dt = lapply(other.crimes.files, fread)
+other.crimes.spdf = sapply(other.crimes.dt, to.spdf)
+other.crimes.kdes = setDT(sapply(other.crimes.spdf, compute.kde.list))
+
+kdes = cbind(kdes, other.crimes.kdes)
+
+# append kdes to crimes data
 crimes.grid.dt = kdes[crimes.grid.dt, on = 'I']
+
+# ============================================================================
+# YEAR-LAGGED KDES
+# ============================================================================
 
 # compute one year lag kdes for each cell-week
 crimes.grid.dt[ , lg.kde := {
@@ -258,48 +286,16 @@ crimes.grid.dt[ , lg.kde := {
   kde[idx]
 }, by = week_no]
 
-# sgdf = SpatialGridDataFrame(grdtop, kdes[, 'cd.kde3'])
-# plot(sgdf)
-
-# ============================================================================
-# CROSS-CRIME KDES
-# 1) laod csv data fro other crimes
-# 2) turn into sp objects
-# 3) compute KDEs
-# ============================================================================
-
-get.crime.file = function (crime.type) {
-    switch(crime.type,
-    all = "crimes_all.csv",
-    street = "crimes_str.csv",
-    burglary = "crimes_bur.csv",
-    vehicle = "crimes_veh.csv")
-}
-
-crimes = fread(crime.file)
-crimes[ , occ_date := as.IDate(occ_date)]
-
-categories = c('all','street','burglary','vehicle')
-other.crimes = setdiff(categories, crime.type)
-other.crimes.files = sapply(other.crimes, get.crime.file)
-other.crimes.dt = lapply(other.crimes.files, fread)
-other.crimes.spdf = sapply(other.crimes.dt, to.spdf)
-other.crimes.kdes = lapply(other.crimes.spdf, compute.kde.list)
-
-# add to features
-other.crimes.kdes = setDT(unlist(other.crimes.kdes, recursive = FALSE))
-other.crimes.kdes[, I := .I]
-crimes.grid.dt = other.crimes.kdes[crimes.grid.dt, on='I']
-
 # ============================================================================
 # POLICE DISTRICT DUMMY
 # 1) load police districts shapefile
 # 2) transfrom grid to SpatialPolygons
 # 3) spatial overlay of the two objects using centroids of each cell
 # ============================================================================
-portland.pd = readShapePoly("./data/Portland_Police_Districts.shp",
-                            proj4string = prj)
-
+portland.pd = gBuffer(readShapePoly(
+  "./data/Portland_Police_Districts.shp", proj4string = prj),
+  width = 1e6*.Machine$double.eps, byid = TRUE)
+  
 # create SpatialPOlygonsDataFrame with grid
 grd.sp = as.SpatialPolygons.GridTopology(grdtop, proj4string = prj)
 poly.rownames = sapply(grd.sp@polygons, function(x) slot(x, 'ID'))
@@ -322,15 +318,15 @@ grd.spdf = SpatialPolygonsDataFrame(
 # their centroids outside the boundary. To not get
 # NA values for those we do a second round overlay
 # for those cells without using centroids.
-cell.districts = data.table(over(gCentroid(grd.spdf, byid = TRUE), portland.pd))[, I := .I]
+cell.districts = setDT(over(gCentroid(grd.spdf, byid = TRUE), portland.pd))[ , I := .I]
 id.nas = cell.districts[is.na(DISTRICT), I]
 cell.unmatched = grd.spdf[grd.spdf$I %in% id.nas, ]
-cell.districts2 = data.table(over(cell.unmatched, portland.pd))[, I:=id.nas]
+cell.districts2 = setDT(over(cell.unmatched, portland.pd))[ , I := id.nas]
 setkey(cell.districts, I)
 cell.districts[cell.districts2$I, DISTRICT := cell.districts2$DISTRICT]
 
 # merge with feautures
-crimes.grid.dt = cell.districts[, .(I, DISTRICT)][crimes.grid.dt, on='I']
+crimes.grid.dt[cell.districts, DISTRICT := i.DISTRICT, on = 'I']
 
 # make up value for remaining NAs in DISTRICT (all in airport)
 crimes.grid.dt[is.na(DISTRICT), DISTRICT := factor(0)]
@@ -354,14 +350,11 @@ proj = crimes.grid.dt[ , cbind(x, y, week_no)] %*%
   (matrix(rt(3L*features, df = 2.5), nrow = 3L)/c(lx, ly, lt))
 
 #convert to data.table to use fwrite
-incl = setNames(
-  nm = setdiff(names(crimes.grid.dt), 
-               c("I", "week_no", "x", "y", "value", "train"))
-)
-incl.kde = grep("^kde", incl, value = TRUE)
-incl.cg = grep("^cg.", incl, value = TRUE)
-incl.cd = grep("^cd.", incl, value = TRUE)
-incl.xkde = grep(".kde\\d", incl, value = TRUE)
+nms = setNames(nm = names(crimes.grid.dt))
+incl.kde = grep("^kde", nms, value = TRUE)
+incl.cg = grep("^cg.", nms, value = TRUE)
+incl.cd = grep("^cd.", nms, value = TRUE)
+incl.xkde = grep(paste(other.crimes, collapse = '|'), nms, value = TRUE)
 
 phi.dt =
   crimes.grid.dt[ , {
