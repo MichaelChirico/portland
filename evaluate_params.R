@@ -266,7 +266,7 @@ crimes.grid.dt[ , lg.kde := {
 
 # ============================================================================
 # CROSS-CRIME KDES
-# 1) laod csv data fro other crimes
+# 1) laod csv data from other crimes
 # 2) turn into sp objects
 # 3) compute KDEs
 # ============================================================================
