@@ -11,7 +11,7 @@ if(grepl("ziz",hostname)) { # Seth's setup
     job_id = ""
     path_to_vw = "vw"
 } else if (grepl('gpc', hostname)) {
-  tdir = "/data2/shared/loefflerlab/portland_temp"
+  tdir = "/data/shared/loefflerlab/portland_temp"
   job_id = ""
   path_to_vw = "vw"
 } else {
