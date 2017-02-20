@@ -136,7 +136,7 @@ incl_ids =
     xrange = xrng, yrange = yrng, check = FALSE),
     #this must be done within-loop
     #  since it depends on delx & dely
-    eps = c(delx, dely)))[idx.new, ]
+    eps = c(delx, dely)))[idx.new]
     #find cells that ever have a crime
   )[value > 0, which = TRUE]
 
@@ -292,9 +292,8 @@ crimes.grid.dt[ , lg.kde := {
 # 2) transfrom grid to SpatialPolygons
 # 3) spatial overlay of the two objects using centroids of each cell
 # ============================================================================
-portland.pd = gBuffer(readShapePoly(
-  "./data/Portland_Police_Districts.shp", proj4string = prj),
-  width = 1e6*.Machine$double.eps, byid = TRUE)
+portland.pd = readShapePoly("./data/Portland_Police_Districts.shp", 
+                            proj4string = prj)
   
 # create SpatialPOlygonsDataFrame with grid
 grd.sp = as.SpatialPolygons.GridTopology(grdtop, proj4string = prj)
@@ -469,6 +468,7 @@ N_star = crimes.grid.dt[ , .(tot.crimes = sum(value)), by = I
                            sum(tot.crimes)]
 
 for (ii in seq_len(nrow(tuning_variations))) {
+  print(ii)
   model = tempfile(tmpdir = tdir, pattern = "model")
   #train with VW
   with(tuning_variations[ii],
