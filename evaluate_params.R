@@ -475,14 +475,16 @@ for (ii in seq_len(nrow(tuning_variations))) {
                     '--learning_rate', lambda,
                     '--decay_learning_rate', delta,
                     '--initial_t', T0, '--power_t', pp, train.vw,
-                    '--cache_file', cache, '--passes 200 -f', model)))
+                    '--cache_file', cache, '--passes 200 -f', model),
+              ignore.stderr = TRUE))
   #training data now stored in cache format,
   #  so can delete original (don't need to, but this is a useful
   #  check to force an error if s.t. wrong with cache)
   if (file.exists(train.vw)) invisible(file.remove(train.vw))
   #test with VW
   system(paste(path_to_vw, '-t -i', model, '-p', pred.vw,
-               test.vw, '--loss_function poisson'))
+               test.vw, '--loss_function poisson'),
+         ignore.stderr = TRUE)
   invisible(file.remove(model))
 
   preds =
