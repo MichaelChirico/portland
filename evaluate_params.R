@@ -468,7 +468,6 @@ N_star = crimes.grid.dt[ , .(tot.crimes = sum(value)), by = I
                            sum(tot.crimes)]
 
 for (ii in seq_len(nrow(tuning_variations))) {
-  print(ii)
   model = tempfile(tmpdir = tdir, pattern = "model")
   #train with VW
   with(tuning_variations[ii],
@@ -476,16 +475,14 @@ for (ii in seq_len(nrow(tuning_variations))) {
                     '--learning_rate', lambda,
                     '--decay_learning_rate', delta,
                     '--initial_t', T0, '--power_t', pp, train.vw,
-                    '--cache_file', cache, '--passes 200 -f', model),
-              ignore.stderr = TRUE))
+                    '--cache_file', cache, '--passes 200 -f', model)))
   #training data now stored in cache format,
   #  so can delete original (don't need to, but this is a useful
   #  check to force an error if s.t. wrong with cache)
   if (file.exists(train.vw)) invisible(file.remove(train.vw))
   #test with VW
   system(paste(path_to_vw, '-t -i', model, '-p', pred.vw,
-               test.vw, '--loss_function poisson'),
-         ignore.stderr = TRUE)
+               test.vw, '--loss_function poisson'))
   invisible(file.remove(model))
 
   preds =
