@@ -5,6 +5,7 @@
 *.Rproj
 data/triangle*
 data/grids/tri*
+kde_baselines/
 #knitr cache -- ignore
 *_cache
 *_files
@@ -17,7 +18,6 @@ rsconnect/
 *.qpj
 *.shp
 *.shx
-*.csv
 !crimes_*
 #too many
 pei_pai_scripts/*.pdf
