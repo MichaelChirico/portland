@@ -46,9 +46,8 @@ attach(args)
 #     "**********************\n")
 # delx = dely = 600; alpha = 0;
 # eta = 1; lt = 1; theta =0;
-# features = 50; kde.bw = 500;
-# kde.lags = 1; crime.type = 'all'; horizon = '1m'
-
+# features = 50; kde.bw = 250;
+# kde.lags = 1; crime.type = 'vehicle'; horizon = '1w'
 
 aa = delx*dely #forecasted area
 lx = eta*delx
@@ -241,11 +240,11 @@ kdes[ , I := .I]
 cd.cases = with(crimes.sp@data,
                 data.frame(
                   cd.kde1 = grepl('COLD', CASE_DESC, fixed = TRUE),
-                  cd.kde2 = grepl('PRIORITY[^*]+', CASE_DESC),
+                  cd.kde2 = grepl('PRIORITY[^*]*', CASE_DESC),
                   cd.kde3 = grepl('PRIORITY.*[*]', CASE_DESC))
                 )
-cd.all0 = sapply(cd.cases, function(x) all(is.na(x)))
-cd.cases = cd.cases[!cd.all0]
+#eliminate those which are not represented
+cd.cases = cd.cases[sapply(cd.cases, any)]
 
 # compute kdes for each CASE_DESC case selected
 if (length(cd.cases)) {
