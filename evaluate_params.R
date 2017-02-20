@@ -30,8 +30,9 @@ set.seed(60251935)
 #  would rather have them as a list. basically do
 #  that by converting them to a form read.table
 #  understands and then attaching from a data.frame
-args = read.table(text = commandArgs(trailingOnly = TRUE), 
-                  sep = ' ', stringsAsFactors = FALSE)
+args = read.table(text = paste(commandArgs(trailingOnly = TRUE), 
+                               collapse = '\t'),
+                  sep = '\t', stringsAsFactors = FALSE)
 names(args) =
   c('delx', 'dely', 'alpha', 'eta', 'lt', 'theta',
     'features', 'kde.bw', 'kde.lags', 'crime.type', 'horizon')
@@ -381,7 +382,7 @@ phi.dt =
       list(pd_namespace = '|pd',
            pd = DISTRICT),
       list(lag_namespace = '|lgkde',
-           kdel = coln_to_vw('lg.kde')),
+         kdel = coln_to_vw('lg.kde')),
       list(xk_namespace = '|xkde'),
       lapply(incl.xkde, coln_to_vw),
       list(rff_namespace = '|rff'))
