@@ -24,8 +24,9 @@ library(zoo)
 #  as evaluation_params.R
 set.seed(60251935)
 
-args = read.table(text = commandArgs(trailingOnly = TRUE), 
-                  sep = ' ', stringsAsFactors = FALSE)
+args = 
+  read.table(text = paste(commandArgs(trailingOnly = TRUE), collapse = '\t'),
+             sep = '\t', stringsAsFactors = FALSE)
 names(args) = c('delx', 'dely', 'alpha', 'eta', 'lt', 'theta',
                 'features', 'kde.bw', 'kde.lags', 'l1', 'l2',
                 'lambda', 'delta', 'T0', 'pp',
@@ -33,13 +34,13 @@ names(args) = c('delx', 'dely', 'alpha', 'eta', 'lt', 'theta',
 attach(args)
 
 # baselines for testing:
-delx=dely=1000;alpha=0;eta=1.5;lt=4;theta=pi/36
-features=10;kde.bw=250;kde.lags=6;
-l1=1e-4;l2=1e-5;lambda=.5;delta=1;T0=0;pp=.5;
-horizon='1w';crime.type='all'
-cat("**********************\n",
-    "* TEST PARAMETERS ON *\n",
-    "**********************\n")
+# delx=dely=1000;alpha=0;eta=1.5;lt=4;theta=pi/36
+# features=10;kde.bw=250;kde.lags=6;
+# l1=1e-4;l2=1e-5;lambda=.5;delta=1;T0=0;pp=.5;
+# horizon='1w';crime.type='all'
+# cat("**********************\n",
+#     "* TEST PARAMETERS ON *\n",
+#     "**********************\n")
 
 aa = delx*dely
 lx = eta*delx
