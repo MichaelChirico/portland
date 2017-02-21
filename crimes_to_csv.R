@@ -35,7 +35,7 @@ crimes.sp = SpatialPoints(
 # load portland boundary
 police_districts = 
   readShapePoly('data/Portland_Police_Districts', 
-                proj4string= prj)
+                proj4string = prj)
 
 portland = gUnaryUnion(gBuffer(
   #buffer to eliminate sand grain holes
@@ -48,7 +48,8 @@ portland = gUnaryUnion(gBuffer(
 subP = portland@polygons[[1L]]@Polygons
 areas = sapply(subP, slot, 'area')
 keep = sapply(subP, function(p) p@hole || p@area == max(areas))
-portland = SpatialPolygons(list(Polygons(subP[keep], ID = 1)))
+portland = SpatialPolygons(list(Polygons(subP[keep], ID = 1)),
+                           proj4string = prj)
 
 # select crimes within city boundaries
 idx = over(crimes.sp, portland)
