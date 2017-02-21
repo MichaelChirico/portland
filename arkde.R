@@ -16,21 +16,21 @@ suppressMessages({
 #from random.org
 set.seed(60251935)
 
-#each argument read in as a string in a character vector;
-#  would rather have them as a list. basically do
-#  that by converting them to a form read.table
-#  understands and then attaching from a data.frame
-# args = read.table(text = paste(commandArgs(trailingOnly = TRUE), 
+# # each argument read in as a string in a character vector;
+#  # would rather have them as a list. basically do
+#  # that by converting them to a form read.table
+#  # understands and then attaching from a data.frame
+# args = read.table(text = paste(commandArgs(trailingOnly = TRUE),
 #                                collapse = '\t'),
 #                   stringsAsFactors = FALSE)
-# names(args) = 
+# names(args) =
 #   c('delx', 'dely', 'alpha', 'eta', 'lt', 'theta',
-#     'features', 'kde.bw', 'kde.lags', 'crime.type', 'horizon')
+#     'features', 'kde.bw', 'kde.lags', 'kde.win', 'crime.type', 'horizon')
 # attach(args)
 
 # baselines for testing: 
-delx=dely=600;alpha=0;eta=1;lt=1;theta=0
-features=2;kde.bw=400;kde.lags=3;kde.win = 7
+delx=600;dely=600;alpha=0;eta=2;lt=6;theta=0
+features=10;kde.bw=400;kde.lags=15;kde.win = 7
 horizon='2w';crime.type='all'
 cat("**********************\n",
     "* TEST PARAMETERS ON *\n",
@@ -197,7 +197,6 @@ for (lag in seq_along(ldays)){
   crimes[day_no %in% ldays[[lag]], lag_no := lag]
 }
 
-# create spatial points
 # create sp object of crimes
 to.spdf = function(dt) {
   SpatialPointsDataFrame(
@@ -218,45 +217,45 @@ compute.kde <- function(pts) {
 kde = crimes[!is.na(lag_no), .(value = compute.kde(to.spdf(.SD))), by = .(occ_year, lag_no)]
 setkey(kde, occ_year, lag_no)
 kde[, I := rowid(occ_year, lag_no)]
-# plot(SpatialGridDataFrame(grdtop, kde[.(2016, 3), 'kde']))
+# plot(SpatialGridDataFrame(grdtop, kde[.(2016, 3), 'value']))
 
-lag_names = paste('kde', 1:kde.lags, sep = '.')
+lag_names = paste0('kde', 1:kde.lags)
 for (llag in seq_along(lag_names)){
   X[, lag_names[[llag]] := kde[.(.BY$HH, llag), value], by=HH]
 }
-# plot(SpatialGridDataFrame(grdtop, X[HH==2013, 'kde.3']))
 
 # remove cells outside border
-X = X[!is.na(kde.1)]
+X = X[!is.na(kde1)]
+plot(SpatialGridDataFrame(grdtop, X[kde, on=c('I', HH='occ_year')][HH==2013, 'kde3']))
 
-spdf = SpatialGridDataFrame(grdtop, X[HH==2016, .(kde.1, I)])
-X[is.na(kde.1), mean(!is.na(kde.3))]
-nas = X[HH==2016 & is.na(kde.1), I]
-X[I %in% nas, mean(is.na(kde.1))]
-plot(spdf[, , 'kde.1'])
-plot(spdf[spdf$I %in% nas,'I'])
-mean(is.na(spdf[spdf$I %in% nas, ,'kde.1']$kde.1))
-
+spdf = SpatialGridDataFrame(grdtop, X[HH==2016, .(kde10, I)])
+# X[is.na(kde.1), mean(!is.na(kde.3))]
+# nas = X[HH==2016 & is.na(kde.1), I]
+# X[I %in% nas, mean(is.na(kde.1))]
+# plot(spdf[, , 'kde.1'])
+# plot(spdf[spdf$I %in% nas,'I'])
+# mean(is.na(spdf[spdf$I %in% nas, ,'kde.1']$kde.1))
 
 # ============================================================================
 # PROJECTION
 # ============================================================================
 
 #project -- these are the omega * xs
-proj = X[ , cbind(x, y, week_no)] %*% 
+proj = X[ , cbind(x, y, HH)] %*% 
   (matrix(rt(3L*features, df = 2.5), nrow = 3L)/c(lx, ly, lt))
 
 #convert to data.table to use fwrite
 incl = setNames(
-  nm = setdiff(names(crimes.grid.dt), 
-               c("I", "week_no", "x", "y", "value", "train"))
+  nm = setdiff(names(X), 
+               c("I", "HH", "x", "y", "value", "train"))
 )
 incl.kde = grep("^kde", incl, value = TRUE)
-incl.cg = grep("^cg.", incl, value = TRUE)
-incl.cd = grep("^cd.", incl, value = TRUE)
+
+# check for NAs in the features
+stopifnot(!any(is.na(X)))
 
 phi.dt =
-  crimes.grid.dt[ , {
+  X[ , {
     #some nonsense about how get works in j --
     #  if we define coln_to_vw in global environment,
     #  lapply(incl.kde, coln_to_vw) fails because
@@ -272,16 +271,16 @@ phi.dt =
       sprintf("%s:%.5f", vn, val)
     }
     c(list(v = value, 
-           l = paste0(I, "_", week_no, "|kdes")), 
+           l = paste0(I, "_", HH, "|kdes")), 
       lapply(incl.kde, coln_to_vw),
-      list(cg_namespace = if (length(incl.cg)) '|cgkde'),
-      lapply(incl.cg, coln_to_vw),
-      list(cd_namespace = '|cdkde'),
-      lapply(incl.cd, coln_to_vw),
-      list(pd_namespace = '|pd',
-           pd = DISTRICT),
-      list(lag_namespace = '|lgkde',
-           kdel = coln_to_vw('lg.kde')),
+      # list(cg_namespace = if (length(incl.cg)) '|cgkde'),
+      # lapply(incl.cg, coln_to_vw),
+      # list(cd_namespace = '|cdkde'),
+      # lapply(incl.cd, coln_to_vw),
+      # list(pd_namespace = '|pd',
+      #      pd = DISTRICT),
+      # list(lag_namespace = '|lgkde',
+      #      kdel = coln_to_vw('lg.kde')),
       list(rff_namespace = '|rff'))
   }]
 
@@ -303,8 +302,132 @@ for (jj in 1L:features) {
 }
 rm(proj)
 
-X[, length(unique(I))]
+# ============================================================================
+# WRITE VW FILES
+# ============================================================================
+# 
+#temporary files
+source("local_setup.R")
+train.vw = tempfile(tmpdir = tdir, pattern = "train")
+test.vw = tempfile(tmpdir = tdir, pattern = "test")
+#simply append .cache suffix to make it easier
+#  to track association when debugging
+cache = paste0(train.vw, '.cache')
+pred.vw = tempfile(tmpdir = tdir, pattern = "predict")
+fwrite(phi.dt[X$train], train.vw,
+       sep = " ", quote = FALSE, col.names = FALSE,
+       showProgress = FALSE)
+fwrite(phi.dt[!X$train], test.vw,
+       sep = " ", quote = FALSE, col.names = FALSE,
+       showProgress = FALSE)
 
+# #can eliminate all the testing data now that it's written
+X = X[(!train)]
+rm(phi.dt)
 
+tuning_variations =
+  data.table(l1 = c(1e-6, 1e-4, 1e-3, 5e-3, rep(1e-5, 23L)),
+             l2 = c(rep(1e-4, 4L), 1e-6, 5e-6,
+                    1e-5, 5e-5, 5e-4, rep(1e-4, 18L)),
+             lambda = c(rep(.5, 9L), .01, .05,
+                        .1, .25, .75, 1, 1.5, rep(.5, 11L)),
+             delta = c(rep(1, 16L), .5, 1.5, rep(1, 9L)),
+             T0 = c(rep(0, 18L), .5, 1, 1.5, rep(0, 6L)),
+             pp = c(rep(.5, 21L), .25, .33, .5,
+                    .66, .75, 1))
+n_var = nrow(tuning_variations)
 
+#initialize parameter records table
+scores = data.table(delx, dely, alpha, eta, lt, theta, k = features,
+                    l1 = numeric(n_var), l2 = numeric(n_var),
+                    lambda = numeric(n_var), delta = numeric(n_var),
+                    t0 = numeric(n_var), p = numeric(n_var),
+                    kde.bw, kde.n = 'all', kde.lags,
+                    pei = numeric(n_var), pai = numeric(n_var))
+
+#when we're at the minimum forecast area, we must round up
+#  to be sure we don't undershoot; when at the max,
+#  we must round down; otherwise, just round
+# **TO DO: if we predict any boundary cells and are using the minimum
+#          forecast area, WE'LL FALL BELOW IT WHEN WE CLIP TO PORTLAND **
+which.round = function(x)
+  if (x > 0) {if (x < 1) round else floor} else ceiling
+
+#6969600 ft^2 = .25 mi^2 (minimum forecast area);
+#triple this is maximum forecast area
+n.cells = as.integer(which.round(alpha)(6969600*(1+2*alpha)/aa))
+
+#Calculate PEI & PAI denominators here since they are the
+#  same for all variations of tuning parameters,
+#  given the input parameters (delx, etc.)
+N_star = X[ , .(tot.crimes = sum(value)), by = I
+                         ][order(-tot.crimes)[1L:n.cells],
+                           sum(tot.crimes)]
+
+for (ii in seq_len(nrow(tuning_variations))) {
+  model = tempfile(tmpdir = tdir, pattern = "model")
+  #train with VW
+  with(tuning_variations[ii],
+       system(paste(path_to_vw, '--loss_function poisson --l1', l1, '--l2', l2,
+                    '--learning_rate', lambda,
+                    '--decay_learning_rate', delta,
+                    '--initial_t', T0, '--power_t', pp, train.vw,
+                    '--cache_file', cache, '--passes 200 -f', model),
+              ignore.stderr = TRUE))
+  #training data now stored in cache format,
+  #  so can delete original (don't need to, but this is a useful
+  #  check to force an error if s.t. wrong with cache)
+  if (file.exists(train.vw)) invisible(file.remove(train.vw))
+  #test with VW
+  system(paste(path_to_vw, '-t -i', model, '-p', pred.vw,
+               test.vw, '--loss_function poisson'),
+         ignore.stderr = TRUE)
+  invisible(file.remove(model))
+  
+  preds =
+    fread(pred.vw, sep = " ", header = FALSE, col.names = c("pred", "I_y"))
+  # invisible(file.remove(pred.vw))
+  #wrote 2-variable label with _ to fit VW guidelines;
+  #  now split back to constituents so we can join
+  preds[ , c("I", "HH", "I_y") :=
+           c(lapply(tstrsplit(I_y, split = "_"), as.integer),
+             list(NULL))]
+  
+  X[preds, pred.count := exp(i.pred), on = c("I", "HH")]
+  rm(preds)
+  
+  hotspot.ids =
+    X[ , .(tot.pred = sum(pred.count)), by = I
+                    ][order(-tot.pred)[1L:n.cells], I]
+  X[ , hotspot := I %in% hotspot.ids]
+  
+  #how well did we do? lower-case n in the PEI/PAI calculation
+  nn = X[(hotspot), sum(value)]
+  
+  scores[ii, c('l1', 'l2', 'lambda', 'delta',
+               't0', 'p', 'pei', 'pai') :=
+           c(tuning_variations[ii],
+             list(pei = nn/N_star,
+                  #pre-calculated the total area of portland
+                  pai = nn/(aa*n.cells)))]
+}
+invisible(file.remove(cache, test.vw))
+
+# sgdf = SpatialGridDataFrame(grdtop, 
+#    data = kde[.(2016,1)])
+# plot(sgdf[sgdf$I %in% hotspot.ids,,'value'])
+# ============================================================================
+# WRITE RESULTS FILE AND TIMINGS
+# ============================================================================
+
+ff = paste0("scores/", 'sm_',crime.type, "_", horizon, job_id, ".csv")
+fwrite(scores, ff, append = file.exists(ff))
+
+t1 = proc.time()["elapsed"]
+ft = paste0("timings/", crime.type, "_", horizon, job_id, ".csv")
+if (!file.exists(ft))
+  cat("delx,dely,alpha,eta,lt,theta,k,kde.bw,kde.lags,time\n", sep = "", file = ft)
+params = paste(delx, dely, alpha, eta, lt, theta, features,
+               kde.bw, kde.lags, t1 - t0, sep = ",")
+cat(params, "\n", sep = "", append = TRUE, file = ft)
 
