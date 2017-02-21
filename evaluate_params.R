@@ -30,7 +30,7 @@ set.seed(60251935)
 #  would rather have them as a list. basically do
 #  that by converting them to a form read.table
 #  understands and then attaching from a data.frame
-args = read.table(text = paste(commandArgs(trailingOnly = TRUE), 
+args = read.table(text = paste(commandArgs(trailingOnly = TRUE),
                                collapse = '\t'),
                   sep = '\t', stringsAsFactors = FALSE)
 names(args) =
@@ -39,12 +39,22 @@ names(args) =
 attach(args)
 
 # baselines for testing: 
+<<<<<<< HEAD
+# cat("**********************\n",
+#     "* TEST PARAMETERS ON *\n",
+#     "**********************\n")
+# delx = dely = 600; alpha = 0;
+# eta = 1; lt = 1; theta =0;
+# features = 100; kde.bw = 500;
+# kde.lags = 1; crime.type = 'all'; horizon = '1m'
+=======
 delx=250;dely=250;alpha=0.954;eta=.5;lt=4.94;theta=0
 features=10;kde.bw=1000;kde.lags=3
 crime.type='burglary';horizon='1m'
 cat("**********************\n",
     "* TEST PARAMETERS ON *\n",
     "**********************\n")
+>>>>>>> mikes/master
 
 aa = delx*dely #forecasted area
 lx = eta*delx
@@ -531,6 +541,7 @@ hotspot.ids.kde = kdes[order(-kde13)][1:n.cells, I]
 # plot(portland.bdy, add=T)
 
 ## compute scores
+crimes.grid.dt[(!train) & I %in% hotspot.ids.kde,]
 hotspot.crimes = crimes.grid.dt[(!train) & I %in% hotspot.ids.kde, sum(value)]
 pai.kde = hotspot.crimes/(aa*n.cells)
 
@@ -563,9 +574,16 @@ fk = paste0("kde_baselines/", crime.type, "_", horizon, job_id, ".csv")
 if (!file.exists(fk)) 
   cat("delx,dely,alpha,theta,kde.bw,kde.lags,horizon,crime.type, pei,pai\n", 
       sep = "", file = fk)
-params = paste(delx, dely, alpha, theta, kde.bw, kde.lags, horizon, crime.type,
+params.kde = paste(delx, dely, alpha, theta, kde.bw, kde.lags, horizon, crime.type,
                round(pei.kde, 3), round(pai.kde, 3) ,sep = ",")
-print(params)
-cat(params, "\n", sep = "", append = TRUE, file = fk)
+cat(params.kde, "\n", sep = "", append = TRUE, file = fk)
 
+# scores[order(-pai, -pei)][1, .(pai, pei)]
+# print(list(pai.kde=pai.kde, pei.kde=pei.kde))
+
+# sgdf = SpatialGridDataFrame(grdtop, kdes[, .(kde13, I)])
+# plot(sgdf[,,'kde13'])
+# plot(sgdf[sgdf$I %in% hotspot.ids,'kde13'])
+# plot(sgdf[sgdf$I %in% hotspot.ids.kde,])
+# plot(portland.pd, add=T)
 
