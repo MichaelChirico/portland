@@ -35,13 +35,13 @@ names(args) = c('delx', 'dely', 'alpha', 'eta', 'lt', 'theta',
 attach(args)
 
 # baselines for testing:
-delx=683;dely=487;alpha=0.616;eta=.948;lt=5.12;theta=pi/4
-features=25;kde.bw=313;kde.lags=2;
-l1=1e-5;l2=1e-4;lambda=.5;delta=1;T0=0;pp=.5
-crime.type='all';horizon='1m'
-cat("**********************\n",
-    "* TEST PARAMETERS ON *\n",
-    "**********************\n")
+# delx=683;dely=487;alpha=0.616;eta=.948;lt=5.12;theta=pi/4
+# features=25;kde.bw=313;kde.lags=2;
+# l1=1e-5;l2=1e-4;lambda=.5;delta=1;T0=0;pp=.5
+# crime.type='all';horizon='1m'
+# cat("**********************\n",
+#     "* TEST PARAMETERS ON *\n",
+#     "**********************\n")
 
 aa = delx*dely
 lx = eta*delx
@@ -281,15 +281,17 @@ grdSPDF$hotspot = +(grdSPDF$I %in% hotspot.ids)
 #reverse rotation -- rotated points to
 #  fit grid, now rotate grid to fit
 #  original orientation of points
-#  ** rotate expects angles in degrees **
-grdSPDF = elide(grdSPDF, rotate = -180/pi * theta)
+#  ** rotate expects angles in degrees CLOCKWISE**
+grdSPDF = elide(grdSPDF, rotate = 180/pi * theta,
+                center = point0)
 
 #load clipping polygon -- Police Districts shapefile
 police_districts = 
   readShapeSpatial('data/Portland_Police_Districts.shp', 
                    proj4string = prj)
 
-portland = gUnaryUnion(police_districts)
+portland = gBuffer(gUnaryUnion(police_districts),
+                   width = 1e6*.Machine$double.eps)
 
 #clip to polygon; sadly gIntersection
 #  drops data, so need the gIntersects step to
