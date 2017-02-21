@@ -43,6 +43,13 @@ portland = gUnaryUnion(gBuffer(
   police_districts, width = 1e6*.Machine$double.eps
 ))
 
+#eliminate island sub-polygons, see
+#  http://gis.stackexchange.com/questions/229232/
+subP = portland@polygons[[1L]]@Polygons
+areas = sapply(subP, slot, 'area')
+keep = sapply(subP, function(p) p@hole || p@area == max(areas))
+portland = SpatialPolygons(list(Polygons(subP[keep], ID = 1)))
+
 # select crimes within city boundaries
 idx = over(crimes.sp, portland)
 crimes = crimes[!is.na(idx)]

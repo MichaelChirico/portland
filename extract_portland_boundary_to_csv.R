@@ -14,17 +14,14 @@ portland = gUnaryUnion(gBuffer(
 
 #number of polygon constituents
 #  (including holes, islands)
-npoly = length(portland@polygons[[1L]]@Polygons)
-out = which.max(sapply(portland@polygons[[1L]]@Polygons,
-                       #ringDir = 1: outer boundary;
-                       #ringDir = 2: inner boundary (hole)
-                       function(p) if (p@ringDir > 0) nrow(p@coords) else 0))
+subP = portland@polygons[[1L]]@Polygons
+npoly = length(subP)
+out = which.max(sapply(subP, function(p) p@area * (!p@hole)))
 #extract the actual boundary polygon to a
 #  new object (que feo there's gotta be a better way??)
 portland.boundary = 
-  SpatialPolygons(list(Polygons(list(
-    portland@polygons[[1L]]@Polygons[[out]]
-  ), ID = 'boundary')), proj4string = CRS(proj4string(portland)))
+  SpatialPolygons(list(Polygons(subP[out], ID = 'boundary')),
+                  proj4string = CRS(proj4string(portland)))
 
 #buffer (unbuffered was causing numerical issues)
 portland.boundary.buffer = gBuffer(
