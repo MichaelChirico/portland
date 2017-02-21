@@ -465,6 +465,7 @@ n.cells = as.integer(which.round(alpha)(6969600*(1+2*alpha)/aa))
 N_star = crimes.grid.dt[ , .(tot.crimes = sum(value)), by = I
                          ][order(-tot.crimes)[1L:n.cells],
                            sum(tot.crimes)]
+NN = crimes.grid.dt[ , sum(value)]
 
 for (ii in seq_len(nrow(tuning_variations))) {
   model = tempfile(tmpdir = tdir, pattern = "model")
@@ -511,7 +512,7 @@ for (ii in seq_len(nrow(tuning_variations))) {
            c(tuning_variations[ii],
              list(pei = nn/N_star,
                   #pre-calculated the total area of portland
-                  pai = nn/(aa*n.cells)))]
+                  pai = (nn/NN)/(aa*n.cells/4117777129)))]
 }
 invisible(file.remove(cache, test.vw))
 
