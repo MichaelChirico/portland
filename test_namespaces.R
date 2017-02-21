@@ -27,7 +27,7 @@ set.seed(60251935)
 
 # baselines for testing: 
 delx=346;dely=776;alpha=0.549;eta=.905;lt=4.153;theta=0
-features=345;kde.bw=1000424.32;kde.lags=6
+features=345;kde.bw=424.32;kde.lags=6
 crime.type='all';horizon='1w'
 cat("**********************\n",
     "* TEST PARAMETERS ON *\n",

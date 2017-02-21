@@ -39,12 +39,12 @@ names(args) =
 attach(args)
 
 # baselines for testing: 
-# delx=683;dely=487;alpha=0.616;eta=.948;lt=5.12;theta=0
-# features=25;kde.bw=313;kde.lags=2
-# crime.type='all';horizon='1m'
-# cat("**********************\n",
-#     "* TEST PARAMETERS ON *\n",
-#     "**********************\n")
+delx=250;dely=250;alpha=0.954;eta=.5;lt=4.94;theta=0
+features=10;kde.bw=1000;kde.lags=3
+crime.type='burglary';horizon='1m'
+cat("**********************\n",
+    "* TEST PARAMETERS ON *\n",
+    "**********************\n")
 
 aa = delx*dely #forecasted area
 lx = eta*delx
