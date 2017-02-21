@@ -22,9 +22,6 @@ crimes[ , week_no := unclass(as.IDate("2017-02-28") -
 # number of months before March 2017
 crimes[, month_no := round((as.yearmon("2017-03-01") - as.yearmon(occ_date))*12)]
 
-# day of the month
-crimes[, day_no := mday(occ_date)]
-
 # ============================================================================
 # REMOVE POINTS OUTSIDE BORDERS
 # ============================================================================
