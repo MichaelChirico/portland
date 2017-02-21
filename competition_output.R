@@ -15,6 +15,7 @@
 library(spatstat)
 library(splancs)
 library(rgeos)
+library(rgdal)
 library(data.table)
 library(foreach)
 library(maptools)
@@ -34,7 +35,7 @@ names(args) = c('delx', 'dely', 'alpha', 'eta', 'lt', 'theta',
 attach(args)
 
 # baselines for testing:
-delx=683;dely=487;alpha=0.616;eta=.948;lt=5.12;theta=0
+delx=683;dely=487;alpha=0.616;eta=.948;lt=5.12;theta=pi/4
 features=25;kde.bw=313;kde.lags=2;
 l1=1e-5;l2=1e-4;lambda=.5;delta=1;T0=0;pp=.5
 crime.type='all';horizon='1m'
@@ -76,8 +77,12 @@ point0 = crimes[ , c(min(x_coordina), min(y_coordina))]
 crimes[ , paste0(c('x', 'y'), '_coordina') :=
           as.data.table(rotate(x_coordina, y_coordina, theta, point0))]
 
-xrng = crimes[ , range(x_coordina)]
-yrng = crimes[ , range(y_coordina)]
+portland_r = 
+  with(fread('data/portland_coords.csv'),
+       rotate(x, y, theta, point0))
+
+xrng = range(portland_r[ , 1L])
+yrng = range(portland_r[ , 2L])
 
 getGTindices <- function(gt) {
   dimx <- gt@cells.dim[1L]
@@ -126,10 +131,6 @@ crimes.sp =
     data = crimes[(real_crimes), -c('x_coordina', 'y_coordina')],
     proj4string = prj
   )
-
-portland_r = 
-  with(fread('data/portland_coords.csv'),
-       rotate(x, y, theta, point0))
 
 crimes.grid.dt =
   crimes[week_no %between% recent, 
@@ -197,12 +198,9 @@ crimes.grid.dt[ , train := week_no > week_0]
 proj = crimes.grid.dt[ , cbind(x, y, week_no)] %*%
   (matrix(rt(3L*features, df = 2.5), nrow = 3L)/c(lx, ly, lt))
 
-incl = setNames(
-  nm = setdiff(names(crimes.grid.dt),
-               c("I", "week_no", "x", "y", "value", "train"))
-)
-incl.kde = grep("^kde", incl, value = TRUE)
-incl.cg = grep("^cg.", incl, value = TRUE)
+nms = setNames(nm = names(crimes.grid.dt))
+incl.kde = grep("^kde", nms, value = TRUE)
+incl.cg = grep("^cg.", nms, value = TRUE)
 
 phi.dt =
   crimes.grid.dt[ , {
@@ -234,6 +232,7 @@ rm(proj)
 source("local_setup.R")
 train.vw = tempfile(tmpdir = tdir, pattern = "train")
 test.vw = tempfile(tmpdir = tdir, pattern = "test")
+cache = paste0(train.vw, '.cache')
 pred.vw = tempfile(tmpdir = tdir, pattern = "predict")
 fwrite(phi.dt[crimes.grid.dt$train], train.vw,
        sep = " ", quote = FALSE, col.names = FALSE,
@@ -255,7 +254,7 @@ system(paste(path_to_vw, '--loss_function poisson --l1', l1, '--l2', l2,
              '--learning_rate', lambda,
              '--decay_learning_rate', delta,
              '--initial_t', T0, '--power_t', pp, train.vw,
-             '--passes 200 -f', model))
+             '--cache_file', cache, '--passes 200 -f', model))
 invisible(file.remove(train.vw))
 system(paste(path_to_vw, '-t -i', model, '-p', pred.vw,
              test.vw, '--loss_function poisson'))
@@ -276,7 +275,8 @@ hotspot.ids =
                   ][order(-tot.pred)[1L:n.cells], I]
 
 #define hotspots on grid's SPDF
-grdSPDF$hotspot = grdSPDF$I %in% hotspot.ids
+#  +() to force integer per guidelines
+grdSPDF$hotspot = +(grdSPDF$I %in% hotspot.ids)
 
 #reverse rotation -- rotated points to
 #  fit grid, now rotate grid to fit
@@ -289,9 +289,7 @@ police_districts =
   readShapeSpatial('data/Portland_Police_Districts.shp', 
                    proj4string = prj)
 
-portland = gUnaryUnion(gBuffer(
-  police_districts, width = 1e6*.Machine$double.eps
-))
+portland = gUnaryUnion(police_districts)
 
 #clip to polygon; sadly gIntersection
 #  drops data, so need the gIntersects step to
@@ -302,6 +300,7 @@ grdSPDF =
     data = grdSPDF@data[gIntersects(grdSPDF, portland, byid = TRUE), ],
     match.ID = FALSE
   )
+proj4string(grdSPDF) = prj
 
 #add area per contest guidelines
 grdSPDF$area = gArea(grdSPDF, byid = TRUE)
@@ -310,7 +309,7 @@ out.horizon = switch(horizon, '1w' = '1WK', '2w' = '2WK',
                      '1m' = '1MO', '2m' = '2MO', '3m' = '3MO')
 out.crime.type = switch(crime.type, 'all' = 'ACFS', 'street' = 'SC',
                         'burglary' = 'Burg', 'vehicle' = 'TOA')
-out.fn = paste0('submission/', out.crime.type, '/',
-                out.horizon, '/TEAM_CFLP_', toupper(out.crime.type),
-                '_', out.horizon)
-writeSpatialShape(grdSPDF, out.fn)
+out.dir = paste0('submission/', out.crime.type, '/', out.horizon)
+out.fn = paste0('TEAM_CFLP_', toupper(out.crime.type), '_', out.horizon)
+writeOGR(grdSPDF, dsn = out.dir, layer = out.fn, 
+         driver = 'ESRI Shapefile', overwrite_layer = TRUE)

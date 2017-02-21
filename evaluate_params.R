@@ -97,11 +97,18 @@ point0 = crimes[ , c(min(x_coordina), min(y_coordina))]
 crimes[ , paste0(c('x', 'y'), '_coordina') :=
           as.data.table(rotate(x_coordina, y_coordina, theta, point0))]
 
+#boundary coordinates of portland
+portland = 
+  with(fread('data/portland_coords.csv'),
+       rotate(x, y, theta, point0))
+
 #record range here, so that
 #  we have the same range 
 #  after we subset below
-xrng = crimes[ , range(x_coordina)]
-yrng = crimes[ , range(y_coordina)]
+#use full boundary range to be sure
+#  we eventually cover the output polygon
+xrng = range(portland[ , 1L])
+yrng = range(portland[ , 2L])
 
 getGTindices <- function(gt) {
   # Obtain indices to rearange data from image (eg. result frim pixellate)
@@ -149,11 +156,6 @@ crimes.sp = to.spdf(crimes)
 # trying to learn using only recent data 
 #  and one-year lag for now
 crimes = crimes[(week_no %between% lag.range) | (week_no %between% recent)]
-
-#boundary coordinates of portland
-portland = 
-  with(fread('data/portland_coords.csv'),
-       rotate(x, y, theta, point0))
 
 # plot boundary
 # par(mfrow=c(1,1))
