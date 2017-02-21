@@ -34,13 +34,13 @@ names(args) = c('delx', 'dely', 'alpha', 'eta', 'lt', 'theta',
 attach(args)
 
 # baselines for testing:
-# delx=dely=1000;alpha=0;eta=1.5;lt=4;theta=pi/36
-# features=10;kde.bw=250;kde.lags=6;
-# l1=1e-4;l2=1e-5;lambda=.5;delta=1;T0=0;pp=.5;
-# horizon='1w';crime.type='all'
-# cat("**********************\n",
-#     "* TEST PARAMETERS ON *\n",
-#     "**********************\n")
+delx=683;dely=487;alpha=0.616;eta=.948;lt=5.12;theta=0
+features=25;kde.bw=313;kde.lags=2;
+l1=1e-5;l2=1e-4;lambda=.5;delta=1;T0=0;pp=.5
+crime.type='all';horizon='1m'
+cat("**********************\n",
+    "* TEST PARAMETERS ON *\n",
+    "**********************\n")
 
 aa = delx*dely
 lx = eta*delx
@@ -113,6 +113,13 @@ crimes = crimes[fake_crimes, on = 'week_no']
 #crimes.sp throws a hissy fit if fed NA coordinates
 real_crimes = crimes[!is.na(x_coordina), which = TRUE]
 
+#while we don't have the full data set, we're missing
+#  data from the end of February -- to avoid this
+#  mucking up the test process, we'll pad the
+#  current data with each cell's ancestor
+pad = crimes[is.na(x_coordina) & week_no > 0, 
+             week_no + 52L]
+
 crimes.sp =
   SpatialPointsDataFrame(
     coords = crimes[(real_crimes), cbind(x_coordina, y_coordina)],
@@ -132,6 +139,17 @@ crimes.grid.dt =
            eps = c(delx, dely)))[idx.new],
          by = week_no][ , I := rowid(week_no)][I %in% incl_ids]
 
+#if we have full data, this step will do nothing
+crimes.pad = 
+  crimes[week_no %in% pad,
+         as.data.table(pixellate(ppp(
+           x = x_coordina, y = y_coordina,
+           xrange = xrng, yrange = yrng, check = FALSE),
+           eps = c(delx, dely)))[idx.new],
+         by = .(week_no = week_no - 52L)
+         ][ , I := rowid(week_no)][I %in% incl_ids]
+crimes.grid.dt[crimes.pad, value := i.value, on = c('week_no', 'I')]
+
 compute.kde <- function(pts, month)
   spkernel2d(pts = pts[pts$month_no == month, ],
              poly = portland_r, h0 = kde.bw, grd = grdtop)
@@ -148,19 +166,23 @@ compute.kde.list <- function (pts, months = seq_len(kde.lags) + 12L)
 kdes = setDT(compute.kde.list(crimes.sp))
 
 ## **TO DO: deal with this properly
-callgroup.top =
-  crimes[, .N, by=CALL_GROUP
-         ][order(-N), if (.N > 1) CALL_GROUP[seq_len(min(3L, .N - 1L))]]
-if (!is.null(callgroup.top)) {
-  crimes.cgroup = lapply(callgroup.top, function(cg)
-    crimes.sp[crimes.sp$CALL_GROUP == cg,])
-  kdes.sub = setDT(sapply(crimes.cgroup, function(pts)
-    compute.kde.list(pts, months=13L)))
-  setnames(kdes.sub, paste0('cg.kde', 1L:ncol(kdes.sub)))
+callgroup.top = 
+  fread('top_callgroups_by_crime.csv')[crime == crime.type, cg]
+
+if (length(callgroup.top)) {
+  crimes.cgroup = lapply(callgroup.top, function(cg) 
+    crimes.sp[crimes.sp$call_group_type == cg, ])
+  
+  kdes.sub = setDT(sapply(crimes.cgroup, function(pts) 
+    compute.kde.list(pts, months = 13L)))
+  
+  setnames(kdes.sub, paste0('cg.kde', seq_len(ncol(kdes.sub))))
+  
+  # combine normal kdes and sub-kdes
   kdes = cbind(kdes, kdes.sub)
 }
 
-kdes[, I := .I]
+kdes[ , I := .I]
 
 crimes.grid.dt = kdes[crimes.grid.dt, on = 'I']
 

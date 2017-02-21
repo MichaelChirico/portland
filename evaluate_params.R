@@ -39,16 +39,12 @@ names(args) =
 attach(args)
 
 # baselines for testing: 
-# delx=dely=250;alpha=0;eta=1;lt=1;theta=0
-# features=2;kde.bw=400;kde.lags=3
-# crime.type='all';horizon='1w'
+# delx=683;dely=487;alpha=0.616;eta=.948;lt=5.12;theta=0
+# features=25;kde.bw=313;kde.lags=2
+# crime.type='all';horizon='1m'
 # cat("**********************\n",
 #     "* TEST PARAMETERS ON *\n",
 #     "**********************\n")
-# delx = dely = 600; alpha = 0;
-# eta = 1; lt = 1; theta =0;
-# features = 50; kde.bw = 250;
-# kde.lags = 1; crime.type = 'vehicle'; horizon = '1w'
 
 aa = delx*dely #forecasted area
 lx = eta*delx
@@ -230,9 +226,6 @@ if (length(callgroup.top)) {
   kdes = cbind(kdes, kdes.sub)
 }
 
-# add cell id
-kdes[ , I := .I]
-
 # ============================================================================
 # SUBCATEGORIES - CALL PRIORITIES
 # ============================================================================
@@ -272,6 +265,9 @@ other.crimes.kdes = setDT(sapply(other.crimes.spdf, compute.kde.list))
 setnames(other.crimes.kdes, gsub('V', 'xkde', names(other.crimes.kdes)))
 
 kdes = cbind(kdes, other.crimes.kdes)
+
+# add cell id
+kdes[ , I := .I]
 
 # append kdes to crimes data
 crimes.grid.dt = kdes[crimes.grid.dt, on = 'I']
