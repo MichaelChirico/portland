@@ -68,9 +68,9 @@ crimes = fread(crime.file)
 setnames(crimes, 'week_no', 't')
 crimes[ , occ_date := as.IDate(occ_date)]
 
-# ============================================================================
-# ROTATION
-# ============================================================================
+# <><><><><><><><><><><><><><><><><><><><><><><><><><><><><><><><><><><><><><>=
+# ROTATION ----
+# <><><><><><><><><><><><><><><><><><><><><><><><><><><><><><><><><><><><><><>=
 
 #rotation formula, relative to a point (x_0, y_0) that's not origin:
 #  [x_0, y_0] + R * [x - x_0, y - y_0]
@@ -98,9 +98,9 @@ crimes[ , paste0(c('x', 'y'), '_coordina') :=
 xrng = crimes[ , range(x_coordina)]
 yrng = crimes[ , range(y_coordina)]
 
-# ============================================================================
-# CREATE GRID
-# ============================================================================
+# <><><><><><><><><><><><><><><><><><><><><><><><><><><><><><><><><><><><><><>=
+# CREATE GRID ----
+# <><><><><><><><><><><><><><><><><><><><><><><><><><><><><><><><><><><><><><>=
 
 getGTindices <- function(gt) {
   # Obtain indices to rearange data from image (eg. result frim pixellate)
@@ -141,24 +141,12 @@ portland =
   with(fread('data/portland_coords.csv'),
        rotate(x, y, theta, point0))
 
-# ============================================================================
-# CREATE DATA TABLE OF CRIMES
+# <><><><><><><><><><><><><><><><><><><><><><><><><><><><><><><><><><><><><><>=
+# CREATE DATA TABLE OF CRIMES ----
 # 1) aggregate at lag.window level for included periods
 # 2) aggregate at forecasting horizon level for included periods
 # 3) merge previous results
-# ============================================================================
-
-lag.days = function (nb.days, lags){
-  # returns a list of integer ranges with the day numbers
-  # that each lag will include.
-  lapply(1:lags, function(x) 1:nb.days + nb.days*(x-1))
-}
-
-lag.dates = function (date, nb.days, lags){
-  # returns a list of length lags with respect to date
-  # with the dates that each lag contains.
-  lapply(lag.days(nb.days, lags), function (lw) date - lw )
-}
+# <><><><><><><><><><><><><><><><><><><><><><><><><><><><><><><><><><><><><><>=
 
 # set of dates for LHS
 march1s = crimes[month(occ_date)==3 & mday(occ_date)==1, unique(occ_date)]
@@ -187,14 +175,31 @@ X = crimes[!is.na(HH)][,
 #can use this to split into train & test
 X[ , train := HH < HH0]
 
-# ============================================================================
-# KDE LAGS
-# ============================================================================
+# <><><><><><><><><><><><><><><><><><><><><><><><><><><><><><><><><><><><><><>
+# KDE LAGS ----
+# <><><><><><><><><><><><><><><><><><><><><><><><><><><><><><><><><><><><><><>
+
+lag.days = function (nb.days, lags){
+  # returns a list of integer ranges with the day numbers
+  # that each lag will include.
+  lapply(1:lags, function(x) 1:nb.days + nb.days*(x-1))
+}
+
+lag.dates = function (date, nb.days, lags){
+  # returns a list of length lags with respect to date
+  # with the dates that each lag contains.
+  lapply(lag.days(nb.days, lags), function (lw) date - lw )
+}
+
+# find day_no (distance from March 1st 2017) for each March 1st in the data
+march1.dayno = crimes[occ_date %in% march1s, unique(day_no)]
 
 # generate lag ids
 ldays = lag.days(kde.win, kde.lags)
 for (lag in seq_along(ldays)){
-  crimes[day_no %in% ldays[[lag]], lag_no := lag]
+  # list of days in relation to day_no (day_no=0 <=> March 1st 2017)
+  lag.day_no.list = unlist(lapply(march1.dayno, function (dayno) dayno + ldays[[lag]]))
+  crimes[day_no %in% lag.day_no.list, lag_no := lag]
 }
 
 # create sp object of crimes
@@ -213,12 +218,13 @@ compute.kde <- function(pts) {
   # turn into expected count
   kde * nrow(pts)
 }
+# crimes[fyear==2016, range(occ_date)]
 
-kde = crimes[!is.na(lag_no), .(value = compute.kde(to.spdf(.SD))), by = .(occ_year, lag_no)]
-setkey(kde, occ_year, lag_no)
-kde[, I := rowid(occ_year, lag_no)]
-# plot(SpatialGridDataFrame(grdtop, kde[.(2016, 3), 'value']))
-
+kde = crimes[!is.na(lag_no), .(value = compute.kde(to.spdf(.SD))), by = .(fyear, lag_no)]
+setkey(kde, fyear, lag_no)
+kde[, I := rowid(fyear, lag_no)]
+plot(SpatialGridDataFrame(grdtop, kde[.(2016, 5), 'value']))
+# add kdes to data
 lag_names = paste0('kde', 1:kde.lags)
 for (llag in seq_along(lag_names)){
   X[, lag_names[[llag]] := kde[.(.BY$HH, llag), value], by=HH]
@@ -226,19 +232,11 @@ for (llag in seq_along(lag_names)){
 
 # remove cells outside border
 X = X[!is.na(kde1)]
-plot(SpatialGridDataFrame(grdtop, X[kde, on=c('I', HH='occ_year')][HH==2013, 'kde3']))
+# plot(SpatialGridDataFrame(grdtop, X[kde[lag_no==6], on=c('I', HH='fyear')][HH==2013, 'kde3']))
 
-spdf = SpatialGridDataFrame(grdtop, X[HH==2016, .(kde10, I)])
-# X[is.na(kde.1), mean(!is.na(kde.3))]
-# nas = X[HH==2016 & is.na(kde.1), I]
-# X[I %in% nas, mean(is.na(kde.1))]
-# plot(spdf[, , 'kde.1'])
-# plot(spdf[spdf$I %in% nas,'I'])
-# mean(is.na(spdf[spdf$I %in% nas, ,'kde.1']$kde.1))
-
-# ============================================================================
-# PROJECTION
-# ============================================================================
+# <><><><><><><><><><><><><><><><><><><><><><><><><><><><><><><><><><><><><><>
+# PROJECTION ----
+# <><><><><><><><><><><><><><><><><><><><><><><><><><><><><><><><><><><><><><>
 
 #project -- these are the omega * xs
 proj = X[ , cbind(x, y, HH)] %*% 
@@ -302,9 +300,9 @@ for (jj in 1L:features) {
 }
 rm(proj)
 
-# ============================================================================
-# WRITE VW FILES
-# ============================================================================
+# <><><><><><><><><><><><><><><><><><><><><><><><><><><><><><><><><><><><><><>
+# WRITE VW FILES ----
+# <><><><><><><><><><><><><><><><><><><><><><><><><><><><><><><><><><><><><><>
 # 
 #temporary files
 source("local_setup.R")
@@ -416,9 +414,9 @@ invisible(file.remove(cache, test.vw))
 # sgdf = SpatialGridDataFrame(grdtop, 
 #    data = kde[.(2016,1)])
 # plot(sgdf[sgdf$I %in% hotspot.ids,,'value'])
-# ============================================================================
+# <><><><><><><><><><><><><><><><><><><><><><><><><><><><><><><><><><><><><><>=
 # WRITE RESULTS FILE AND TIMINGS
-# ============================================================================
+# <><><><><><><><><><><><><><><><><><><><><><><><><><><><><><><><><><><><><><>=
 
 ff = paste0("scores/", 'sm_',crime.type, "_", horizon, job_id, ".csv")
 fwrite(scores, ff, append = file.exists(ff))
