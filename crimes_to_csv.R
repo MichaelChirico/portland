@@ -23,16 +23,7 @@ crimes[ , week_no := unclass(as.IDate("2017-02-28") -
 crimes[, month_no := round((as.yearmon("2017-03-01") - as.yearmon(occ_date))*12)]
 
 # day of the month
-crimes[, day_mo := mday(occ_date)]
-
-# year
-crimes[, occ_year := year(occ_date)]
-
-# day = 1 ==> March 1st 2017
-crimes[, day_no := difftime(as.IDate(paste(occ_year,'03-01', sep='-')), 
-                            occ_date, 
-                            units = 'days')
-]
+crimes[, day_no := mday(occ_date)]
 
 # ============================================================================
 # REMOVE POINTS OUTSIDE BORDERS
@@ -45,16 +36,44 @@ crimes.sp = SpatialPoints(
 )
 
 # load portland boundary
-portland.bdy <- 
-  readShapePoly("data/portland_boundary", 
-                proj4string = CRS("+init=epsg:2913"))
+police_districts = 
+  readShapePoly('data/Portland_Police_Districts', 
+                proj4string= prj)
 
-# slect crimes within city boundaries
-idx = over(crimes.sp, portland.bdy)$dummy
+portland = gUnaryUnion(gBuffer(
+  #buffer to eliminate sand grain holes
+  #  (1e6 by trial and elimination)
+  police_districts, width = 1e6*.Machine$double.eps
+))
+
+# select crimes within city boundaries
+idx = over(crimes.sp, portland)
 crimes = crimes[!is.na(idx)]
 
-fwrite(crimes, "crimes_all.csv")
-crimes.split = split(crimes, by = "CATEGORY")
+# eliminate & economize columns to save space
+cg_lev = c('DISORDER', 'NON CRIMINAL/ADMIN', 'PROPERTY CRIME')
+crimes[ , call_group_type := 
+          factor(CALL_GROUP, levels = cg_lev)]
+crimes[is.na(call_group_type), 
+       call_group_type := factor('other')]
+levels(crimes$call_group_type) = c('other', cg_lev)
+crimes[ , call_group_type := 
+          as.integer(call_group_type)]
+
+crimes[grepl('COLD', CASE_DESC, fixed = TRUE), 
+       case_desc_type := 1L]
+crimes[grepl('PRIORITY[^*]*$', CASE_DESC),
+       case_desc_type := 2L]
+crimes[grepl('PRIORITY.*[*]', CASE_DESC),
+       case_desc_type := 3L]
+crimes[is.na(case_desc_type),
+       case_desc_type := 0L]
+
+crimes[ , c('CALL_GROUP', 'final_case',
+            'CASE_DESC', 'census_tra') := NULL]
+
+fwrite(crimes[ , !'CATEGORY'], "crimes_all.csv")
+crimes.split = split(crimes, by = "CATEGORY", keep.by = FALSE)
 fwrite(crimes.split[["STREET CRIMES"]], "crimes_str.csv")
 fwrite(crimes.split[["BURGLARY"]], "crimes_bur.csv")
 fwrite(crimes.split[["MOTOR VEHICLE THEFT"]], "crimes_veh.csv")
