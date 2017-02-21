@@ -48,7 +48,6 @@ crimes[occ_date %between% c('2014-03-01', '2015-02-28'), fyear := 2015]
 crimes[occ_date %between% c('2013-03-01', '2014-02-28'), fyear := 2014]
 crimes[occ_date %between% c('2012-03-01', '2013-02-28'), fyear := 2013]
 
-
 # ============================================================================
 # REMOVE POINTS OUTSIDE BORDERS
 # ============================================================================
@@ -60,16 +59,52 @@ crimes.sp = SpatialPoints(
 )
 
 # load portland boundary
-portland.bdy <- 
-  readShapePoly("data/portland_boundary", 
-                proj4string = CRS("+init=epsg:2913"))
+police_districts = 
+  readShapePoly('data/Portland_Police_Districts', 
+                proj4string = prj)
 
-# slect crimes within city boundaries
-idx = over(crimes.sp, portland.bdy)$dummy
+portland = gUnaryUnion(gBuffer(
+  #buffer to eliminate sand grain holes
+  #  (1e6 by trial and elimination)
+  police_districts, width = 1e6*.Machine$double.eps
+))
+
+#eliminate island sub-polygons, see
+#  http://gis.stackexchange.com/questions/229232/
+subP = portland@polygons[[1L]]@Polygons
+areas = sapply(subP, slot, 'area')
+keep = sapply(subP, function(p) p@hole || p@area == max(areas))
+portland = SpatialPolygons(list(Polygons(subP[keep], ID = 1)),
+                           proj4string = prj)
+
+# select crimes within city boundaries
+idx = over(crimes.sp, portland)
 crimes = crimes[!is.na(idx)]
 
-fwrite(crimes, "crimes_all.csv")
-crimes.split = split(crimes, by = "CATEGORY")
+# eliminate & economize columns to save space
+cg_lev = c('DISORDER', 'NON CRIMINAL/ADMIN', 'PROPERTY CRIME')
+crimes[ , call_group_type := 
+          factor(CALL_GROUP, levels = cg_lev)]
+crimes[is.na(call_group_type), 
+       call_group_type := factor('other')]
+levels(crimes$call_group_type) = c('other', cg_lev)
+crimes[ , call_group_type := 
+          as.integer(call_group_type)]
+
+crimes[grepl('COLD', CASE_DESC, fixed = TRUE), 
+       case_desc_type := 1L]
+crimes[grepl('PRIORITY[^*]*$', CASE_DESC),
+       case_desc_type := 2L]
+crimes[grepl('PRIORITY.*[*]', CASE_DESC),
+       case_desc_type := 3L]
+crimes[is.na(case_desc_type),
+       case_desc_type := 0L]
+
+crimes[ , c('CALL_GROUP', 'final_case',
+            'CASE_DESC', 'census_tra') := NULL]
+
+fwrite(crimes[ , !'CATEGORY'], "crimes_all.csv")
+crimes.split = split(crimes, by = "CATEGORY", keep.by = FALSE)
 fwrite(crimes.split[["STREET CRIMES"]], "crimes_str.csv")
 fwrite(crimes.split[["BURGLARY"]], "crimes_bur.csv")
 fwrite(crimes.split[["MOTOR VEHICLE THEFT"]], "crimes_veh.csv")

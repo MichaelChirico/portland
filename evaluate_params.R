@@ -39,6 +39,7 @@ names(args) =
 attach(args)
 
 # baselines for testing: 
+<<<<<<< HEAD
 # cat("**********************\n",
 #     "* TEST PARAMETERS ON *\n",
 #     "**********************\n")
@@ -46,6 +47,14 @@ attach(args)
 # eta = 1; lt = 1; theta =0;
 # features = 100; kde.bw = 500;
 # kde.lags = 1; crime.type = 'all'; horizon = '1m'
+=======
+delx=250;dely=250;alpha=0.954;eta=.5;lt=4.94;theta=0
+features=10;kde.bw=1000;kde.lags=3
+crime.type='burglary';horizon='1m'
+cat("**********************\n",
+    "* TEST PARAMETERS ON *\n",
+    "**********************\n")
+>>>>>>> mikes/master
 
 aa = delx*dely #forecasted area
 lx = eta*delx
@@ -98,11 +107,18 @@ point0 = crimes[ , c(min(x_coordina), min(y_coordina))]
 crimes[ , paste0(c('x', 'y'), '_coordina') :=
           as.data.table(rotate(x_coordina, y_coordina, theta, point0))]
 
+#boundary coordinates of portland
+portland = 
+  with(fread('data/portland_coords.csv'),
+       rotate(x, y, theta, point0))
+
 #record range here, so that
 #  we have the same range 
 #  after we subset below
-xrng = crimes[ , range(x_coordina)]
-yrng = crimes[ , range(y_coordina)]
+#use full boundary range to be sure
+#  we eventually cover the output polygon
+xrng = range(portland[ , 1L])
+yrng = range(portland[ , 2L])
 
 getGTindices <- function(gt) {
   # Obtain indices to rearange data from image (eg. result frim pixellate)
@@ -133,7 +149,7 @@ incl_ids =
     xrange = xrng, yrange = yrng, check = FALSE),
     #this must be done within-loop
     #  since it depends on delx & dely
-    eps = c(delx, dely)))[idx.new, ]
+    eps = c(delx, dely)))[idx.new]
     #find cells that ever have a crime
   )[value > 0, which = TRUE]
 
@@ -150,11 +166,6 @@ crimes.sp = to.spdf(crimes)
 # trying to learn using only recent data 
 #  and one-year lag for now
 crimes = crimes[(week_no %between% lag.range) | (week_no %between% recent)]
-
-#boundary coordinates of portland
-portland = 
-  with(fread('data/portland_coords.csv'),
-       rotate(x, y, theta, point0))
 
 # plot boundary
 # par(mfrow=c(1,1))
@@ -216,7 +227,7 @@ callgroup.top =
 
 if (length(callgroup.top)) {
   crimes.cgroup = lapply(callgroup.top, function(cg) 
-    crimes.sp[crimes.sp$CALL_GROUP == cg, ])
+    crimes.sp[crimes.sp$call_group_type == cg, ])
   
   kdes.sub = setDT(sapply(crimes.cgroup, function(pts) 
     compute.kde.list(pts, months = 13L)))
@@ -227,9 +238,6 @@ if (length(callgroup.top)) {
   kdes = cbind(kdes, kdes.sub)
 }
 
-# add cell id
-kdes[ , I := .I]
-
 # ============================================================================
 # SUBCATEGORIES - CALL PRIORITIES
 # ============================================================================
@@ -237,9 +245,9 @@ kdes[ , I := .I]
 # select CASE_DESC cases as boolean vectors
 cd.cases = with(crimes.sp@data,
                 data.frame(
-                  cd.kde1 = grepl('COLD', CASE_DESC, fixed = TRUE),
-                  cd.kde2 = grepl('PRIORITY[^*]*', CASE_DESC),
-                  cd.kde3 = grepl('PRIORITY.*[*]', CASE_DESC))
+                  cd.kde1 = case_desc_type == 1L,
+                  cd.kde2 = case_desc_type == 2L,
+                  cd.kde3 = case_desc_type == 3L)
                 )
 #eliminate those which are not represented
 cd.cases = cd.cases[sapply(cd.cases, any)]
@@ -270,6 +278,9 @@ setnames(other.crimes.kdes, gsub('V', 'xkde', names(other.crimes.kdes)))
 
 kdes = cbind(kdes, other.crimes.kdes)
 
+# add cell id
+kdes[ , I := .I]
+
 # append kdes to crimes data
 crimes.grid.dt = kdes[crimes.grid.dt, on = 'I']
 
@@ -290,9 +301,8 @@ crimes.grid.dt[ , lg.kde := {
 # 2) transfrom grid to SpatialPolygons
 # 3) spatial overlay of the two objects using centroids of each cell
 # ============================================================================
-portland.pd = gBuffer(readShapePoly(
-  "./data/Portland_Police_Districts.shp", proj4string = prj),
-  width = 1e6*.Machine$double.eps, byid = TRUE)
+portland.pd = readShapePoly("./data/Portland_Police_Districts.shp", 
+                            proj4string = prj)
   
 # create SpatialPOlygonsDataFrame with grid
 grd.sp = as.SpatialPolygons.GridTopology(grdtop, proj4string = prj)
@@ -465,6 +475,7 @@ n.cells = as.integer(which.round(alpha)(6969600*(1+2*alpha)/aa))
 N_star = crimes.grid.dt[ , .(tot.crimes = sum(value)), by = I
                          ][order(-tot.crimes)[1L:n.cells],
                            sum(tot.crimes)]
+NN = crimes.grid.dt[ , sum(value)]
 
 for (ii in seq_len(nrow(tuning_variations))) {
   model = tempfile(tmpdir = tdir, pattern = "model")
@@ -511,7 +522,7 @@ for (ii in seq_len(nrow(tuning_variations))) {
            c(tuning_variations[ii],
              list(pei = nn/N_star,
                   #pre-calculated the total area of portland
-                  pai = nn/(aa*n.cells)))]
+                  pai = (nn/NN)/(aa*n.cells/4117777129)))]
 }
 invisible(file.remove(cache, test.vw))
 

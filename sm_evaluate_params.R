@@ -16,25 +16,25 @@ suppressMessages({
 #from random.org
 set.seed(60251935)
 
-# # each argument read in as a string in a character vector;
-#  # would rather have them as a list. basically do
-#  # that by converting them to a form read.table
-#  # understands and then attaching from a data.frame
-# args = read.table(text = paste(commandArgs(trailingOnly = TRUE),
-#                                collapse = '\t'),
-#                   stringsAsFactors = FALSE)
-# names(args) =
-#   c('delx', 'dely', 'alpha', 'eta', 'lt', 'theta',
-#     'features', 'kde.bw', 'kde.lags', 'kde.win', 'crime.type', 'horizon')
-# attach(args)
+# each argument read in as a string in a character vector;
+ # would rather have them as a list. basically do
+ # that by converting them to a form read.table
+ # understands and then attaching from a data.frame
+args = read.table(text = paste(commandArgs(trailingOnly = TRUE),
+                               collapse = '\t'),
+                  stringsAsFactors = FALSE)
+names(args) =
+  c('delx', 'dely', 'alpha', 'eta', 'lt', 'theta',
+    'features', 'kde.bw', 'kde.lags', 'kde.win', 'crime.type', 'horizon')
+attach(args)
 
-# baselines for testing: 
-delx=600;dely=600;alpha=0;eta=2;lt=6;theta=0
-features=10;kde.bw=400;kde.lags=15;kde.win = 7
-horizon='2w';crime.type='all'
-cat("**********************\n",
-    "* TEST PARAMETERS ON *\n",
-    "**********************\n")
+# # baselines for testing: 
+# delx=600;dely=600;alpha=0;eta=2;lt=6;theta=0
+# features=10;kde.bw=400;kde.lags=15;kde.win = 7
+# horizon='2w';crime.type='all'
+# cat("**********************\n",
+#     "* TEST PARAMETERS ON *\n",
+#     "**********************\n")
 
 aa = delx*dely #forecasted area
 lx = eta*delx
@@ -65,7 +65,7 @@ crime.file = switch(crime.type,
                     vehicle = "crimes_veh.csv")
 
 crimes = fread(crime.file)
-setnames(crimes, 'week_no', 't')
+# setnames(crimes, 'week_no', 't')
 crimes[ , occ_date := as.IDate(occ_date)]
 
 # <><><><><><><><><><><><><><><><><><><><><><><><><><><><><><><><><><><><><><>=
@@ -152,10 +152,10 @@ portland =
 march1s = crimes[month(occ_date)==3 & mday(occ_date)==1, unique(occ_date)]
 march1s = rev(c(march1s, as.IDate('2017-03-01')))
 H.rng = switch(horizon, '1w' = lapply(march1s, function (date) date + c(0,6)),
-                    '2w' = lapply(march1s, function (date) date + c(0,13)),
-                    '1m' = lapply(march1s, function (date) date + c(0,30)),
-                    '2m' = lapply(march1s, function (date) date + c(0,60)),
-                    '3m' = lapply(march1s, function (date) date + c(0,91)))
+               '2w' = lapply(march1s, function (date) date + c(0,13)),
+               '1m' = lapply(march1s, function (date) date + c(0,30)),
+               '2m' = lapply(march1s, function (date) date + c(0,60)),
+               '3m' = lapply(march1s, function (date) date + c(0,91)))
 
 # create LHS period indicator (will need to aggregate)
 for (ii in seq_along(H.rng)){
@@ -164,13 +164,13 @@ for (ii in seq_along(H.rng)){
 
 # aggregate, cell counts
 X = crimes[!is.na(HH)][, 
-       as.data.table(pixellate(ppp(
-       x = x_coordina, y = y_coordina,
-       xrange = xrng, yrange = yrng, check = FALSE),
-       #reorder using GridTopology - im mapping
-       eps = c(x = delx, dely)))[idx.new],
-       #subset to eliminate never-crime cells
-       by = HH][ , I := rowid(HH)]#[I %in% incl_ids]
+                       as.data.table(pixellate(ppp(
+                         x = x_coordina, y = y_coordina,
+                         xrange = xrng, yrange = yrng, check = FALSE),
+                         #reorder using GridTopology - im mapping
+                         eps = c(x = delx, dely)))[idx.new],
+                       #subset to eliminate never-crime cells
+                       by = HH][ , I := rowid(HH)]#[I %in% incl_ids]
 
 #can use this to split into train & test
 X[ , train := HH < HH0]
@@ -213,8 +213,8 @@ crimes.sp = to.spdf(crimes)
 
 compute.kde <- function(pts) {
   kde = spkernel2d(pts = pts,
-            #quartic kernel used by default
-            poly = portland, h0 = kde.bw, grd = grdtop)
+                   #quartic kernel used by default
+                   poly = portland, h0 = kde.bw, grd = grdtop)
   # turn into expected count
   kde * nrow(pts)
 }
@@ -340,7 +340,7 @@ scores = data.table(delx, dely, alpha, eta, lt, theta, k = features,
                     l1 = numeric(n_var), l2 = numeric(n_var),
                     lambda = numeric(n_var), delta = numeric(n_var),
                     t0 = numeric(n_var), p = numeric(n_var),
-                    kde.bw, kde.n = 'all', kde.lags,
+                    kde.bw, kde.n = 'all', kde.lags, kde.win,
                     pei = numeric(n_var), pai = numeric(n_var))
 
 #when we're at the minimum forecast area, we must round up
@@ -359,8 +359,9 @@ n.cells = as.integer(which.round(alpha)(6969600*(1+2*alpha)/aa))
 #  same for all variations of tuning parameters,
 #  given the input parameters (delx, etc.)
 N_star = X[ , .(tot.crimes = sum(value)), by = I
-                         ][order(-tot.crimes)[1L:n.cells],
-                           sum(tot.crimes)]
+            ][order(-tot.crimes)[1L:n.cells],
+              sum(tot.crimes)]
+NN = X[ , sum(value)]
 
 for (ii in seq_len(nrow(tuning_variations))) {
   model = tempfile(tmpdir = tdir, pattern = "model")
@@ -383,12 +384,12 @@ for (ii in seq_len(nrow(tuning_variations))) {
   invisible(file.remove(model))
   
   preds =
-    fread(pred.vw, sep = " ", header = FALSE, col.names = c("pred", "I_y"))
-  # invisible(file.remove(pred.vw))
+    fread(pred.vw, sep = " ", header = FALSE, col.names = c("pred", "I_yr"))
+  invisible(file.remove(pred.vw))
   #wrote 2-variable label with _ to fit VW guidelines;
   #  now split back to constituents so we can join
-  preds[ , c("I", "HH", "I_y") :=
-           c(lapply(tstrsplit(I_y, split = "_"), as.integer),
+  preds[ , c("I", "HH", "I_yr") :=
+           c(lapply(tstrsplit(I_yr, split = "_"), as.integer),
              list(NULL))]
   
   X[preds, pred.count := exp(i.pred), on = c("I", "HH")]
@@ -396,7 +397,7 @@ for (ii in seq_len(nrow(tuning_variations))) {
   
   hotspot.ids =
     X[ , .(tot.pred = sum(pred.count)), by = I
-                    ][order(-tot.pred)[1L:n.cells], I]
+       ][order(-tot.pred)[1L:n.cells], I]
   X[ , hotspot := I %in% hotspot.ids]
   
   #how well did we do? lower-case n in the PEI/PAI calculation
@@ -407,7 +408,7 @@ for (ii in seq_len(nrow(tuning_variations))) {
            c(tuning_variations[ii],
              list(pei = nn/N_star,
                   #pre-calculated the total area of portland
-                  pai = nn/(aa*n.cells)))]
+                  pai = (nn/NN)/(aa*n.cells/4117777129)))]
 }
 invisible(file.remove(cache, test.vw))
 

@@ -15,6 +15,7 @@
 library(spatstat)
 library(splancs)
 library(rgeos)
+library(rgdal)
 library(data.table)
 library(foreach)
 library(maptools)
@@ -24,8 +25,9 @@ library(zoo)
 #  as evaluation_params.R
 set.seed(60251935)
 
-args = read.table(text = commandArgs(trailingOnly = TRUE), 
-                  sep = ' ', stringsAsFactors = FALSE)
+args = 
+  read.table(text = paste(commandArgs(trailingOnly = TRUE), collapse = '\t'),
+             sep = '\t', stringsAsFactors = FALSE)
 names(args) = c('delx', 'dely', 'alpha', 'eta', 'lt', 'theta',
                 'features', 'kde.bw', 'kde.lags', 'l1', 'l2',
                 'lambda', 'delta', 'T0', 'pp',
@@ -33,13 +35,13 @@ names(args) = c('delx', 'dely', 'alpha', 'eta', 'lt', 'theta',
 attach(args)
 
 # baselines for testing:
-delx=dely=1000;alpha=0;eta=1.5;lt=4;theta=pi/36
-features=10;kde.bw=250;kde.lags=6;
-l1=1e-4;l2=1e-5;lambda=.5;delta=1;T0=0;pp=.5;
-horizon='1w';crime.type='all'
-cat("**********************\n",
-    "* TEST PARAMETERS ON *\n",
-    "**********************\n")
+# delx=683;dely=487;alpha=0.616;eta=.948;lt=5.12;theta=pi/4
+# features=25;kde.bw=313;kde.lags=2;
+# l1=1e-5;l2=1e-4;lambda=.5;delta=1;T0=0;pp=.5
+# crime.type='all';horizon='1m'
+# cat("**********************\n",
+#     "* TEST PARAMETERS ON *\n",
+#     "**********************\n")
 
 aa = delx*dely
 lx = eta*delx
@@ -75,8 +77,12 @@ point0 = crimes[ , c(min(x_coordina), min(y_coordina))]
 crimes[ , paste0(c('x', 'y'), '_coordina') :=
           as.data.table(rotate(x_coordina, y_coordina, theta, point0))]
 
-xrng = crimes[ , range(x_coordina)]
-yrng = crimes[ , range(y_coordina)]
+portland_r = 
+  with(fread('data/portland_coords.csv'),
+       rotate(x, y, theta, point0))
+
+xrng = range(portland_r[ , 1L])
+yrng = range(portland_r[ , 2L])
 
 getGTindices <- function(gt) {
   dimx <- gt@cells.dim[1L]
@@ -112,16 +118,19 @@ crimes = crimes[fake_crimes, on = 'week_no']
 #crimes.sp throws a hissy fit if fed NA coordinates
 real_crimes = crimes[!is.na(x_coordina), which = TRUE]
 
+#while we don't have the full data set, we're missing
+#  data from the end of February -- to avoid this
+#  mucking up the test process, we'll pad the
+#  current data with each cell's ancestor
+pad = crimes[is.na(x_coordina) & week_no > 0, 
+             week_no + 52L]
+
 crimes.sp =
   SpatialPointsDataFrame(
     coords = crimes[(real_crimes), cbind(x_coordina, y_coordina)],
     data = crimes[(real_crimes), -c('x_coordina', 'y_coordina')],
     proj4string = prj
   )
-
-portland_r = 
-  with(fread('data/portland_coords.csv'),
-       rotate(x, y, theta, point0))
 
 crimes.grid.dt =
   crimes[week_no %between% recent, 
@@ -130,6 +139,17 @@ crimes.grid.dt =
            xrange = xrng, yrange = yrng, check = FALSE),
            eps = c(delx, dely)))[idx.new],
          by = week_no][ , I := rowid(week_no)][I %in% incl_ids]
+
+#if we have full data, this step will do nothing
+crimes.pad = 
+  crimes[week_no %in% pad,
+         as.data.table(pixellate(ppp(
+           x = x_coordina, y = y_coordina,
+           xrange = xrng, yrange = yrng, check = FALSE),
+           eps = c(delx, dely)))[idx.new],
+         by = .(week_no = week_no - 52L)
+         ][ , I := rowid(week_no)][I %in% incl_ids]
+crimes.grid.dt[crimes.pad, value := i.value, on = c('week_no', 'I')]
 
 compute.kde <- function(pts, month)
   spkernel2d(pts = pts[pts$month_no == month, ],
@@ -147,19 +167,23 @@ compute.kde.list <- function (pts, months = seq_len(kde.lags) + 12L)
 kdes = setDT(compute.kde.list(crimes.sp))
 
 ## **TO DO: deal with this properly
-callgroup.top =
-  crimes[, .N, by=CALL_GROUP
-         ][order(-N), if (.N > 1) CALL_GROUP[seq_len(min(3L, .N - 1L))]]
-if (!is.null(callgroup.top)) {
-  crimes.cgroup = lapply(callgroup.top, function(cg)
-    crimes.sp[crimes.sp$CALL_GROUP == cg,])
-  kdes.sub = setDT(sapply(crimes.cgroup, function(pts)
-    compute.kde.list(pts, months=13L)))
-  setnames(kdes.sub, paste0('cg.kde', 1L:ncol(kdes.sub)))
+callgroup.top = 
+  fread('top_callgroups_by_crime.csv')[crime == crime.type, cg]
+
+if (length(callgroup.top)) {
+  crimes.cgroup = lapply(callgroup.top, function(cg) 
+    crimes.sp[crimes.sp$call_group_type == cg, ])
+  
+  kdes.sub = setDT(sapply(crimes.cgroup, function(pts) 
+    compute.kde.list(pts, months = 13L)))
+  
+  setnames(kdes.sub, paste0('cg.kde', seq_len(ncol(kdes.sub))))
+  
+  # combine normal kdes and sub-kdes
   kdes = cbind(kdes, kdes.sub)
 }
 
-kdes[, I := .I]
+kdes[ , I := .I]
 
 crimes.grid.dt = kdes[crimes.grid.dt, on = 'I']
 
@@ -174,12 +198,9 @@ crimes.grid.dt[ , train := week_no > week_0]
 proj = crimes.grid.dt[ , cbind(x, y, week_no)] %*%
   (matrix(rt(3L*features, df = 2.5), nrow = 3L)/c(lx, ly, lt))
 
-incl = setNames(
-  nm = setdiff(names(crimes.grid.dt),
-               c("I", "week_no", "x", "y", "value", "train"))
-)
-incl.kde = grep("^kde", incl, value = TRUE)
-incl.cg = grep("^cg.", incl, value = TRUE)
+nms = setNames(nm = names(crimes.grid.dt))
+incl.kde = grep("^kde", nms, value = TRUE)
+incl.cg = grep("^cg.", nms, value = TRUE)
 
 phi.dt =
   crimes.grid.dt[ , {
@@ -211,6 +232,7 @@ rm(proj)
 source("local_setup.R")
 train.vw = tempfile(tmpdir = tdir, pattern = "train")
 test.vw = tempfile(tmpdir = tdir, pattern = "test")
+cache = paste0(train.vw, '.cache')
 pred.vw = tempfile(tmpdir = tdir, pattern = "predict")
 fwrite(phi.dt[crimes.grid.dt$train], train.vw,
        sep = " ", quote = FALSE, col.names = FALSE,
@@ -232,7 +254,7 @@ system(paste(path_to_vw, '--loss_function poisson --l1', l1, '--l2', l2,
              '--learning_rate', lambda,
              '--decay_learning_rate', delta,
              '--initial_t', T0, '--power_t', pp, train.vw,
-             '--passes 200 -f', model))
+             '--cache_file', cache, '--passes 200 -f', model))
 invisible(file.remove(train.vw))
 system(paste(path_to_vw, '-t -i', model, '-p', pred.vw,
              test.vw, '--loss_function poisson'))
@@ -253,22 +275,23 @@ hotspot.ids =
                   ][order(-tot.pred)[1L:n.cells], I]
 
 #define hotspots on grid's SPDF
-grdSPDF$hotspot = grdSPDF$I %in% hotspot.ids
+#  +() to force integer per guidelines
+grdSPDF$hotspot = +(grdSPDF$I %in% hotspot.ids)
 
 #reverse rotation -- rotated points to
 #  fit grid, now rotate grid to fit
 #  original orientation of points
-#  ** rotate expects angles in degrees **
-grdSPDF = elide(grdSPDF, rotate = -180/pi * theta)
+#  ** rotate expects angles in degrees CLOCKWISE**
+grdSPDF = elide(grdSPDF, rotate = 180/pi * theta,
+                center = point0)
 
 #load clipping polygon -- Police Districts shapefile
 police_districts = 
   readShapeSpatial('data/Portland_Police_Districts.shp', 
                    proj4string = prj)
 
-portland = gUnaryUnion(gBuffer(
-  police_districts, width = 1e6*.Machine$double.eps
-))
+portland = gBuffer(gUnaryUnion(police_districts),
+                   width = 1e6*.Machine$double.eps)
 
 #clip to polygon; sadly gIntersection
 #  drops data, so need the gIntersects step to
@@ -279,6 +302,7 @@ grdSPDF =
     data = grdSPDF@data[gIntersects(grdSPDF, portland, byid = TRUE), ],
     match.ID = FALSE
   )
+proj4string(grdSPDF) = prj
 
 #add area per contest guidelines
 grdSPDF$area = gArea(grdSPDF, byid = TRUE)
@@ -287,7 +311,7 @@ out.horizon = switch(horizon, '1w' = '1WK', '2w' = '2WK',
                      '1m' = '1MO', '2m' = '2MO', '3m' = '3MO')
 out.crime.type = switch(crime.type, 'all' = 'ACFS', 'street' = 'SC',
                         'burglary' = 'Burg', 'vehicle' = 'TOA')
-out.fn = paste0('submission/', out.crime.type, '/',
-                out.horizon, '/TEAM_CFLP_', toupper(out.crime.type),
-                '_', out.horizon)
-writeSpatialShape(grdSPDF, out.fn)
+out.dir = paste0('submission/', out.crime.type, '/', out.horizon)
+out.fn = paste0('TEAM_CFLP_', toupper(out.crime.type), '_', out.horizon)
+writeOGR(grdSPDF, dsn = out.dir, layer = out.fn, 
+         driver = 'ESRI Shapefile', overwrite_layer = TRUE)

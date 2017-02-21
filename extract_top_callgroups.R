@@ -6,7 +6,7 @@ fwrite(rbindlist(lapply(
   c(all = "crimes_all.csv", street = "crimes_str.csv",
     burglary = "crimes_bur.csv", vehicle = "crimes_veh.csv"), 
   function(ff) {
-    tbl = fread(ff)[ , .N, by = .(cg = CALL_GROUP)][order(-N)]
+    tbl = fread(ff)[ , .N, by = .(cg = call_group_type)][order(-N)]
     tbl[seq_len(min(.N - 1L, 3L))]
   }), idcol = 'crime'),
   'top_callgroups_by_crime.csv')
