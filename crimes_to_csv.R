@@ -23,7 +23,16 @@ crimes[ , week_no := unclass(as.IDate("2017-02-28") -
 crimes[, month_no := round((as.yearmon("2017-03-01") - as.yearmon(occ_date))*12)]
 
 # day of the month
-crimes[, day_no := mday(occ_date)]
+crimes[, day_mo := mday(occ_date)]
+
+# year
+crimes[, occ_year := year(occ_date)]
+
+# day = 1 ==> March 1st 2017
+crimes[, day_no := difftime(as.IDate(paste(occ_year,'03-01', sep='-')), 
+                            occ_date, 
+                            units = 'days')
+]
 
 # ============================================================================
 # REMOVE POINTS OUTSIDE BORDERS

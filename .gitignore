@@ -1,4 +1,5 @@
 #R files to ignore
+.numbers
 .Rhistory
 .Rproj.user
 *.Rproj

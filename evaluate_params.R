@@ -269,6 +269,7 @@ other.crimes.files = sapply(other.crimes, get.crime.file)
 other.crimes.dt = lapply(other.crimes.files, fread)
 other.crimes.spdf = sapply(other.crimes.dt, to.spdf)
 other.crimes.kdes = setDT(sapply(other.crimes.spdf, compute.kde.list))
+setnames(other.crimes.kdes, gsub('V', 'xkde', names(other.crimes.kdes)))
 
 kdes = cbind(kdes, other.crimes.kdes)
 
@@ -353,7 +354,7 @@ nms = setNames(nm = names(crimes.grid.dt))
 incl.kde = grep("^kde", nms, value = TRUE)
 incl.cg = grep("^cg.", nms, value = TRUE)
 incl.cd = grep("^cd.", nms, value = TRUE)
-incl.xkde = grep(paste(other.crimes, collapse = '|'), nms, value = TRUE)
+incl.xkde = grep(paste('xkde', collapse = '|'), nms, value = TRUE)
 
 phi.dt =
   crimes.grid.dt[ , {
