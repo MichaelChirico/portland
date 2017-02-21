@@ -219,7 +219,7 @@ callgroup.top =
 
 if (length(callgroup.top)) {
   crimes.cgroup = lapply(callgroup.top, function(cg) 
-    crimes.sp[crimes.sp$CALL_GROUP == cg, ])
+    crimes.sp[crimes.sp$call_group_type == cg, ])
   
   kdes.sub = setDT(sapply(crimes.cgroup, function(pts) 
     compute.kde.list(pts, months = 13L)))
@@ -240,9 +240,9 @@ kdes[ , I := .I]
 # select CASE_DESC cases as boolean vectors
 cd.cases = with(crimes.sp@data,
                 data.frame(
-                  cd.kde1 = grepl('COLD', CASE_DESC, fixed = TRUE),
-                  cd.kde2 = grepl('PRIORITY[^*]*', CASE_DESC),
-                  cd.kde3 = grepl('PRIORITY.*[*]', CASE_DESC))
+                  cd.kde1 = case_desc_type == 1L,
+                  cd.kde2 = case_desc_type == 2L,
+                  cd.kde3 = case_desc_type == 3L)
                 )
 #eliminate those which are not represented
 cd.cases = cd.cases[sapply(cd.cases, any)]
