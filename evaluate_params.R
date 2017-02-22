@@ -39,7 +39,7 @@ names(args) =
 attach(args)
 
 # baselines for testing: 
-<<<<<<< HEAD
+
 # cat("**********************\n",
 #     "* TEST PARAMETERS ON *\n",
 #     "**********************\n")
@@ -47,14 +47,6 @@ attach(args)
 # eta = 1; lt = 1; theta =0;
 # features = 100; kde.bw = 500;
 # kde.lags = 1; crime.type = 'all'; horizon = '1m'
-=======
-delx=250;dely=250;alpha=0.954;eta=.5;lt=4.94;theta=0
-features=10;kde.bw=1000;kde.lags=3
-crime.type='burglary';horizon='1m'
-cat("**********************\n",
-    "* TEST PARAMETERS ON *\n",
-    "**********************\n")
->>>>>>> mikes/master
 
 aa = delx*dely #forecasted area
 lx = eta*delx
