@@ -26,27 +26,27 @@ suppressMessages({
 #from random.org
 set.seed(60251935)
 
-#each argument read in as a string in a character vector;
-#  would rather have them as a list. basically do
-#  that by converting them to a form read.table
-#  understands and then attaching from a data.frame
-args = read.table(text = paste(commandArgs(trailingOnly = TRUE),
-                               collapse = '\t'),
-                  sep = '\t', stringsAsFactors = FALSE)
-names(args) =
-  c('delx', 'dely', 'alpha', 'eta', 'lt', 'theta',
-    'features', 'kde.bw', 'kde.lags', 'crime.type', 'horizon')
-attach(args)
+# #each argument read in as a string in a character vector;
+# #  would rather have them as a list. basically do
+# #  that by converting them to a form read.table
+# #  understands and then attaching from a data.frame
+# args = read.table(text = paste(commandArgs(trailingOnly = TRUE),
+#                                collapse = '\t'),
+#                   sep = '\t', stringsAsFactors = FALSE)s
+# names(args) =
+#   c('delx', 'dely', 'alpha', 'eta', 'lt', 'theta',
+#     'features', 'kde.bw', 'kde.lags', 'crime.type', 'horizon')
+# attach(args)
 
 # baselines for testing: 
 
-# cat("**********************\n",
-#     "* TEST PARAMETERS ON *\n",
-#     "**********************\n")
-# delx = dely = 600; alpha = 0;
-# eta = 1; lt = 1; theta =0;
-# features = 100; kde.bw = 500;
-# kde.lags = 1; crime.type = 'all'; horizon = '1m'
+cat("**********************\n",
+    "* TEST PARAMETERS ON *\n",
+    "**********************\n")
+delx = dely = 300; alpha = 0;
+eta = 1; lt = 1; theta =0;
+features = 50; kde.bw = 500;
+kde.lags = 1; crime.type = 'all'; horizon = '3m'
 
 aa = delx*dely #forecasted area
 lx = eta*delx
