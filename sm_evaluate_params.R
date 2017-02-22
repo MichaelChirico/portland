@@ -37,8 +37,8 @@ attach(args)
 #     "**********************\n")
 
 aa = delx*dely #forecasted area
-lx = eta*delx
-ly = eta*dely
+lx = eta
+ly = eta
 #What weeks cover the recent past data
 #  and the furthest "future" date to forecast
 ## training t ends:
