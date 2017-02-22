@@ -28,17 +28,17 @@ names(args) =
     'features', 'kde.bw', 'kde.lags', 'kde.win', 'crime.type', 'horizon')
 attach(args)
 
-# # baselines for testing: 
-# delx=600;dely=600;alpha=0;eta=2;lt=6;theta=0
-# features=10;kde.bw=400;kde.lags=15;kde.win = 7
-# horizon='2w';crime.type='all'
+# # baselines for testing:
+# delx=250;dely=250;alpha=0;eta=2.72;lt=2.42;theta=0
+# features=10;kde.bw=313;kde.lags=15;kde.win = 7
+# horizon='1m';crime.type='all'
 # cat("**********************\n",
 #     "* TEST PARAMETERS ON *\n",
 #     "**********************\n")
 
 aa = delx*dely #forecasted area
-lx = eta
-ly = eta
+lx = eta*250
+ly = eta*250
 #What weeks cover the recent past data
 #  and the furthest "future" date to forecast
 ## training t ends:
@@ -366,13 +366,13 @@ NN = X[ , sum(value)]
 for (ii in seq_len(nrow(tuning_variations))) {
   model = tempfile(tmpdir = tdir, pattern = "model")
   #train with VW
-  with(tuning_variations[ii],
-       system(paste(path_to_vw, '--loss_function poisson --l1', l1, '--l2', l2,
+  call.vw = with(tuning_variations[ii],
+       paste(path_to_vw, '--loss_function poisson --l1', l1, '--l2', l2,
                     '--learning_rate', lambda,
                     '--decay_learning_rate', delta,
                     '--initial_t', T0, '--power_t', pp, train.vw,
-                    '--cache_file', cache, '--passes 200 -f', model),
-              ignore.stderr = TRUE))
+                    '--cache_file', cache, '--passes 200 -f', model))
+  system(call.vw, ignore.stderr = TRUE)
   #training data now stored in cache format,
   #  so can delete original (don't need to, but this is a useful
   #  check to force an error if s.t. wrong with cache)
