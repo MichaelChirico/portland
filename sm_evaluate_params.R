@@ -16,25 +16,25 @@ suppressMessages({
 #from random.org
 set.seed(60251935)
 
-# each argument read in as a string in a character vector;
- # would rather have them as a list. basically do
- # that by converting them to a form read.table
- # understands and then attaching from a data.frame
-args = read.table(text = paste(commandArgs(trailingOnly = TRUE),
-                               collapse = '\t'),
-                  stringsAsFactors = FALSE)
-names(args) =
-  c('delx', 'dely', 'alpha', 'eta', 'lt', 'theta',
-    'features', 'kde.bw', 'kde.lags', 'kde.win', 'crime.type', 'horizon')
-attach(args)
+# # each argument read in as a string in a character vector;
+#  # would rather have them as a list. basically do
+#  # that by converting them to a form read.table
+#  # understands and then attaching from a data.frame
+# args = read.table(text = paste(commandArgs(trailingOnly = TRUE),
+#                                collapse = '\t'),
+#                   stringsAsFactors = FALSE)
+# names(args) =
+#   c('delx', 'dely', 'alpha', 'eta', 'lt', 'theta',
+#     'features', 'kde.bw', 'kde.lags', 'kde.win', 'crime.type', 'horizon')
+# attach(args)
 
 # # baselines for testing:
-# delx=250;dely=250;alpha=0;eta=2.72;lt=2.42;theta=0
-# features=10;kde.bw=313;kde.lags=15;kde.win = 7
-# horizon='1m';crime.type='all'
-# cat("**********************\n",
-#     "* TEST PARAMETERS ON *\n",
-#     "**********************\n")
+delx=250;dely=250;alpha=0;eta=2.72;lt=2.42;theta=0
+features=10;kde.bw=313;kde.lags=15;kde.win = 7
+horizon='1m';crime.type='all'
+cat("**********************\n",
+    "* TEST PARAMETERS ON *\n",
+    "**********************\n")
 
 aa = delx*dely #forecasted area
 lx = eta*250
@@ -223,7 +223,7 @@ compute.kde <- function(pts) {
 kde = crimes[!is.na(lag_no), .(value = compute.kde(to.spdf(.SD))), by = .(fyear, lag_no)]
 setkey(kde, fyear, lag_no)
 kde[, I := rowid(fyear, lag_no)]
-plot(SpatialGridDataFrame(grdtop, kde[.(2016, 5), 'value']))
+# plot(SpatialGridDataFrame(grdtop, kde[.(2016, 5), 'value']))
 # add kdes to data
 lag_names = paste0('kde', 1:kde.lags)
 for (llag in seq_along(lag_names)){
@@ -321,6 +321,9 @@ fwrite(phi.dt[!X$train], test.vw,
 
 # #can eliminate all the testing data now that it's written
 X = X[(!train)]
+# print('**** this should not be zero!')
+# X[, .N]
+# stop('about to call vw')
 rm(phi.dt)
 
 tuning_variations =
