@@ -18,7 +18,7 @@ rsconnect/
 *.qpj
 *.shp
 *.shx
-!crimes_*
+#!crimes_*
 #too many
 pei_pai_scripts/*.pdf
 #should tempfile these?
