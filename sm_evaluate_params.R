@@ -25,7 +25,7 @@ args = read.table(text = paste(commandArgs(trailingOnly = TRUE),
                   stringsAsFactors = FALSE)
 names(args) =
   c('delx', 'dely', 'alpha', 'eta', 'lt', 'theta',
-    'features', 'kde.bw', 'kde.lags', 'kde.win', 'horizon', 'crime.type')
+    'features', 'kde.bw', 'kde.lags', 'kde.win', 'crime.type', 'horizon')
 attach(args)
 
 # # baselines for testing:
