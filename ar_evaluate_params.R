@@ -282,14 +282,10 @@ X = X[(!train)]
 rm(phi.dt)
 
 tuning_variations =
-  data.table(l1 = c(1e-6, 1e-4, 1e-3, 5e-3, rep(1e-5, 23L)),
+  data.table(l1 = c(1e-6, 1e-4, 1e-3, 5e-3, rep(1e-5, 11L)),
              l2 = c(rep(1e-4, 4L), 1e-6, 5e-6,
-                    1e-5, 5e-5, 5e-4, rep(1e-4, 18L)),
-             lambda = c(rep(.5, 9L), .01, .05,
-                        .1, .25, .75, 1, 1.5, rep(.5, 11L)),
-             delta = c(rep(1, 16L), .5, 1.5, rep(1, 9L)),
-             T0 = c(rep(0, 18L), .5, 1, 1.5, rep(0, 6L)),
-             pp = c(rep(.5, 21L), .25, .33, .5,
+                    1e-5, 5e-5, 5e-4, rep(1e-4, 6L)),
+             pp = c(rep(.5, 9L), .25, .33, .5,
                     .66, .75, 1))
 n_var = nrow(tuning_variations)
 
