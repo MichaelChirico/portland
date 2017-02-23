@@ -28,9 +28,9 @@ names(args) =
 attach(args)
 
 # # baselines for testing:
-# delx=600;dely=250;alpha=0;eta=5;lt=3;theta=0
-# features=100;kde.bw=750;kde.lags=8;kde.win = 15
-# horizon='2w';crime.type='vehicle'
+# delx=250;dely=250;alpha=0;eta=1;lt=1;theta=0
+# features=20;kde.bw=125;kde.lags=4;kde.win = 2
+# horizon='3m';crime.type='burglary'
 # cat("**********************\n",
 #     "* TEST PARAMETERS ON *\n",
 #     "**********************\n")
@@ -181,6 +181,9 @@ setkey(crimes.sp@data, occ_date_int)
 compute.kde <- function(pts, start, lag.no) {
   #subset using data.table for speed (?)
   idx = pts@data[occ_date_int %between% (start - kde.win*lag.no + c(0, kde.win - 1L)), which = TRUE]
+  #if no crimes found, just return 0
+  #  (spkernel2d handles this with varying degrees of success)
+  if (!length(idx)) return(rep(0, length(incl_ids)))
   kde = spkernel2d(pts = pts[idx, ],
                    #quartic kernel used by default
                    poly = portland, h0 = kde.bw, grd = grdtop)[incl_ids]
