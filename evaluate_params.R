@@ -39,14 +39,13 @@ names(args) =
 attach(args)
 
 # baselines for testing: 
-
 # cat("**********************\n",
 #     "* TEST PARAMETERS ON *\n",
 #     "**********************\n")
-# delx = dely = 300; alpha = 0;
-# eta = 1; lt = 1; theta =0;
-# features = 50; kde.bw = 500;
-# kde.lags = 1; crime.type = 'all'; horizon = '3m'
+# delx = 281;dely = 271; alpha = 0.037;
+# eta = .856; lt = .682; theta =71;
+# features = 167; kde.bw = 265.95;
+# kde.lags = 2; crime.type = 'burglary'; horizon = '2w'
 
 aa = delx*dely #forecasted area
 lx = eta*delx
@@ -263,7 +262,11 @@ if (length(cd.cases)) {
 categories = c('all', 'street', 'burglary', 'vehicle')
 other.crimes = setdiff(categories, crime.type)
 other.crimes.files = sapply(other.crimes, get.crime.file)
-other.crimes.dt = lapply(other.crimes.files, fread)
+other.crimes.dt = 
+  lapply(other.crimes.files, function(ff) 
+    fread(ff)[ , paste0(c('x', 'y'), '_coordina') :=
+                 as.data.table(rotate(x_coordina, y_coordina,
+                                      theta, point0))][])
 other.crimes.spdf = sapply(other.crimes.dt, to.spdf)
 other.crimes.kdes = setDT(sapply(other.crimes.spdf, compute.kde.list))
 setnames(other.crimes.kdes, gsub('V', 'xkde', names(other.crimes.kdes)))
@@ -293,8 +296,12 @@ crimes.grid.dt[ , lg.kde := {
 # 2) transfrom grid to SpatialPolygons
 # 3) spatial overlay of the two objects using centroids of each cell
 # ============================================================================
-portland.pd = readShapePoly("./data/Portland_Police_Districts.shp", 
-                            proj4string = prj)
+portland.pd = elide(
+  readShapePoly("./data/Portland_Police_Districts.shp",  proj4string = prj),
+  rotate = -theta*180/pi, center = point0
+)
+#elide appears to erase projection
+proj4string(portland.pd) = prj
   
 # create SpatialPOlygonsDataFrame with grid
 grd.sp = as.SpatialPolygons.GridTopology(grdtop, proj4string = prj)
