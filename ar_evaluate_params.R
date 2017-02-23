@@ -28,12 +28,12 @@ names(args) =
 attach(args)
 
 # # baselines for testing:
-delx=250;dely=250;alpha=0;eta=2.72;lt=2.42;theta=0
-features=10;kde.bw=313;kde.lags=5;kde.win = 7
-horizon='2m';crime.type='all'
-cat("**********************\n",
-    "* TEST PARAMETERS ON *\n",
-    "**********************\n")
+# delx=500;dely=500;alpha=0;eta=2.72;lt=2.42;theta=0
+# features=10;kde.bw=313;kde.lags=5;kde.win = 28
+# horizon='2m';crime.type='burglary'
+# cat("**********************\n",
+#     "* TEST PARAMETERS ON *\n",
+#     "**********************\n")
 
 aa = delx*dely #forecasted area
 lx = eta*250
@@ -378,14 +378,14 @@ invisible(file.remove(cache, test.vw))
 # WRITE RESULTS FILE AND TIMINGS
 # <><><><><><><><><><><><><><><><><><><><><><><><><><><><><><><><><><><><><><>=
 
-ff = paste0("scores/", 'sm_',crime.type, "_", horizon, job_id, ".csv")
+ff = paste0("scores/", 'ar_',crime.type, "_", horizon, job_id, ".csv")
 fwrite(scores, ff, append = file.exists(ff))
 
 t1 = proc.time()["elapsed"]
 ft = paste0("timings/", crime.type, "_", horizon, job_id, ".csv")
 if (!file.exists(ft))
-  cat("delx,dely,alpha,eta,lt,theta,k,kde.bw,kde.lags,time\n", sep = "", file = ft)
+  cat("delx,dely,alpha,eta,lt,theta,k,kde.bw,kde.lags,kde.win,time\n", sep = "", file = ft)
 params = paste(delx, dely, alpha, eta, lt, theta, features,
-               kde.bw, kde.lags, t1 - t0, sep = ",")
+               kde.bw, kde.lags, kde.win, t1 - t0, sep = ",")
 cat(params, "\n", sep = "", append = TRUE, file = ft)
 
