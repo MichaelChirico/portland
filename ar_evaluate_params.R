@@ -28,9 +28,9 @@ names(args) =
 attach(args)
 
 # # baselines for testing:
-# delx=500;dely=500;alpha=0;eta=2.72;lt=2.42;theta=0
-# features=10;kde.bw=313;kde.lags=5;kde.win = 28
-# horizon='2m';crime.type='burglary'
+# delx=600;dely=250;alpha=0;eta=5;lt=3;theta=0
+# features=100;kde.bw=750;kde.lags=8;kde.win = 15
+# horizon='2w';crime.type='vehicle'
 # cat("**********************\n",
 #     "* TEST PARAMETERS ON *\n",
 #     "**********************\n")
@@ -292,9 +292,8 @@ n_var = nrow(tuning_variations)
 #initialize parameter records table
 scores = data.table(delx, dely, alpha, eta, lt, theta, k = features,
                     l1 = numeric(n_var), l2 = numeric(n_var),
-                    lambda = numeric(n_var), delta = numeric(n_var),
-                    t0 = numeric(n_var), p = numeric(n_var),
-                    kde.bw, kde.n = 'all', kde.lags, kde.win,
+                    p = numeric(n_var), kde.bw, kde.n = 'all', 
+                    kde.lags, kde.win,
                     pei = numeric(n_var), pai = numeric(n_var))
 
 #when we're at the minimum forecast area, we must round up
@@ -322,11 +321,9 @@ for (ii in seq_len(nrow(tuning_variations))) {
   model = tempfile(tmpdir = tdir, pattern = "model")
   #train with VW
   call.vw = with(tuning_variations[ii],
-       paste(path_to_vw, '--loss_function poisson --l1', l1, '--l2', l2,
-                    '--learning_rate', lambda,
-                    '--decay_learning_rate', delta,
-                    '--initial_t', T0, '--power_t', pp, train.vw,
-                    '--cache_file', cache, '--passes 200 -f', model))
+                 paste(path_to_vw, '--loss_function poisson --l1', l1, 
+                       '--l2', l2, '--power_t', pp, train.vw,
+                       '--cache_file', cache, '--passes 200 -f', model))
   system(call.vw, ignore.stderr = TRUE)
   #training data now stored in cache format,
   #  so can delete original (don't need to, but this is a useful
@@ -358,8 +355,7 @@ for (ii in seq_len(nrow(tuning_variations))) {
   #how well did we do? lower-case n in the PEI/PAI calculation
   nn = X[(hotspot), sum(value)]
   
-  scores[ii, c('l1', 'l2', 'lambda', 'delta',
-               't0', 'p', 'pei', 'pai') :=
+  scores[ii, c('l1', 'l2', 'p', 'pei', 'pai') :=
            c(tuning_variations[ii],
              list(pei = nn/N_star,
                   #pre-calculated the total area of portland
