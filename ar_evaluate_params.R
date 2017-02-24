@@ -28,12 +28,12 @@ names(args) =
 attach(args)
 
 # # baselines for testing:
-# delx=250;dely=250;alpha=0;eta=1;lt=1;theta=0
-# features=20;kde.bw=125;kde.lags=4;kde.win = 2
-# horizon='3m';crime.type='burglary'
-# cat("**********************\n",
-#     "* TEST PARAMETERS ON *\n",
-#     "**********************\n")
+delx=600;dely=600;alpha=0;eta=1;lt=1;theta=0
+features=5;kde.bw=125;kde.lags=2;kde.win = 2
+horizon='3m';crime.type='burglary'
+cat("**********************\n",
+    "* TEST PARAMETERS ON *\n",
+    "**********************\n")
 
 #turn me on/off to control LHS trimming
 trimLHS = FALSE
@@ -276,12 +276,17 @@ rm(proj)
 # 
 #temporary files
 source("local_setup.R")
-train.vw = tempfile(tmpdir = tdir, pattern = "train")
-test.vw = tempfile(tmpdir = tdir, pattern = "test")
+filename = paste('ar',crime.type,horizon,delx,dely,alpha,eta,lt,theta,features,kde.bw,kde.lags,kde.win,sep = '_')
+filename = paste(filename, paste0(sample(5, replace = TRUE), collapse = ''), sep='_')
+train.vw = paste(paste0(tdir,'/train'), filename, sep='_')
+test.vw = paste(paste0(tdir,'/test'), filename, sep='_')
+# train.vw = tempfile(tmpdir = tdir, pattern = "train")
+# test.vw = tempfile(tmpdir = tdir, pattern = "test")
 #simply append .cache suffix to make it easier
 #  to track association when debugging
 cache = paste0(train.vw, '.cache')
-pred.vw = tempfile(tmpdir = tdir, pattern = "predict")
+# pred.vw = tempfile(tmpdir = tdir, pattern = "predict")
+pred.vw = paste(paste0(tdir,'/pred'), filename, sep='_')
 fwrite(phi.dt[X$train], train.vw,
        sep = " ", quote = FALSE, col.names = FALSE,
        showProgress = FALSE)
