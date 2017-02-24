@@ -276,7 +276,7 @@ rm(proj)
 # 
 #temporary files
 source("local_setup.R")
-filename = paste('ar',crime.type,horizon,delx,dely,alpha,eta,lt,theta,features,kde.bw,kde.lags,kde.win,sep = '_')
+filename = paste('arws',crime.type,horizon,delx,dely,alpha,eta,lt,theta,features,kde.bw,kde.lags,kde.win,sep = '_')
 filename = paste(filename, paste0(sample(5, replace = TRUE), collapse = ''), sep='_')
 train.vw = paste(paste0(tdir,'/train'), filename, sep='_')
 test.vw = paste(paste0(tdir,'/test'), filename, sep='_')
