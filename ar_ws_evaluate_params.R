@@ -36,7 +36,7 @@ attach(args)
 #     "**********************\n")
 
 #turn me on/off to control LHS trimming
-trimLHS = FALSE
+trimLHS = TRUE
 if (trimLHS) 
   incl_mos = c(10L, 11L, 12L, 1L, 2L, 3L,
                if (horizon %in% c('2m', '3m')) 4L,
