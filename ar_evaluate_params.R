@@ -12,6 +12,8 @@ suppressMessages({
   library(maptools)
 })
 
+if (Sys.info()["nodename"] == 'comp-master') setwd('/backup/portland')
+
 #from random.org
 set.seed(60251935)
 

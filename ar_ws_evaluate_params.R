@@ -15,6 +15,9 @@ suppressMessages({
 #from random.org
 set.seed(60251935)
 
+if (Sys.info()["nodename"] == 'comp-master') setwd('/backup/portland')
+
+
 # each argument read in as a string in a character vector;
  # would rather have them as a list. basically do
  # that by converting them to a form read.table
