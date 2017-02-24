@@ -28,12 +28,12 @@ names(args) =
 attach(args)
 
 # # baselines for testing:
-# delx=600;dely=600;alpha=0;eta=1;lt=1;theta=0
-# features=5;kde.bw=125;kde.lags=2;kde.win = 2
-# horizon='3m';crime.type='burglary'
-# cat("**********************\n",
-#     "* TEST PARAMETERS ON *\n",
-#     "**********************\n")
+delx=298;dely=259;alpha=0.03;eta=.876;lt=.813;theta=0
+features=89;kde.bw=490.6;kde.lags=1;kde.win = 9
+horizon='3m';crime.type='burglary'
+cat("**********************\n",
+    "* TEST PARAMETERS ON *\n",
+    "**********************\n")
 
 #turn me on/off to control LHS trimming
 trimLHS = FALSE
@@ -276,8 +276,9 @@ rm(proj)
 # 
 #temporary files
 source("local_setup.R")
-filename = paste('ar',crime.type,horizon,delx,dely,alpha,eta,lt,theta,features,kde.bw,kde.lags,kde.win,sep = '_')
-filename = paste(filename, paste0(sample(5, replace = TRUE), collapse = ''), sep='_')
+filename = paste('ar',crime.type,horizon,delx,dely,alpha,eta,lt,
+                 theta,features,kde.bw,kde.lags,kde.win,sep = '_')
+filename = paste(filename, job_id, sep='_')
 train.vw = paste(paste0(tdir,'/train'), filename, sep='_')
 test.vw = paste(paste0(tdir,'/test'), filename, sep='_')
 # train.vw = tempfile(tmpdir = tdir, pattern = "train")
@@ -302,9 +303,9 @@ X = X[(!train)]
 rm(phi.dt)
 
 tuning_variations =
-  data.table(l1 = c(1e-6, 1e-4, 1e-3, 5e-3, rep(1e-5, 11L)),
-             l2 = c(rep(1e-4, 4L), 1e-6, 5e-6,
-                    1e-5, 5e-5, 5e-4, rep(1e-4, 6L)),
+  data.table(l1 = c(0, 1e-6, 1e-4, 1e-3, rep(1e-5, 11L)),
+             l2 = c(rep(1e-4, 4L), 0, 1e-6, 5e-6,
+                    1e-5, 5e-5, rep(1e-4, 6L)),
              pp = c(rep(.5, 9L), .25, .33, .5,
                     .66, .75, 1))
 n_var = nrow(tuning_variations)
