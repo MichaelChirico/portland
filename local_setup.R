@@ -17,6 +17,6 @@ if(grepl("ziz",hostname)) { # Seth's setup
 } else {
   tdir = "delete_me"
   job_id = if (length(jid <- Sys.getenv("REQNAME"))) 
-    gsub("\\..*", "", jid) else ""
+    gsub(".*/|\\..*", "", jid) else ""
   path_to_vw = "vw" 
 }
