@@ -35,6 +35,13 @@ attach(args)
 #     "* TEST PARAMETERS ON *\n",
 #     "**********************\n")
 
+#turn me on/off to control LHS trimming
+trimLHS = FALSE
+if (trimLHS) 
+  incl_mos = c(10L, 11L, 12L, 1L, 2L, 3L,
+               if (horizon %in% c('2m', '3m')) 4L,
+               if (horizon == '3m') 5L)
+
 aa = delx*dely #forecasted area
 lx = eta*250
 ly = eta*250
@@ -163,6 +170,11 @@ X = crimes[!is.na(start_date), as.data.table(pixellate(ppp(
   eps = c(x = delx, dely)))[idx.new],
   #subset to eliminate never-crime cells
   keyby = start_date][ , I := rowid(start_date)][I %in% incl_ids]
+
+if (trimLHS) {
+  X = X[month(as.IDate(start_date, origin = '1970-01-01')) %in% incl_mos]
+  start = X[ , unique(start_date)]
+}
 
 X[ , train := start_date < march117 - one_year*pd_length]
 
