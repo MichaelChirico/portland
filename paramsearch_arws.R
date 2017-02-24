@@ -24,7 +24,7 @@ for(i in 1:nrow(params)) {
                  #!/bin/bash
                  module load R
                  module load vowpal_wabbit
-                 Rscript /backup/portland/arws_evaluate_params.R ",i,i), delx,dely,alpha,eta,lt,theta,k,kde.bw,kde.lags,kde.win,crime,horizon,"\n", 
+                 Rscript /backup/portland/ar_ws_evaluate_params.R ",i,i), delx,dely,alpha,eta,lt,theta,k,kde.bw,kde.lags,kde.win,crime,horizon,"\n", 
          file=sprintf("scripts/arwsmodel-%d.bash",i)
          )
        )
