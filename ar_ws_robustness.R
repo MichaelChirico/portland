@@ -29,20 +29,20 @@ for(i in 1:nrow(params)) {
   with(params[i],
        cat(
          sprintf("#!/bin/sh
-                 #$ -cwd
-                 #$ -q all.q
-                 #$ -pe openmp 1
-                 #$ -S /bin/bash
-                 #$ -o /home/chiricom/portland/output_robust.log
-                 #$ -e /home/chiricom/portland/error_robust.log
+#$ -cwd
+#$ -q all.q
+#$ -pe openmp 1
+#$ -S /bin/bash
+#$ -o /home/chiricom/portland/output_robust.log
+#$ -e /home/chiricom/portland/error_robust.log
 
-                 source /etc/profile.d/modules.sh
-                 module unload R/3.2.3
-                 module load shared R/3.3.2 vowpal_wabbit gcc/5.2.0
-                 #see http://stackoverflow.com/questions/6395078/
-                 unset R_HOME
-
-                 Rscript ~/portland/ar_ws_15_evaluate_params.R ",i,i),
+source /etc/profile.d/modules.sh
+module unload R/3.2.3
+module load shared R/3.3.2 vowpal_wabbit gcc/5.2.0
+#see http://stackoverflow.com/questions/6395078/
+unset R_HOME
+                 
+Rscript /backup/portland/ar_ws_15_evaluate_params.R "),
          delx,dely,eta,lt,theta,k,kde.bw,kde.lags,kde.win,crime,horizon,"\n", 
          file=sprintf("scripts/arwsmodel15-%d.bash",i)
          )
