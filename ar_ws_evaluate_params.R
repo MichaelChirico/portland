@@ -26,12 +26,12 @@ args = read.table(text = paste(commandArgs(trailingOnly = TRUE),
                                collapse = '\t'),
                   stringsAsFactors = FALSE)
 names(args) =
-  c('delx', 'dely', 'alpha', 'eta', 'lt', 'theta',
+  c('delx', 'dely', 'eta', 'lt', 'theta',
     'features', 'kde.bw', 'kde.lags', 'kde.win', 'crime.type', 'horizon')
 attach(args)
 
 # # baselines for testing:
-# delx=600;dely=600;alpha=0;eta=1;lt=1;theta=0
+# delx=600;dely=600;eta=1;lt=1;theta=0
 # features=5;kde.bw=125;kde.lags=2;kde.win = 2
 # horizon='3m';crime.type='burglary'
 # cat("**********************\n",
@@ -279,7 +279,7 @@ rm(proj)
 # 
 #temporary files
 source("local_setup.R")
-filename = paste('arws',crime.type,horizon,delx,dely,alpha,eta,lt,theta,features,kde.bw,kde.lags,kde.win,sep = '_')
+filename = paste('arws',crime.type,horizon,delx,dely,eta,lt,theta,features,kde.bw,kde.lags,kde.win,sep = '_')
 filename = paste(filename, job_id, sep='_')
 train.vw = paste(paste0(tdir,'/train'), filename, sep='_')
 test.vw = paste(paste0(tdir,'/test'), filename, sep='_')
@@ -313,23 +313,15 @@ tuning_variations =
 n_var = nrow(tuning_variations)
 
 #initialize parameter records table
-scores = data.table(delx, dely, alpha, eta, lt, theta, k = features,
+scores = data.table(delx, dely, eta, lt, theta, k = features,
                     l1 = numeric(n_var), l2 = numeric(n_var),
                     p = numeric(n_var), kde.bw, kde.n = 'all', 
                     kde.lags, kde.win,
                     pei = numeric(n_var), pai = numeric(n_var))
 
-#when we're at the minimum forecast area, we must round up
-#  to be sure we don't undershoot; when at the max,
-#  we must round down; otherwise, just round
-# **TO DO: if we predict any boundary cells and are using the minimum
-#          forecast area, WE'LL FALL BELOW IT WHEN WE CLIP TO PORTLAND **
-which.round = function(x)
-  if (x > 0) {if (x < 1) round else floor} else ceiling
-
 #6969600 ft^2 = .25 mi^2 (minimum forecast area);
 #triple this is maximum forecast area
-n.cells = as.integer(which.round(alpha)(6969600*(1+2*alpha)/aa))
+n.cells = as.integer(celing(6969600/aa))
 
 #Calculate PEI & PAI denominators here since they are the
 #  same for all variations of tuning parameters,
@@ -399,8 +391,8 @@ fwrite(scores, ff, append = file.exists(ff))
 t1 = proc.time()["elapsed"]
 ft = paste0("timings/", crime.type, "_", horizon, job_id, ".csv")
 if (!file.exists(ft))
-  cat("delx,dely,alpha,eta,lt,theta,k,kde.bw,kde.lags,kde.win,time\n", sep = "", file = ft)
-params = paste(delx, dely, alpha, eta, lt, theta, features,
+  cat("delx,dely,eta,lt,theta,k,kde.bw,kde.lags,kde.win,time\n", sep = "", file = ft)
+params = paste(delx, dely, eta, lt, theta, features,
                kde.bw, kde.lags, kde.win, t1 - t0, sep = ",")
 cat(params, "\n", sep = "", append = TRUE, file = ft)
 
