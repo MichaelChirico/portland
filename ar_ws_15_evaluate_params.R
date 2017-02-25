@@ -35,12 +35,12 @@ names(args) =
 attach(args)
 
 # # baselines for testing:
-# delx=600;dely=600;eta=1;lt=1;theta=0
-# features=5;kde.bw=125;kde.lags=2;kde.win = 2
-# horizon='3m';crime.type='burglary'
-# cat("**********************\n",
-#     "* TEST PARAMETERS ON *\n",
-#     "**********************\n")
+delx=600;dely=600;eta=1;lt=1;theta=0
+features=5;kde.bw=125;kde.lags=2;kde.win = 2
+horizon='3m';crime.type='burglary'
+cat("**********************\n",
+    "* TEST PARAMETERS ON *\n",
+    "**********************\n")
 
 #turn me on/off to control LHS trimming
 trimLHS = TRUE
@@ -183,7 +183,7 @@ if (trimLHS) {
   start = X[ , unique(start_date)]
 }
 
-X[ , train := start_date < march117 - one_year*pd_length]
+X[ , train := start_date != march117 - 2L*one_year*pd_length]
 
 # create sp object of crimes
 to.spdf = function(dt) {
@@ -336,7 +336,7 @@ N_star = X[ , .(tot.crimes = sum(value)), by = I
 NN = X[ , sum(value)]
 
 for (ii in seq_len(nrow(tuning_variations))) {
-  # print(ii)
+  print(ii)
   model = tempfile(tmpdir = tdir, pattern = "model")
   #train with VW
   call.vw = with(tuning_variations[ii],
@@ -385,28 +385,10 @@ invisible(file.remove(cache, test.vw))
 # sgdf = SpatialGridDataFrame(grdtop, 
 #    data = kde[.(2016,1)])
 # plot(sgdf[sgdf$I %in% hotspot.ids,,'value'])
-
-# <><><><><><><><><><><><><><><><><><><><><><><><><><><><><><><><><><><><><><>
-# PRINT SCORES TO STDOUT  ====
-# <><><><><><><><><><><><><><><><><><><><><><><><><><><><><><><><><><><><><><>
-
-best_scores = unlist(scores[order(-pai)[1]], use.names = FALSE)
-best_scores = paste(best_scores, collapse = '/')
-best_scores = paste0('[[[',best_scores,']]]')
-print(best_scores)
-
 # <><><><><><><><><><><><><><><><><><><><><><><><><><><><><><><><><><><><><><>=
 # WRITE RESULTS FILE AND TIMINGS
 # <><><><><><><><><><><><><><><><><><><><><><><><><><><><><><><><><><><><><><>=
 
-ff = paste0("scores/", 'ar_',crime.type, "_", horizon, job_id, ".csv")
+ff = paste0("scores/", 'ar_15_',crime.type, "_", horizon, job_id, ".csv")
 fwrite(scores, ff, append = file.exists(ff))
-
-t1 = proc.time()["elapsed"]
-ft = paste0("timings/", crime.type, "_", horizon, job_id, ".csv")
-if (!file.exists(ft))
-  cat("delx,dely,eta,lt,theta,k,kde.bw,kde.lags,kde.win,time\n", sep = "", file = ft)
-params = paste(delx, dely, eta, lt, theta, features,
-               kde.bw, kde.lags, kde.win, t1 - t0, sep = ",")
-cat(params, "\n", sep = "", append = TRUE, file = ft)
 
