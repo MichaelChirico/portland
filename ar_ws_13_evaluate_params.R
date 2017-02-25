@@ -35,12 +35,12 @@ names(args) =
 attach(args)
 
 # # baselines for testing:
-delx=600;dely=600;eta=1;lt=1;theta=0
-features=5;kde.bw=125;kde.lags=2;kde.win = 2
-horizon='3m';crime.type='burglary'
-cat("**********************\n",
-    "* TEST PARAMETERS ON *\n",
-    "**********************\n")
+# delx=600;dely=600;eta=1;lt=1;theta=0
+# features=5;kde.bw=125;kde.lags=2;kde.win = 2
+# horizon='3m';crime.type='burglary'
+# cat("**********************\n",
+#     "* TEST PARAMETERS ON *\n",
+#     "**********************\n")
 
 #turn me on/off to control LHS trimming
 trimLHS = TRUE
