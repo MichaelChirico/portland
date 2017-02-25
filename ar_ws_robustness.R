@@ -42,7 +42,7 @@ module load shared R/3.3.2 vowpal_wabbit gcc/5.2.0
 #see http://stackoverflow.com/questions/6395078/
 unset R_HOME
                  
-Rscript /backup/portland/ar_ws_15_evaluate_params.R "),
+Rscript ~/portland/ar_ws_15_evaluate_params.R "),
          delx,dely,eta,lt,theta,k,kde.bw,kde.lags,kde.win,crime,horizon,"\n", 
          file=sprintf("scripts/arwsmodel15-%d.bash",i)
          )
