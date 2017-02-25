@@ -325,7 +325,7 @@ scores = data.table(delx, dely, eta, lt, theta, k = features,
 
 #6969600 ft^2 = .25 mi^2 (minimum forecast area);
 #triple this is maximum forecast area
-n.cells = as.integer(celing(6969600/aa))
+n.cells = as.integer(ceiling(6969600/aa))
 
 #Calculate PEI & PAI denominators here since they are the
 #  same for all variations of tuning parameters,
@@ -336,7 +336,7 @@ N_star = X[ , .(tot.crimes = sum(value)), by = I
 NN = X[ , sum(value)]
 
 for (ii in seq_len(nrow(tuning_variations))) {
-  print(ii)
+  # print(ii)
   model = tempfile(tmpdir = tdir, pattern = "model")
   #train with VW
   call.vw = with(tuning_variations[ii],
@@ -385,6 +385,16 @@ invisible(file.remove(cache, test.vw))
 # sgdf = SpatialGridDataFrame(grdtop, 
 #    data = kde[.(2016,1)])
 # plot(sgdf[sgdf$I %in% hotspot.ids,,'value'])
+
+# <><><><><><><><><><><><><><><><><><><><><><><><><><><><><><><><><><><><><><>
+# PRINT SCORES TO STDOUT  ====
+# <><><><><><><><><><><><><><><><><><><><><><><><><><><><><><><><><><><><><><>
+
+best_scores = unlist(scores[order(-pai)[1]], use.names = FALSE)
+best_scores = paste(best_scores, collapse = '/')
+best_scores = paste0('[[[',best_scores,']]]')
+print(best_scores)
+
 # <><><><><><><><><><><><><><><><><><><><><><><><><><><><><><><><><><><><><><>=
 # WRITE RESULTS FILE AND TIMINGS
 # <><><><><><><><><><><><><><><><><><><><><><><><><><><><><><><><><><><><><><>=
