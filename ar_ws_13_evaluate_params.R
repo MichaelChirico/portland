@@ -325,7 +325,7 @@ scores = data.table(delx, dely, eta, lt, theta, k = features,
 
 #6969600 ft^2 = .25 mi^2 (minimum forecast area);
 #triple this is maximum forecast area
-n.cells = as.integer(celing(6969600/aa))
+n.cells = as.integer(ceiling(6969600/aa))
 
 #Calculate PEI & PAI denominators here since they are the
 #  same for all variations of tuning parameters,
