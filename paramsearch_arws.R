@@ -24,6 +24,8 @@ params = CJ(
                  #!/bin/bash
                  module load R
                  module load vowpal_wabbit
+                 unset R_HOME
+
                  cd /home/ubuntu/scratch/portland
                  Rscript ar_ws_evaluate_params.R ",i,i), delx,dely,alpha,eta,lt,theta,k,kde.bw,kde.lags,kde.win,crime,horizon,"\n", 
          file=sprintf("scripts/arwsmodel-%d.bash",i)
