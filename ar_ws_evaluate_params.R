@@ -15,7 +15,11 @@ suppressMessages({
 #from random.org
 set.seed(60251935)
 
-if (grepl('comp', Sys.info()["nodename"])) setwd('/backup/portland')
+if (grepl('comp', Sys.info()["nodename"]) & grepl('backup', getwd())) {
+  setwd('/backup/portland')
+} else if (grepl('comp', Sys.info()["nodename"]) & !grepl('backup', getwd())) {
+  setwd('/home/ubuntu/scratch/portland')
+}
 
 
 # each argument read in as a string in a character vector;

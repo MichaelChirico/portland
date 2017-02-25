@@ -16,15 +16,16 @@ params = CJ(
 )
 
 # 400 400 0 2 2 0 50 250 5 5 all 2w
-for(i in 1:nrow(params)) {
-  # for(i in 1:50) {
+# for(i in 1:nrow(params)) {
+  for(i in 1:10) {
   with(params[i,],
        cat(
          sprintf("
                  #!/bin/bash
                  module load R
                  module load vowpal_wabbit
-                 Rscript /backup/portland/ar_ws_evaluate_params.R ",i,i), delx,dely,alpha,eta,lt,theta,k,kde.bw,kde.lags,kde.win,crime,horizon,"\n", 
+                 cd /home/ubuntu/scratch/portland
+                 Rscript ar_ws_evaluate_params.R ",i,i), delx,dely,alpha,eta,lt,theta,k,kde.bw,kde.lags,kde.win,crime,horizon,"\n", 
          file=sprintf("scripts/arwsmodel-%d.bash",i)
          )
        )
