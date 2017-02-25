@@ -43,7 +43,7 @@ for(i in 1:nrow(params)) {
                  #see http://stackoverflow.com/questions/6395078/
                  unset R_HOME
 
-                 Rscript /backup/portland/ar_ws_15_evaluate_params.R ",i,i),
+                 Rscript ~/portland/ar_ws_15_evaluate_params.R ",i,i),
          delx,dely,eta,lt,theta,k,kde.bw,kde.lags,kde.win,crime,horizon,"\n", 
          file=sprintf("scripts/arwsmodel15-%d.bash",i)
          )
