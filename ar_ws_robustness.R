@@ -28,8 +28,7 @@ params =
 for(i in 1:nrow(params)) {
   with(params[i],
        cat(
-         sprintf("
-                 #!/bin/sh
+         sprintf("#!/bin/sh
                  #$ -cwd
                  #$ -q all.q
                  #$ -pe openmp 1
