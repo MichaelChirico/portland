@@ -15,9 +15,7 @@ suppressMessages({
 #from random.org
 set.seed(60251935)
 
-print(Sys.info())
-print(Sys.getenv())
-if (Sys.info()["nodename"] == 'comp-master') setwd('/backup/portland')
+if (grepl('comp', Sys.info()["nodename"])) setwd('/backup/portland')
 
 
 # each argument read in as a string in a character vector;
