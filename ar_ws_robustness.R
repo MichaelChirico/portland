@@ -6,7 +6,7 @@ params =
                  "burglary", "burglary", "burglary", "burglary", 
                  "street", "street", "street", "street", "street",
                  "vehicle", "vehicle", "vehicle", "vehicle", "vehicle"),
-             period = c("1m", "1w", "2m", "2w", "3m", 
+             horizon = c("1m", "1w", "2m", "2w", "3m", 
                         "1m", "1w", "2m", "2w", "3m", 
                         "1m", "1w", "2m", "2w", "3m", "1m", 
                         "1w", "2m", "2w", "3m"), 
