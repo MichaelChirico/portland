@@ -15,6 +15,8 @@ suppressMessages({
 #from random.org
 set.seed(60251935)
 
+print(Sys.info())
+print(Sys.getenv())
 if (Sys.info()["nodename"] == 'comp-master') setwd('/backup/portland')
 
 
