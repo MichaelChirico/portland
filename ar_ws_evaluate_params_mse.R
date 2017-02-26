@@ -35,12 +35,12 @@ names(args) =
 attach(args)
 
 # # baselines for testing:
-# delx=600;dely=600;eta=1;lt=1;theta=0
-# features=5;kde.bw=125;kde.lags=2;kde.win = 2
-# horizon='2m';crime.type='burglary'
-# cat("**********************\n",
-#     "* TEST PARAMETERS ON *\n",
-#     "**********************\n")
+delx=600;dely=600;eta=1;lt=1;theta=0
+features=5;kde.bw=125;kde.lags=2;kde.win = 2
+horizon='3m';crime.type='burglary'
+cat("**********************\n",
+    "* TEST PARAMETERS ON *\n",
+    "**********************\n")
 
 #turn me on/off to control LHS trimming
 trimLHS = TRUE
@@ -336,7 +336,7 @@ N_star = X[ , .(tot.crimes = sum(value)), by = I
 NN = X[ , sum(value)]
 
 # initialize dt to store prediction of each tuning_variation
-# preds.dt = data.table(I=X[, unique(I)])
+preds.dt = data.table(I=X[, unique(I)])
 
 for (ii in seq_len(nrow(tuning_variations))) {
   # print(ii)
@@ -366,10 +366,10 @@ for (ii in seq_len(nrow(tuning_variations))) {
            c(lapply(tstrsplit(I_start, split = "_"), as.integer),
              list(NULL))]
   
-  # preds.dt[preds, (paste0('tun',ii)) := exp(i.pred), on='I']
+  preds.dt[preds, (paste0('tun',ii)) := exp(i.pred), on='I']
   
   X[preds, pred.count := exp(i.pred), on = c("I", "start_date")]
-  rm(preds)
+  # rm(preds)
   
   hotspot.ids =
     X[ , .(tot.pred = sum(pred.count)), by = I
@@ -396,8 +396,7 @@ invisible(file.remove(cache, test.vw))
 # <><><><><><><><><><><><><><><><><><><><><><><><><><><><><><><><><><><><><><>
 
 # merge actual counts with predictions
-# preds.dt[X, value := i.value, on='I']
-
+preds.dt[X, value := i.value, on='I']
 
 # <><><><><><><><><><><><><><><><><><><><><><><><><><><><><><><><><><><><><><>
 # PRINT SCORES TO STDOUT  ====
