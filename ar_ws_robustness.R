@@ -42,9 +42,9 @@ module load shared R/3.3.2 vowpal_wabbit gcc/5.2.0
 #see http://stackoverflow.com/questions/6395078/
 unset R_HOME
                  
-Rscript /home/chiricom/portland/ar_ws_p1_evaluate_params.R "),
+Rscript /home/chiricom/portland/ar_ws_p7_evaluate_params.R "),
          delx,dely,eta,lt,theta,k,kde.bw,kde.lags,kde.win,crime,horizon,
-         '\nRscript /home/chiricom/portland/ar_ws_m1_evaluate_params.R ',
+         '\nRscript /home/chiricom/portland/ar_ws_m7_evaluate_params.R ',
          delx,dely,eta,lt,theta,k,kde.bw,kde.lags,kde.win,crime,horizon,"\n",
          file=sprintf("scripts/arwsmodelpm-%d.bash",i)
          )
