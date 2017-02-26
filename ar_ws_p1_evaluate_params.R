@@ -311,7 +311,7 @@ rm(phi.dt)
 tuning_variations =
   CJ(l1 = c(0, 1e-5, 1e-4),
      l2 = c(0, 1e-5, 1e-4),
-     p = c(.5, 1))
+     pp = c(.5, 1))
 
 n_var = nrow(tuning_variations)
 
