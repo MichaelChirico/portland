@@ -15,7 +15,7 @@ def params2str(params):
 def runRmodel(param_vec, crime, horizon, model_file = 'ar_ws_evaluate_params.R'):
 	# Inpu
 	# full path to R model
-	model_file = os.path.join('/backup/portland/', model_file)
+	model_file = os.path.join('..', model_file)
 
 	# spearmint encloses params in [], remove them
 	try:
