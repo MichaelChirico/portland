@@ -288,7 +288,7 @@ rm(proj)
 #temporary files
 source("local_setup.R")
 
-alpha_variations = seq(0, 1, length.out = 50)
+alpha_variations = seq(0, 1, length.out = 20)
 
 train_variations = grep('^train', names(X), value = TRUE)
 
