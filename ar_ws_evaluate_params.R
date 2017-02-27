@@ -288,39 +288,27 @@ rm(proj)
 #temporary files
 source("local_setup.R")
 
-#when we're at the minimum forecast area, we must round up
-#  to be sure we don't undershoot; when at the max,
-#  we must round down; otherwise, just round
-# **TO DO: if we predict any boundary cells and are using the minimum
-#          forecast area, WE'LL FALL BELOW IT WHEN WE CLIP TO PORTLAND **
-#which.round = function(x)
-#  if (x > 0) {if (x < 1) round else floor} else ceiling
+alpha_variations = seq(0, 1, length.out = 50)
 
+train_variations = grep('^train', names(X), value = TRUE)
 
-#6969600 ft^2 = .25 mi^2 (minimum forecast area);
-#triple this is maximum forecast area
-#n.cells = as.integer(which.round(alpha)(6969600*(1+2*alpha)/aa))
-n.cells = as.integer(ceiling(6969600/aa))
+l1s = l2s = c(0, 1e-5, 5e-5, 1e-4, 5e-4, 1e-3)
 
-tuning_variations =
-  CJ(l1 = c(0, 1e-5, 5e-5, 1e-4, 5e-4, 1e-3), 
-     l2 = c(0, 1e-5, 5e-5, 1e-4, 5e-4, 1e-3))
-n_var = 4L*nrow(tuning_variations)
+vw_variations = CJ(l1 = l1s, l2 = l2s)
 
-#initialize parameter records table
-scores = data.table(delx, dely, #alpha,
-                    eta, lt, theta, k = features,
-                    l1 = numeric(n_var), l2 = numeric(n_var),
-                    p = numeric(n_var), kde.bw, kde.n = 'all', 
-                    kde.lags, kde.win,
-                    pei = numeric(n_var), pai = numeric(n_var))
+scores =
+  CJ(train_set = train_variations,
+     delx = delx, dely = dely,
+     alpha = alpha_variations,
+     eta = eta, lt = lt, theta = theta,
+     k = features, l1 = l1s, l2 = l2s,
+     kde.bw = kde.bw, kde.lags = kde.lags,
+     kde.win = kde.win, pei = 0, pai = 0)
 
-scores = rbindlist(replicate(4L, scores, simplify = FALSE),
-                   idcol = 'train_set')
-scores[ , train_set := paste0('train_', train_set + 12L)]
+setkey(scores, train_set, alpha, l1, l2)
 
 #loop over using each year's holdout test set to calculate PEI/PAI
-for (train in grep('^train', names(X), value = TRUE)) {
+for (train in train_variations) {
   cat(train, '\n')
   test_idx = !X[[train]]
   
@@ -354,14 +342,15 @@ for (train in grep('^train', names(X), value = TRUE)) {
                 sum(tot.crimes)]
   NN = X[test_idx, sum(value)]
   
-  for (ii in seq_len(nrow(tuning_variations))) {
+  for (ii in seq_len(nrow(vw_variations))) {
     # print(ii)
+    l1 = vw_variations[ii, l1]
+    l2 = vw_variations[ii, l2]
     model = tempfile(tmpdir = tdir, pattern = "model")
     #train with VW
-    call.vw = with(tuning_variations[ii],
-                   paste(path_to_vw, '--loss_function poisson --l1', l1, 
-                         '--l2', l2, train.vw, '--cache_file', cache, 
-                         '--passes 200 -f', model))
+    call.vw = paste(path_to_vw, '--loss_function poisson --l1', l1, 
+                    '--l2', l2, train.vw, '--cache_file', cache, 
+                    '--passes 200 -f', model)
     system(call.vw, ignore.stderr = TRUE)
     #training data now stored in cache format,
     #  so can delete original (don't need to, but this is a useful
@@ -385,23 +374,36 @@ for (train in grep('^train', names(X), value = TRUE)) {
     X[preds, pred.count := exp(i.pred), on = c("I", "start_date")]
     rm(preds)
     
-    hotspot.ids =
-      X[test_idx, .(tot.pred = sum(pred.count)), by = I
-         ][order(-tot.pred)[1L:n.cells], I]
-    X[test_idx, hotspot := I %in% hotspot.ids]
-    
-    #how well did we do? lower-case n in the PEI/PAI calculation
-    nn = X[(hotspot), sum(value)]
-    
-    #reset hotspots for next run
-    X[ , hotspot := NULL]
-    
-    scores[(seq_len(.N))[train_set==train][ii],
-           c('l1', 'l2', 'pei', 'pai') :=
-             c(tuning_variations[ii],
-               list(pei = nn/N_star,
-                    #pre-calculated the total area of portland
-                    pai = (nn/NN)/(aa*n.cells/4117777129)))]
+    for (alpha in alpha_variations) {
+      #when we're at the minimum forecast area, we must round up
+      #  to be sure we don't undershoot; when at the max,
+      #  we must round down; otherwise, just round
+      # **TO DO: if we predict any boundary cells and are using the minimum
+      #          forecast area, WE'LL FALL BELOW IT WHEN WE CLIP TO PORTLAND **
+      which.round = function(x)
+        if (x > 0) {if (x < 1) round else floor} else ceiling
+      
+      #6969600 ft^2 = .25 mi^2 (minimum forecast area);
+      #triple this is maximum forecast area
+      n.cells = as.integer(which.round(alpha)(6969600*(1+2*alpha)/aa))
+      #n.cells = as.integer(ceiling(6969600/aa))
+      
+      hotspot.ids =
+        X[test_idx, .(tot.pred = sum(pred.count)), by = I
+          ][order(-tot.pred)[1L:n.cells], I]
+      X[test_idx, hotspot := I %in% hotspot.ids]
+      
+      #how well did we do? lower-case n in the PEI/PAI calculation
+      nn = X[(hotspot), sum(value)]
+      
+      #reset hotspots for next run
+      X[ , hotspot := NULL]
+      
+      scores[.(train, alpha, l1, l2),
+             c('pei', 'pai') :=
+               #pre-calculated the total area of portland
+               .(nn/N_star, pai = (nn/NN)/(aa*n.cells/4117777129))]
+    }
   }
   invisible(file.remove(cache, test.vw))
 }
