@@ -398,6 +398,7 @@ for (train in grep('^train', names(X), value = TRUE)) {
 
 # <><><><><><><><><><><><><><><><><><><><><><><><><><><><><><><><><><><><><><>
 # PRINT SCORES TO STDOUT  ====
+# used when capturing score with Spearmint
 # <><><><><><><><><><><><><><><><><><><><><><><><><><><><><><><><><><><><><><>
 
 best_scores = do.call(paste, c(scores[ , .SD[which.max(pai)], by = train_set],

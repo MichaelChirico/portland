@@ -1,7 +1,7 @@
 {
     "language"        : "PYTHON",
     "main-file"       : "main_arws.py",
-    "experiment-name" : "veh_3m",
+    "experiment-name" : "all-1w_pei",
     "likelihood"      : "NOISELESS",
     "variables" : {
         "delx" : {
