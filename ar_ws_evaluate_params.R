@@ -20,7 +20,7 @@ if (grepl('comp', Sys.info()["nodename"]) & grepl('backup', getwd())) {
 
 #add/remove ! below to turn testing on/off
 ..testing = 
-  !FALSE
+  FALSE
 
 if (..testing) {
   delx=600;dely=600;eta=1;lt=14;theta=0
