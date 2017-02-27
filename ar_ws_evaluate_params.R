@@ -374,6 +374,13 @@ for (train in train_variations) {
     X[preds, pred.count := exp(i.pred), on = c("I", "start_date")]
     rm(preds)
     
+    X[X[test_idx, .(tot.pred = sum(pred.count)), by = I
+        ][order(-tot.pred), .(I, rank = .I)],
+      rank := i.rank, on = 'I']
+    
+    setkey(X, rank)
+    
+    ##** TO DO : this loop can probably be vectorized better**
     for (alpha in alpha_variations) {
       #when we're at the minimum forecast area, we must round up
       #  to be sure we don't undershoot; when at the max,
@@ -387,23 +394,17 @@ for (train in train_variations) {
       #triple this is maximum forecast area
       n.cells = as.integer(which.round(alpha)(6969600*(1+2*alpha)/aa))
       #n.cells = as.integer(ceiling(6969600/aa))
-      
-      hotspot.ids =
-        X[test_idx, .(tot.pred = sum(pred.count)), by = I
-          ][order(-tot.pred)[1L:n.cells], I]
-      X[test_idx, hotspot := I %in% hotspot.ids]
-      
+
       #how well did we do? lower-case n in the PEI/PAI calculation
-      nn = X[(hotspot), sum(value)]
-      
-      #reset hotspots for next run
-      X[ , hotspot := NULL]
+      nn = X[rank <= n.cells, sum(value)]
       
       scores[.(train, alpha, l1, l2),
              c('pei', 'pai') :=
                #pre-calculated the total area of portland
                .(nn/N_star, pai = (nn/NN)/(aa*n.cells/4117777129))]
     }
+    #reset ranking for next run
+    X[ , rank := NULL]
   }
   invisible(file.remove(cache, test.vw))
 }
