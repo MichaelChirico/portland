@@ -395,8 +395,8 @@ for (train in train_variations) {
       #n.cells = as.integer(ceiling(6969600/aa))
 
       #how well did we do? lower-case n in the PEI/PAI calculation
-      nn = X[rank <= n.cells, sum(value)]
-      N_star = X[true_rank <= n.cells, sum(value)]
+      nn = X[rank <= n.cells & test_idx, sum(value)]
+      N_star = X[true_rank <= n.cells & test_idx, sum(value)]
       
       scores[.(train, alpha, l1, l2),
              c('pei', 'pai') :=
