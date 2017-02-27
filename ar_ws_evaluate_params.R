@@ -379,7 +379,7 @@ for (train in grep('^train', names(X), value = TRUE)) {
     X[ , hotspot := NULL]
     
     scores[(seq_len(.N))[train_set==train][ii],
-           c('l1', 'l2', 'p', 'pei', 'pai') :=
+           c('l1', 'l2', 'pei', 'pai') :=
              c(tuning_variations[ii],
                list(pei = nn/N_star,
                     #pre-calculated the total area of portland
