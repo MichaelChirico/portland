@@ -23,9 +23,9 @@ if (grepl('comp', Sys.info()["nodename"]) & grepl('backup', getwd())) {
   FALSE
 
 if (..testing) {
-  delx=600;dely=600;eta=1;lt=30;theta=0
-  features=200;kde.bw=500;kde.lags=5;kde.win = 7
-  horizon='3m';crime.type='all'#;alpha = 0
+  delx=600;dely=600;eta=1;lt=14;theta=0
+  features=250;kde.bw=500;kde.lags=6;kde.win = 3
+  horizon='1w';crime.type='all'#;alpha = 0
   cat("**********************\n",
       "* TEST PARAMETERS ON *\n",
       "**********************\n")
@@ -296,6 +296,14 @@ l1s = l2s = c(0, 1e-5, 5e-5, 1e-4, 5e-4, 1e-3)
 
 vw_variations = CJ(l1 = l1s, l2 = l2s)
 
+#when we're at the minimum forecast area, we must round up
+#  to be sure we don't undershoot; when at the max,
+#  we must round down; otherwise, just round
+# **TO DO: if we predict any boundary cells and are using the minimum
+#          forecast area, WE'LL FALL BELOW IT WHEN WE CLIP TO PORTLAND **
+which.round = function(x)
+  if (x > 0) {if (x < 1) round else floor} else ceiling
+
 scores =
   CJ(train_set = train_variations,
      delx = delx, dely = dely,
@@ -341,8 +349,8 @@ for (train in train_variations) {
   
   for (ii in seq_len(nrow(vw_variations))) {
     # print(ii)
-    l1 = vw_variations[ii, l1]
-    l2 = vw_variations[ii, l2]
+    L1 = vw_variations[ii, l1]
+    L2 = vw_variations[ii, l2]
     model = tempfile(tmpdir = tdir, pattern = "model")
     #train with VW
     call.vw = paste(path_to_vw, '--loss_function poisson --l1', l1, 
@@ -380,25 +388,17 @@ for (train in train_variations) {
       true_rank := i.true_rank, on = 'I']
     
     ##** TO DO : this loop can probably be vectorized better**
-    for (alpha in alpha_variations) {
-      #when we're at the minimum forecast area, we must round up
-      #  to be sure we don't undershoot; when at the max,
-      #  we must round down; otherwise, just round
-      # **TO DO: if we predict any boundary cells and are using the minimum
-      #          forecast area, WE'LL FALL BELOW IT WHEN WE CLIP TO PORTLAND **
-      which.round = function(x)
-        if (x > 0) {if (x < 1) round else floor} else ceiling
-      
+    for (AA in alpha_variations) {
       #6969600 ft^2 = .25 mi^2 (minimum forecast area);
       #triple this is maximum forecast area
-      n.cells = as.integer(which.round(alpha)(6969600*(1+2*alpha)/aa))
+      n.cells = as.integer(which.round(AA)(6969600*(1+2*AA)/aa))
       #n.cells = as.integer(ceiling(6969600/aa))
 
       #how well did we do? lower-case n in the PEI/PAI calculation
       nn = X[rank <= n.cells & test_idx, sum(value)]
       N_star = X[true_rank <= n.cells & test_idx, sum(value)]
       
-      scores[.(train, alpha, l1, l2),
+      scores[.(train, AA, L1, L2),
              c('pei', 'pai') :=
                #pre-calculated the total area of portland
                .(nn/N_star, pai = (nn/NN)/(aa*n.cells/4117777129))]

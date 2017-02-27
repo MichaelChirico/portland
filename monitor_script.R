@@ -15,6 +15,6 @@ x[ , param_no := .GRP,
 cat('**OPTIMA FROM', max(x$run_no), 'RUNS**\n\n')
 
 idx = x[ , .(mean(pei), mean(pai)), by = .(hc, param_no)
-         ][ , param_no[unique(c(which.max(V1), which.max(V2)))], hc]
+         ][ , param_no[unique(c(which.max(V1), which.max(V2)))], hc]$V1
 
 x[param_no %in% idx]
