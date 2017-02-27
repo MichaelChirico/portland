@@ -7,14 +7,14 @@
         "delx" : {
             "type" : "FLOAT",
             "size" : 1,
-            "min"  : 250,
-            "max"  : 600
+            "min"  : 125,
+            "max"  : 2500
         },
         "dely" : {
             "type" : "FLOAT",
             "size" : 1,
-            "min"  : 250,
-            "max"  : 600
+            "min"  : 125,
+            "max"  : 2500
         },
         "eta" : {
             "type" : "FLOAT",
