@@ -24,7 +24,7 @@ if (grepl('comp', Sys.info()["nodename"]) & grepl('backup', getwd())) {
 
 if (..testing) {
   delx=600;dely=600;eta=1;lt=30;theta=0
-  features=200;kde.bw=125;kde.lags=5;kde.win = 7
+  features=200;kde.bw=500;kde.lags=5;kde.win = 7
   horizon='3m';crime.type='all'#;alpha = 0
   cat("**********************\n",
       "* TEST PARAMETERS ON *\n",
@@ -334,12 +334,9 @@ for (train in train_variations) {
   #   for loops -- one to write out the files (could then
   #   delete phi.dt) and then another to run VW
 
-  #Calculate PEI & PAI denominators here since they are the
+  #Calculate PAI denominators here since it is the
   #  same for all variations of tuning parameters,
   #  given the input parameters (delx, etc.)
-  N_star = X[test_idx, .(tot.crimes = sum(value)), by = I
-              ][order(-tot.crimes)[1L:n.cells],
-                sum(tot.crimes)]
   NN = X[test_idx, sum(value)]
   
   for (ii in seq_len(nrow(vw_variations))) {
@@ -378,7 +375,9 @@ for (train in train_variations) {
         ][order(-tot.pred), .(I, rank = .I)],
       rank := i.rank, on = 'I']
     
-    setkey(X, rank)
+    X[X[test_idx, .(tot.crimes = sum(value)), by = I
+        ][order(-tot.crimes), .(I, true_rank = .I)],
+      true_rank := i.true_rank, on = 'I']
     
     ##** TO DO : this loop can probably be vectorized better**
     for (alpha in alpha_variations) {
@@ -397,6 +396,7 @@ for (train in train_variations) {
 
       #how well did we do? lower-case n in the PEI/PAI calculation
       nn = X[rank <= n.cells, sum(value)]
+      N_star = X[true_rank <= n.cells, sum(value)]
       
       scores[.(train, alpha, l1, l2),
              c('pei', 'pai') :=
