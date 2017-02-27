@@ -153,7 +153,8 @@ march117 = unclass(as.IDate('2017-03-01'))
 #all period starts
 start = march117 - (seq_len(n_pds) - 1L) * pd_length
 #eliminate irrelevant (summer) data
-start = start[month(as.IDate(start, origin = '1970-01-01')) %in% incl_mos]
+start = start[month(as.IDate(start, origin = '1970-01-01')) %in% incl_mos & 
+                start <= march117 - one_year*pd_length]
 #all period ends
 end = start + pd_length - 1L
 #for feeding to foverlaps
@@ -301,15 +302,16 @@ scores = data.table(delx, dely, eta, lt, theta, k = features,
                     pei = numeric(n_var), pai = numeric(n_var))
 scores = rbindlist(replicate(4L, scores, simplify = FALSE),
                    idcol = 'train_set')
-scores[ , train_set := paste0('train_', train_set + 12L)][]
+scores[ , train_set := paste0('train_', train_set + 12L)]
 
 #loop over using each year's holdout test set to calculate PEI/PAI
 for (train in grep('^train', names(X), value = TRUE)) {
+  cat(train, '\n')
   test_idx = !X[[train]]
   
   filename = paste('arws',train,crime.type,horizon,delx,
                    dely,eta,lt,theta,features,kde.bw,
-                   kde.lags,kde.win,job_idsep = '_')
+                   kde.lags,kde.win,job_id,sep = '_')
   train.vw = paste(paste0(tdir,'/train'), filename, sep='_')
   test.vw = paste(paste0(tdir,'/test'), filename, sep='_')
   #simply append .cache suffix to make it easier
@@ -331,7 +333,6 @@ for (train in grep('^train', names(X), value = TRUE)) {
   #Calculate PEI & PAI denominators here since they are the
   #  same for all variations of tuning parameters,
   #  given the input parameters (delx, etc.)
-  test_
   N_star = X[test_idx, .(tot.crimes = sum(value)), by = I
               ][order(-tot.crimes)[1L:n.cells],
                 sum(tot.crimes)]
