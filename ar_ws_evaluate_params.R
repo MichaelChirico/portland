@@ -287,11 +287,8 @@ source("local_setup.R")
 n.cells = as.integer(ceiling(6969600/aa))
 
 tuning_variations =
-  data.table(l1 = c(1e-6, 1e-4, 1e-3, 5e-3, rep(1e-5, 11L)),
-             l2 = c(rep(1e-4, 4L), 1e-6, 5e-6,
-                    1e-5, 5e-5, 5e-4, rep(1e-4, 6L)),
-             pp = c(rep(.5, 9L), .25, .33, .5,
-                    .66, .75, 1))
+  CJ(l1 = c(0, 1e-5, 5e-5, 1e-4, 5e-4, 1e-3), 
+     l2 = c(0, 1e-5, 5e-5, 1e-4, 5e-4, 1e-3))
 n_var = 4L*nrow(tuning_variations)
 
 #initialize parameter records table
@@ -345,8 +342,8 @@ for (train in grep('^train', names(X), value = TRUE)) {
     #train with VW
     call.vw = with(tuning_variations[ii],
                    paste(path_to_vw, '--loss_function poisson --l1', l1, 
-                         '--l2', l2, '--power_t', pp, train.vw,
-                         '--cache_file', cache, '--passes 200 -f', model))
+                         '--l2', l2, train.vw, '--cache_file', cache, 
+                         '--passes 200 -f', model))
     system(call.vw, ignore.stderr = TRUE)
     #training data now stored in cache format,
     #  so can delete original (don't need to, but this is a useful
