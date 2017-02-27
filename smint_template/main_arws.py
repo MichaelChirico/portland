@@ -12,7 +12,7 @@ from collections import OrderedDict
 def params2str(params):
 	return ' '.join([str(par) for par in params])
 
-def runRmodel(param_vec, model_file = 'ar_ws_evaluate_param_vec.R'):
+def runRmodel(param_vec, model_file = 'ar_ws_evaluate_params.R'):
 	# full path to R model
 	model_file = os.path.join('/backup/portland/', model_file)
 
@@ -23,7 +23,8 @@ def runRmodel(param_vec, model_file = 'ar_ws_evaluate_param_vec.R'):
 		pass
 
 	# add crime type and horizon
-	param_vec = param_vec + ['burglary', '3m']
+	# TODO read these from file
+	param_vec = param_vec + ['all', '1w']
 
 	# call R and capture scores
 	command = 'Rscript {0} {1}'.format(model_file, params2str(param_vec))
@@ -31,9 +32,10 @@ def runRmodel(param_vec, model_file = 'ar_ws_evaluate_param_vec.R'):
 
 	rout = subprocess.check_output(command.split(), shell=False)
 	scores = rout[rout.find("[[[")+3:rout.find("]]]")].split('/')
-
-	score_names = ['delx','dely','eta','lt','theta','k',
-				   'l1','l2','p','kde_bw','kde_n','kde_lags','kde_win','pei','pai']
+	print scores
+	score_names = ['pai','pei']
+	# score_names = ['delx','dely','eta','lt','theta','k',
+	# 			   'l1','l2','p','kde_bw','kde_n','kde_lags','kde_win','pei','pai']
 	return OrderedDict(zip(score_names, scores))
 
 def objective(params):
@@ -43,6 +45,8 @@ def objective(params):
 	# if not in_region1 and not in_region2:
 	# 	return np.nan
 
+	# TODO pei or pai
+
 	# parse param dictionary
 	param_names = ['delx', 'dely', 'eta', 'lt', 'theta',
 		       'k', 'kde_bw', 'kde_lags', 'kde_win']
@@ -51,7 +55,7 @@ def objective(params):
 	# run model in r and get score dict from stdout
 	model_file = 'ar_ws_evaluate_params.R'
 	score = runRmodel(param_vec, model_file)
-	return -float(score['pai'])	
+	return -float(score['pei'])	
 
 def main(job_id, params):
 	# print 'Anything printed here will end up in the output directory for job #%d' % job_id
