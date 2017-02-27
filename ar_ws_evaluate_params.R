@@ -20,12 +20,12 @@ if (grepl('comp', Sys.info()["nodename"]) & grepl('backup', getwd())) {
 
 #add/remove ! below to turn testing on/off
 ..testing = 
-  !FALSE
+  FALSE
 
 if (..testing) {
   delx=600;dely=600;eta=1;lt=14;theta=0
   features=250;kde.bw=500;kde.lags=6;kde.win = 3
-  horizon='1w';crime.type='all'#;alpha = 0
+  horizon='1w';crime.type='burglary'#;alpha = 0
   cat("**********************\n",
       "* TEST PARAMETERS ON *\n",
       "**********************\n")
@@ -320,10 +320,9 @@ for (train in train_variations) {
   cat(train, '\n')
   test_idx = !X[[train]]
   
-  filename = 
-    paste('arws', train, crime.type, horizon, delx, dely, #alpha,
-          eta, lt, theta, features, kde.bw,
-          kde.lags, kde.win, job_id, sep = '_')
+  filename = paste('arws',train,crime.type,horizon,delx,
+                   dely,eta,lt,theta,features,kde.bw,
+                   kde.lags,kde.win,job_id,sep = '_')
   train.vw = paste(paste0(tdir,'/train'), filename, sep='_')
   test.vw = paste(paste0(tdir,'/test'), filename, sep='_')
   #simply append .cache suffix to make it easier
@@ -419,11 +418,15 @@ for (train in train_variations) {
 
 # <><><><><><><><><><><><><><><><><><><><><><><><><><><><><><><><><><><><><><>
 # PRINT SCORES TO STDOUT  ====
+# used when capturing score with Spearmint
 # <><><><><><><><><><><><><><><><><><><><><><><><><><><><><><><><><><><><><><>
 
-best_scores = do.call(paste, c(scores[ , .SD[which.max(pai)], by = train_set],
-                               list(sep = '/')))
-best_scores = paste0('[[[', best_scores, ']]]')
+best.pai = scores[ , max(pai), by = train_set][ , mean(V1)]
+best.pei = scores[ , max(pei), by = train_set][ , mean(V1)]
+# best_scores = do.call(paste, c(scores[ , .SD[which.max(pai)], by = train_set],
+#                                list(sep = '/')))
+best_scores = paste(best.pai,best.pei, sep = '/')
+best_scores = paste0('[[[', best_scores,']]]')
 print(best_scores)
 
 # <><><><><><><><><><><><><><><><><><><><><><><><><><><><><><><><><><><><><><>

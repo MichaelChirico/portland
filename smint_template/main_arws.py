@@ -12,7 +12,8 @@ from collections import OrderedDict
 def params2str(params):
 	return ' '.join([str(par) for par in params])
 
-def runRmodel(param_vec, model_file = 'ar_ws_evaluate_param_vec.R'):
+def runRmodel(param_vec, crime, horizon, model_file = 'ar_ws_evaluate_params.R'):
+	# Inpu
 	# full path to R model
 	model_file = os.path.join('/backup/portland/', model_file)
 
@@ -23,35 +24,41 @@ def runRmodel(param_vec, model_file = 'ar_ws_evaluate_param_vec.R'):
 		pass
 
 	# add crime type and horizon
-	param_vec = param_vec + ['vehicle', '3m']
+	param_vec = param_vec + [crime, horizon]
 
-	# call R and capture scores
+	# call R and capture scores from stdout
 	command = 'Rscript {0} {1}'.format(model_file, params2str(param_vec))
 	print '******\n' + command + '\n*******'
 
 	rout = subprocess.check_output(command.split(), shell=False)
 	scores = rout[rout.find("[[[")+3:rout.find("]]]")].split('/')
-
-	score_names = ['delx','dely','eta','lt','theta','k',
-				   'l1','l2','p','kde_bw','kde_n','kde_lags','kde_win','pei','pai']
+	print scores
+	score_names = ['pai','pei']
 	return OrderedDict(zip(score_names, scores))
 
 def objective(params):
 	# define feasible region
-	# in_region1 = params['delx']*params['dely'] <= 600**2
-	# in_region2 = params['delx']*params['dely'] >= 250**2
-	# if not in_region1 and not in_region2:
-	# 	return np.nan
+	in_region1 = params['delx']*params['dely'] <= 600**2
+	in_region2 = params['delx']*params['dely'] >= 250**2
+	if not in_region1 and not in_region2:
+		return np.nan
 
-	# parse param dictionary
+	# TODO pei or pai
+	try:
+		experfile = [f for f in os.listdir('.') if f.endswith('.exper')][0]
+	except IndexError:
+		 raise Exception('Pau: No experiment file!')
+	crime, horizon, paiorpei = experfile.split('-')
+
+	# parse param dictionary and turn into list
 	param_names = ['delx', 'dely', 'eta', 'lt', 'theta',
-		       'k', 'kde_bw', 'kde_lags', 'kde_win']
+		       'k', 'kde_bw', 'kde_lags', 'kde_win']    
 	param_vec = [params[name] for name in param_names]
-
+	
 	# run model in r and get score dict from stdout
 	model_file = 'ar_ws_evaluate_params.R'
-	score = runRmodel(param_vec, model_file)
-	return -float(score['pai'])	
+	score = runRmodel(param_vec, crime, horizon, model_file)
+	return -float(score[paiorpei])	
 
 def main(job_id, params):
 	# print 'Anything printed here will end up in the output directory for job #%d' % job_id
