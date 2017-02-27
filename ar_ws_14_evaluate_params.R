@@ -336,7 +336,6 @@ N_star = X[ , .(tot.crimes = sum(value)), by = I
 NN = X[ , sum(value)]
 
 for (ii in seq_len(nrow(tuning_variations))) {
-  print(ii)
   model = tempfile(tmpdir = tdir, pattern = "model")
   #train with VW
   call.vw = with(tuning_variations[ii],

@@ -157,7 +157,7 @@ crimes[ , occ_date_int := unclass(occ_date)]
 unq_crimes = crimes[ , unique(occ_date_int)]
 
 march117 = unclass(as.IDate('2017-03-01'))
-start = march117 - one_year*pd_length - (seq_len(n_pds) - 1L) * pd_length
+start = march117 - one_year*pd_length - (c(0L, seq_len(n_pds)) - 1L) * pd_length
 end = start + pd_length - 1L
 windows = data.table(start, end, key = 'start,end')
 
@@ -183,7 +183,7 @@ if (trimLHS) {
   start = X[ , unique(start_date)]
 }
 
-X[ , train := start_date != march117 - 2L*one_year*pd_length]
+X[ , train := start_date != march117 - one_year*pd_length + pd_length]
 
 # create sp object of crimes
 to.spdf = function(dt) {
@@ -309,11 +309,10 @@ X = X[(!train)]
 rm(phi.dt)
 
 tuning_variations =
-  data.table(l1 = c(1e-6, 1e-4, 1e-3, 5e-3, rep(1e-5, 11L)),
-             l2 = c(rep(1e-4, 4L), 1e-6, 5e-6,
-                    1e-5, 5e-5, 5e-4, rep(1e-4, 6L)),
-             pp = c(rep(.5, 9L), .25, .33, .5,
-                    .66, .75, 1))
+  CJ(l1 = c(0, 1e-5, 1e-4),
+     l2 = c(0, 1e-5, 1e-4),
+     pp = c(.5, 1))
+
 n_var = nrow(tuning_variations)
 
 #initialize parameter records table
@@ -388,6 +387,5 @@ invisible(file.remove(cache, test.vw))
 # WRITE RESULTS FILE AND TIMINGS
 # <><><><><><><><><><><><><><><><><><><><><><><><><><><><><><><><><><><><><><>=
 
-ff = paste0("scores/", 'ar_15_',crime.type, "_", horizon, job_id, ".csv")
+ff = paste0("scores/", 'ar_p1_',crime.type, "_", horizon, job_id, ".csv")
 fwrite(scores, ff, append = file.exists(ff))
-
