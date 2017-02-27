@@ -1,9 +1,6 @@
 #!/usr/bin/env Rscript
 # Michael Chirico, Seth Flaxman,
 # Charles Loeffler, Pau Pereira
-# Michael Chirico, Seth Flaxman,
-# Charles Loeffler, Pau Pereira
-t0 = proc.time()["elapsed"]
 suppressMessages({
   library(spatstat, quietly = TRUE)
   library(splancs, quietly = TRUE)
@@ -20,7 +17,6 @@ if (grepl('comp', Sys.info()["nodename"]) & grepl('backup', getwd())) {
 } else if (grepl('comp', Sys.info()["nodename"]) & !grepl('backup', getwd())) {
   setwd('/home/ubuntu/scratch/portland')
 }
-
 
 # each argument read in as a string in a character vector;
  # would rather have them as a list. basically do
@@ -42,12 +38,7 @@ attach(args)
 #     "* TEST PARAMETERS ON *\n",
 #     "**********************\n")
 
-#turn me on/off to control LHS trimming
-trimLHS = TRUE
-if (trimLHS) 
-  incl_mos = c(10L, 11L, 12L, 1L, 2L, 3L,
-               if (horizon %in% c('2m', '3m')) 4L,
-               if (horizon == '3m') 5L)
+incl_mos = c(10L, 11L, 12L, 1L, 2L, 3L)
 
 aa = delx*dely #forecasted area
 lx = eta*250
@@ -144,21 +135,29 @@ incl_ids =
     #find cells that ever have a crime
   )[value > 0, which = TRUE]
 
-# aggregate, cell counts
+# how long is one period for this horizon?
 pd_length = switch(horizon, 
                    '1w' = 7L, '2w' = 14L, '1m' = 31,
                    '2m' = 61L, '3m' = 92L) 
+# how many periods are there in one year for this horizon?
 one_year = switch(horizon, 
                   '1w' = 52L, '2w' = 26L, '1m' = 12L,
                   '2m' = 6L, '3m' = 4L)
-n_pds = 4L*one_year
+# how many total periods are there in the data?
+n_pds = 5L*one_year
 
 crimes[ , occ_date_int := unclass(occ_date)]
 unq_crimes = crimes[ , unique(occ_date_int)]
 
 march117 = unclass(as.IDate('2017-03-01'))
-start = march117 - one_year*pd_length - (seq_len(n_pds) - 1L) * pd_length
+#all period starts
+start = march117 - (seq_len(n_pds) - 1L) * pd_length
+#eliminate irrelevant (summer) data
+start = start[month(as.IDate(start, origin = '1970-01-01')) %in% incl_mos & 
+                start <= march117 - one_year*pd_length]
+#all period ends
 end = start + pd_length - 1L
+#for feeding to foverlaps
 windows = data.table(start, end, key = 'start,end')
 
 crime_start_map = data.table(occ_date_int = unq_crimes)
@@ -178,12 +177,11 @@ X = crimes[!is.na(start_date), as.data.table(pixellate(ppp(
   #subset to eliminate never-crime cells
   keyby = start_date][ , I := rowid(start_date)][I %in% incl_ids]
 
-if (trimLHS) {
-  X = X[month(as.IDate(start_date, origin = '1970-01-01')) %in% incl_mos]
-  start = X[ , unique(start_date)]
+for (ii in 1:4) {
+  test_start = march117 - ii * one_year*pd_length
+  X[start_date <= test_start, 
+    paste0('train_', 17 - ii) := start_date < test_start]
 }
-
-X[ , train := start_date < march117 - one_year*pd_length]
 
 # create sp object of crimes
 to.spdf = function(dt) {
@@ -283,38 +281,15 @@ rm(proj)
 # 
 #temporary files
 source("local_setup.R")
-filename = paste('arws',crime.type,horizon,delx,dely,eta,lt,theta,features,kde.bw,kde.lags,kde.win,sep = '_')
-filename = paste(filename, job_id, sep='_')
-train.vw = paste(paste0(tdir,'/train'), filename, sep='_')
-test.vw = paste(paste0(tdir,'/test'), filename, sep='_')
-# train.vw = tempfile(tmpdir = tdir, pattern = "train")
-# test.vw = tempfile(tmpdir = tdir, pattern = "test")
-#simply append .cache suffix to make it easier
-#  to track association when debugging
-cache = paste0(train.vw, '.cache')
-# pred.vw = tempfile(tmpdir = tdir, pattern = "predict")
-pred.vw = paste(paste0(tdir,'/pred'), filename, sep='_')
-fwrite(phi.dt[X$train], train.vw,
-       sep = " ", quote = FALSE, col.names = FALSE,
-       showProgress = FALSE)
-fwrite(phi.dt[!X$train], test.vw,
-       sep = " ", quote = FALSE, col.names = FALSE,
-       showProgress = FALSE)
 
-# #can eliminate all the testing data now that it's written
-X = X[(!train)]
-# print('**** this should not be zero!')
-# X[, .N]
-# stop('about to call vw')
-rm(phi.dt)
+#6969600 ft^2 = .25 mi^2 (minimum forecast area);
+#triple this is maximum forecast area
+n.cells = as.integer(ceiling(6969600/aa))
 
 tuning_variations =
-  data.table(l1 = c(1e-6, 1e-4, 1e-3, 5e-3, rep(1e-5, 11L)),
-             l2 = c(rep(1e-4, 4L), 1e-6, 5e-6,
-                    1e-5, 5e-5, 5e-4, rep(1e-4, 6L)),
-             pp = c(rep(.5, 9L), .25, .33, .5,
-                    .66, .75, 1))
-n_var = nrow(tuning_variations)
+  CJ(l1 = c(0, 1e-5, 5e-5, 1e-4, 5e-4, 1e-3), 
+     l2 = c(0, 1e-5, 5e-5, 1e-4, 5e-4, 1e-3))
+n_var = 4L*nrow(tuning_variations)
 
 #initialize parameter records table
 scores = data.table(delx, dely, eta, lt, theta, k = features,
@@ -323,73 +298,95 @@ scores = data.table(delx, dely, eta, lt, theta, k = features,
                     kde.lags, kde.win,
                     pei = numeric(n_var), pai = numeric(n_var))
 
-#6969600 ft^2 = .25 mi^2 (minimum forecast area);
-#triple this is maximum forecast area
-n.cells = as.integer(ceiling(6969600/aa))
+scores = rbindlist(replicate(4L, scores, simplify = FALSE),
+                   idcol = 'train_set')
+scores[ , train_set := paste0('train_', train_set + 12L)]
 
-#Calculate PEI & PAI denominators here since they are the
-#  same for all variations of tuning parameters,
-#  given the input parameters (delx, etc.)
-N_star = X[ , .(tot.crimes = sum(value)), by = I
-            ][order(-tot.crimes)[1L:n.cells],
-              sum(tot.crimes)]
-NN = X[ , sum(value)]
+#loop over using each year's holdout test set to calculate PEI/PAI
+for (train in grep('^train', names(X), value = TRUE)) {
+  cat(train, '\n')
+  test_idx = !X[[train]]
+  
+  filename = paste('arws',train,crime.type,horizon,delx,
+                   dely,eta,lt,theta,features,kde.bw,
+                   kde.lags,kde.win,job_id,sep = '_')
+  train.vw = paste(paste0(tdir,'/train'), filename, sep='_')
+  test.vw = paste(paste0(tdir,'/test'), filename, sep='_')
+  #simply append .cache suffix to make it easier
+  #  to track association when debugging
+  cache = paste0(train.vw, '.cache')
+  pred.vw = paste(paste0(tdir,'/pred'), filename, sep='_')
+  fwrite(phi.dt[!test_idx], train.vw,
+         sep = " ", quote = FALSE, col.names = FALSE,
+         showProgress = FALSE)
+  fwrite(phi.dt[test_idx], test.vw,
+         sep = " ", quote = FALSE, col.names = FALSE,
+         showProgress = FALSE)
+  
+  # used to delete phi.dt & subset X here to cut down on
+  #   RAM hit. optionally, could split this into two
+  #   for loops -- one to write out the files (could then
+  #   delete phi.dt) and then another to run VW
 
-# initialize dt to store prediction of each tuning_variation
-# preds.dt = data.table(I=X[, unique(I)])
-
-for (ii in seq_len(nrow(tuning_variations))) {
-  # print(ii)
-  model = tempfile(tmpdir = tdir, pattern = "model")
-  #train with VW
-  call.vw = with(tuning_variations[ii],
-                 paste(path_to_vw, '--loss_function poisson --l1', l1, 
-                       '--l2', l2, '--power_t', pp, train.vw,
-                       '--cache_file', cache, '--passes 200 -f', model))
-  system(call.vw, ignore.stderr = TRUE)
-  #training data now stored in cache format,
-  #  so can delete original (don't need to, but this is a useful
-  #  check to force an error if s.t. wrong with cache)
-  if (file.exists(train.vw)) invisible(file.remove(train.vw))
-  #test with VW
-  system(paste(path_to_vw, '-t -i', model, '-p', pred.vw,
-               test.vw, '--loss_function poisson'),
-         ignore.stderr = TRUE)
-  invisible(file.remove(model))
+  #Calculate PEI & PAI denominators here since they are the
+  #  same for all variations of tuning parameters,
+  #  given the input parameters (delx, etc.)
+  N_star = X[test_idx, .(tot.crimes = sum(value)), by = I
+              ][order(-tot.crimes)[1L:n.cells],
+                sum(tot.crimes)]
+  NN = X[test_idx, sum(value)]
   
-  preds =
-    fread(pred.vw, sep = " ", header = FALSE, col.names = c("pred", "I_start"))
-  invisible(file.remove(pred.vw))
-  #wrote 2-variable label with _ to fit VW guidelines;
-  #  now split back to constituents so we can join
-  preds[ , c("I", "start_date", "I_start") :=
-           c(lapply(tstrsplit(I_start, split = "_"), as.integer),
-             list(NULL))]
-  
-  # preds.dt[preds, (paste0('tun',ii)) := exp(i.pred), on='I']
-  
-  X[preds, pred.count := exp(i.pred), on = c("I", "start_date")]
-  rm(preds)
-  
-  hotspot.ids =
-    X[ , .(tot.pred = sum(pred.count)), by = I
-       ][order(-tot.pred)[1L:n.cells], I]
-  X[ , hotspot := I %in% hotspot.ids]
-  
-  #how well did we do? lower-case n in the PEI/PAI calculation
-  nn = X[(hotspot), sum(value)]
-  
-  scores[ii, c('l1', 'l2', 'p', 'pei', 'pai') :=
-           c(tuning_variations[ii],
-             list(pei = nn/N_star,
-                  #pre-calculated the total area of portland
-                  pai = (nn/NN)/(aa*n.cells/4117777129)))]
+  for (ii in seq_len(nrow(tuning_variations))) {
+    # print(ii)
+    model = tempfile(tmpdir = tdir, pattern = "model")
+    #train with VW
+    call.vw = with(tuning_variations[ii],
+                   paste(path_to_vw, '--loss_function poisson --l1', l1, 
+                         '--l2', l2, train.vw, '--cache_file', cache, 
+                         '--passes 200 -f', model))
+    system(call.vw, ignore.stderr = TRUE)
+    #training data now stored in cache format,
+    #  so can delete original (don't need to, but this is a useful
+    #  check to force an error if s.t. wrong with cache)
+    if (file.exists(train.vw)) invisible(file.remove(train.vw))
+    #test with VW
+    system(paste(path_to_vw, '-t -i', model, '-p', pred.vw,
+                 test.vw, '--loss_function poisson'),
+           ignore.stderr = TRUE)
+    invisible(file.remove(model))
+    
+    preds =
+      fread(pred.vw, sep = " ", header = FALSE, col.names = c("pred", "I_start"))
+    invisible(file.remove(pred.vw))
+    #wrote 2-variable label with _ to fit VW guidelines;
+    #  now split back to constituents so we can join
+    preds[ , c("I", "start_date", "I_start") :=
+             c(lapply(tstrsplit(I_start, split = "_"), as.integer),
+               list(NULL))]
+    
+    X[preds, pred.count := exp(i.pred), on = c("I", "start_date")]
+    rm(preds)
+    
+    hotspot.ids =
+      X[test_idx, .(tot.pred = sum(pred.count)), by = I
+         ][order(-tot.pred)[1L:n.cells], I]
+    X[test_idx, hotspot := I %in% hotspot.ids]
+    
+    #how well did we do? lower-case n in the PEI/PAI calculation
+    nn = X[(hotspot), sum(value)]
+    
+    #reset hotspots for next run
+    X[ , hotspot := NULL]
+    
+    scores[(seq_len(.N))[train_set==train][ii],
+           c('l1', 'l2', 'p', 'pei', 'pai') :=
+             c(tuning_variations[ii],
+               list(pei = nn/N_star,
+                    #pre-calculated the total area of portland
+                    pai = (nn/NN)/(aa*n.cells/4117777129)))]
+  }
+  invisible(file.remove(cache, test.vw))
 }
-invisible(file.remove(cache, test.vw))
-
-# sgdf = SpatialGridDataFrame(grdtop, 
-#    data = kde[.(2016,1)])
-# plot(sgdf[sgdf$I %in% hotspot.ids,,'value'])
 
 # <><><><><><><><><><><><><><><><><><><><><><><><><><><><><><><><><><><><><><>
 # COMPUTE MSE  ====
@@ -403,24 +400,14 @@ invisible(file.remove(cache, test.vw))
 # PRINT SCORES TO STDOUT  ====
 # <><><><><><><><><><><><><><><><><><><><><><><><><><><><><><><><><><><><><><>
 
-best_scores = unlist(scores[order(-pai)[1]], use.names = FALSE)
-best_scores = paste(best_scores, collapse = '/')
-best_scores = paste0('[[[',best_scores,']]]')
+best_scores = do.call(paste, c(scores[ , .SD[which.max(pai)], by = train_set],
+                               list(sep = '/')))
+best_scores = paste0('[[[', best_scores, ']]]')
 print(best_scores)
 
 # <><><><><><><><><><><><><><><><><><><><><><><><><><><><><><><><><><><><><><>
 # WRITE RESULTS FILE AND TIMINGS
 # <><><><><><><><><><><><><><><><><><><><><><><><><><><><><><><><><><><><><><>
 
-ff = paste0("scores/", 'ar_',crime.type, "_", horizon, job_id, ".csv")
+ff = paste0("scores/", 'ar_ws_my_',crime.type, "_", horizon, job_id, ".csv")
 fwrite(scores, ff, append = file.exists(ff))
-
-t1 = proc.time()["elapsed"]
-ft = paste0("timings/", crime.type, "_", horizon, job_id, ".csv")
-if (!file.exists(ft))
-  cat("delx,dely,eta,lt,theta,k,kde.bw,kde.lags,kde.win,time\n", sep = "", file = ft)
-params = paste(delx, dely, eta, lt, theta, features,
-               kde.bw, kde.lags, kde.win, t1 - t0, sep = ",")
-cat(params, "\n", sep = "", append = TRUE, file = ft)
-
-
