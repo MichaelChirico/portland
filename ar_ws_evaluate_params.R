@@ -20,7 +20,7 @@ if (grepl('comp', Sys.info()["nodename"]) & grepl('backup', getwd())) {
 
 #add/remove ! below to turn testing on/off
 ..testing = 
-  FALSE
+  !FALSE
 
 if (..testing) {
   delx=600;dely=600;eta=1;lt=14;theta=0
@@ -353,8 +353,8 @@ for (train in train_variations) {
     L2 = vw_variations[ii, l2]
     model = tempfile(tmpdir = tdir, pattern = "model")
     #train with VW
-    call.vw = paste(path_to_vw, '--loss_function poisson --l1', l1, 
-                    '--l2', l2, train.vw, '--cache_file', cache, 
+    call.vw = paste(path_to_vw, '--loss_function poisson --l1', L1, 
+                    '--l2', L2, train.vw, '--cache_file', cache, 
                     '--passes 200 -f', model)
     system(call.vw, ignore.stderr = TRUE)
     #training data now stored in cache format,
