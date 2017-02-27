@@ -20,12 +20,12 @@ if (grepl('comp', Sys.info()["nodename"]) & grepl('backup', getwd())) {
 
 #add/remove ! below to turn testing on/off
 ..testing = 
-  !FALSE
+  FALSE
 
 if (..testing) {
   delx=600;dely=600;eta=1;lt=14;theta=0
   features=250;kde.bw=500;kde.lags=6;kde.win = 3
-  horizon='1w';crime.type='all'#;alpha = 0
+  horizon='1w';crime.type='burglary'#;alpha = 0
   cat("**********************\n",
       "* TEST PARAMETERS ON *\n",
       "**********************\n")
