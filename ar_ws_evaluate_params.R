@@ -18,25 +18,31 @@ if (grepl('comp', Sys.info()["nodename"]) & grepl('backup', getwd())) {
   setwd('/home/ubuntu/scratch/portland')
 }
 
-# each argument read in as a string in a character vector;
- # would rather have them as a list. basically do
- # that by converting them to a form read.table
- # understands and then attaching from a data.frame
-args = read.table(text = paste(commandArgs(trailingOnly = TRUE),
-                               collapse = '\t'),
-                  stringsAsFactors = FALSE)
-names(args) =
-  c('delx', 'dely', 'eta', 'lt', 'theta',
-    'features', 'kde.bw', 'kde.lags', 'kde.win', 'crime.type', 'horizon')
-attach(args)
+#add/remove ! below to turn testing on/off
+..testing = 
+  FALSE
 
-# # baselines for testing:
-# delx=600;dely=600;eta=1;lt=1;theta=0
-# features=200;kde.bw=125;kde.lags=5;kde.win = 7
-# horizon='3m';crime.type='all'
-# cat("**********************\n",
-#     "* TEST PARAMETERS ON *\n",
-#     "**********************\n")
+if (..testing) {
+  delx=600;dely=600;eta=1;lt=30;theta=0
+  features=200;kde.bw=125;kde.lags=5;kde.win = 7
+  horizon='3m';crime.type='all'#;alpha = 0
+  cat("**********************\n",
+      "* TEST PARAMETERS ON *\n",
+      "**********************\n")
+} else {
+  # each argument read in as a string in a character vector;
+  # would rather have them as a list. basically do
+  # that by converting them to a form read.table
+  # understands and then attaching from a data.frame
+  args = read.table(text = paste(commandArgs(trailingOnly = TRUE),
+                                 collapse = '\t'),
+                    stringsAsFactors = FALSE)
+  names(args) =
+    c('delx', 'dely', #alpha,
+      'eta', 'lt', 'theta', 'features', 'kde.bw', 
+      'kde.lags', 'kde.win', 'crime.type', 'horizon')
+  attach(args)
+}
 
 incl_mos = c(10L, 11L, 12L, 1L, 2L, 3L)
 
@@ -282,8 +288,18 @@ rm(proj)
 #temporary files
 source("local_setup.R")
 
+#when we're at the minimum forecast area, we must round up
+#  to be sure we don't undershoot; when at the max,
+#  we must round down; otherwise, just round
+# **TO DO: if we predict any boundary cells and are using the minimum
+#          forecast area, WE'LL FALL BELOW IT WHEN WE CLIP TO PORTLAND **
+#which.round = function(x)
+#  if (x > 0) {if (x < 1) round else floor} else ceiling
+
+
 #6969600 ft^2 = .25 mi^2 (minimum forecast area);
 #triple this is maximum forecast area
+#n.cells = as.integer(which.round(alpha)(6969600*(1+2*alpha)/aa))
 n.cells = as.integer(ceiling(6969600/aa))
 
 tuning_variations =
@@ -292,7 +308,8 @@ tuning_variations =
 n_var = 4L*nrow(tuning_variations)
 
 #initialize parameter records table
-scores = data.table(delx, dely, eta, lt, theta, k = features,
+scores = data.table(delx, dely, #alpha,
+                    eta, lt, theta, k = features,
                     l1 = numeric(n_var), l2 = numeric(n_var),
                     p = numeric(n_var), kde.bw, kde.n = 'all', 
                     kde.lags, kde.win,
@@ -307,9 +324,10 @@ for (train in grep('^train', names(X), value = TRUE)) {
   cat(train, '\n')
   test_idx = !X[[train]]
   
-  filename = paste('arws',train,crime.type,horizon,delx,
-                   dely,eta,lt,theta,features,kde.bw,
-                   kde.lags,kde.win,job_id,sep = '_')
+  filename = 
+    paste('arws', train, crime.type, horizon, delx, dely, #alpha,
+          eta, lt, theta, features, kde.bw,
+          kde.lags, kde.win, job_id, sep = '_')
   train.vw = paste(paste0(tdir,'/train'), filename, sep='_')
   test.vw = paste(paste0(tdir,'/test'), filename, sep='_')
   #simply append .cache suffix to make it easier
