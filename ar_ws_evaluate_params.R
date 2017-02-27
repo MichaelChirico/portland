@@ -32,8 +32,8 @@ attach(args)
 
 # # baselines for testing:
 # delx=600;dely=600;eta=1;lt=1;theta=0
-# features=5;kde.bw=125;kde.lags=2;kde.win = 2
-# horizon='2m';crime.type='burglary'
+# features=200;kde.bw=125;kde.lags=5;kde.win = 7
+# horizon='3m';crime.type='all'
 # cat("**********************\n",
 #     "* TEST PARAMETERS ON *\n",
 #     "**********************\n")
@@ -233,7 +233,7 @@ incl = setNames(nm = names(X))
 incl.kde = grep("^lag", incl, value = TRUE)
 
 # check for NAs in the features
-stopifnot(all(!is.na(X)))
+stopifnot(all(!is.na(X$start_date)))
 
 phi.dt =
   X[ , {
