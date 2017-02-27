@@ -18,6 +18,7 @@ rsconnect/
 *.qpj
 *.shp
 *.shx
+*.out
 #!crimes_*
 #too many
 pei_pai_scripts/*.pdf
