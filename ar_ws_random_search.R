@@ -16,9 +16,9 @@ params =
              kde.bw = runif(NN, 125, 1000),
              kde.lags = sample(12, NN, TRUE),
              kde.win = runif(NN, 0, 100),
-             horizon = sample(c('1w','2w','1m','2m','3m'), NN, TRUE),
              crime.type = 
-               sample(c('all','burglary','street','vehicle'),NN,TRUE))
+               sample(c('all','burglary','street','vehicle'),NN,TRUE),
+             horizon = sample(c('1w','2w','1m','2m','3m'), NN, TRUE))
 
 params[ , dely := runif(.N, 250^2, 600^2)/delx]
 
