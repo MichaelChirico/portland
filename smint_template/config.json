@@ -2,7 +2,7 @@
     "language"        : "PYTHON",
     "main-file"       : "main_arws.py",
     "experiment-name" : "veh_3m",
-    "likelihood"      : "NOISELESS",
+    "likelihood"      : "GAUSSIAN",
     "variables" : {
         "delx" : {
             "type" : "FLOAT",

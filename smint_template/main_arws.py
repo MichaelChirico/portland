@@ -15,7 +15,7 @@ def params2str(params):
 def runRmodel(param_vec, crime, horizon, model_file = 'ar_ws_evaluate_params.R'):
 	# Inpu
 	# full path to R model
-	model_file = os.path.join('/backup/portland/', model_file)
+	model_file = os.path.join('..', model_file)
 
 	# spearmint encloses params in [], remove them
 	try:
@@ -48,7 +48,7 @@ def objective(params):
 		experfile = [f for f in os.listdir('.') if f.endswith('.exper')][0]
 	except IndexError:
 		 raise Exception('Pau: No experiment file!')
-	crime, horizon, paiorpei = experfile.split('-')
+	crime, horizon, paiorpei = experfile.split('.')[0].split('-')
 
 	# parse param dictionary and turn into list
 	param_names = ['delx', 'dely', 'eta', 'lt', 'theta',
