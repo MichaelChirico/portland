@@ -32,7 +32,7 @@ if (..testing) {
   # features=250;l1=1e-5;l2=1e-4;
   # kde.bw=500;kde.lags=6;kde.win = 3
   # crime.type='all';horizon='2m'
-  args = read.table(text = 'all	3m	531	605	0	3.187105	5.709805	0.508646	225	0	0	443.786032	11	86.66031',
+  args = read.table(text = 'vehicle 3m 600 600 0 0.5 180 0 20 0 1e-05 500 3 45',
                     sep = '\t', col.names = c('crime.type', 'horizon', 'delx', 'dely',
                                               'alpha', 'eta', 'lt',
                                               'theta', 'features', 'l1', 'l2', 
@@ -241,8 +241,12 @@ fwrite(phi.dt[!X$train], test.vw,
 
 model = tempfile(tmpdir = tdir, pattern = "model")
 
-call.vw = paste(path_to_vw, '--loss_function poisson --l1', l1, 
-                '--l2', l2, train.vw, '--cache_file', cache, 
+# call.vw = paste(path_to_vw, '--loss_function poisson --l1', l1, 
+#                 '--l2', l2, train.vw, '--cache_file', cache, 
+#                 '--passes 200 -f', model)
+call.vw = paste(path_to_vw, '--loss_function poisson --l1', l1,
+                '--random_seed 123456789',
+                '--l2', l2, train.vw, '--cache_file', cache,
                 '--passes 200 -f', model)
 system(call.vw)
 invisible(file.remove(train.vw))
