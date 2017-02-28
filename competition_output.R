@@ -15,6 +15,7 @@
 library(spatstat)
 library(splancs)
 library(rgeos)
+library(rgdal)
 library(data.table)
 library(maptools)
 
@@ -24,7 +25,7 @@ set.seed(60251935)
 
 #add/remove ! below to turn testing on/off
 ..testing = 
-  !FALSE
+  FALSE
 
 if (..testing) {
   # delx=600;dely=600;alpha=0;eta=1;lt=14;theta=0
@@ -164,7 +165,7 @@ setkey(crimes.sp@data, occ_date_int)
 
 future = 
   #Add one missing row for each cell corresponding to start date March 1, 2017
-  unique(X, by = 'I')[ , c('start_date', 'value') := .(march117, NA_integer_)][]
+  unique(X, by = 'I')[ , c('start_date', 'value') := .(march117, NA_integer_)]
 X = rbind(X, future)
 
 compute.kde <- function(pts, start, lag.no) {
