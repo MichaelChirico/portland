@@ -18,6 +18,7 @@ rsconnect/
 *.qpj
 *.shp
 *.shx
+*.out
 #!crimes_*
 #too many
 pei_pai_scripts/*.pdf
@@ -26,3 +27,4 @@ output*
 delete_me
 3MO/
 test_submission/
+core

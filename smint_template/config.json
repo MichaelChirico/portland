@@ -1,0 +1,75 @@
+{
+    "language"        : "PYTHON",
+    "main-file"       : "main_arws_constr.py",
+    "experiment-name" : "veh_3m",
+    "variables" : {
+        "delx" : {
+            "type" : "FLOAT",
+            "size" : 1,
+            "min"  : 125,
+            "max"  : 2500
+        },
+        "dely" : {
+            "type" : "FLOAT",
+            "size" : 1,
+            "min"  : 125,
+            "max"  : 2500
+        },
+        "eta" : {
+            "type" : "FLOAT",
+            "size" : 1,
+            "min"  : 0.5,
+            "max"  : 4
+        },
+        "lt" : {
+            "type" : "FLOAT",
+            "size" : 1,
+            "min"  : 7,
+            "max"  : 90
+        },
+        "k" : {
+            "type" : "INT",
+            "size" : 1,
+            "min"  : 50,
+            "max"  : 200
+        },
+        "theta" : {
+            "type" : "FLOAT",
+            "size" : 1,
+            "min"  : 0,
+            "max"  : 1.57
+        },
+        "kde_bw" : {
+            "type" : "INT",
+            "size" : 1,
+            "min"  : 250,
+            "max"  : 1000
+        },
+        "kde_lags" : {
+            "type" : "INT",
+            "size" : 1,
+            "min"  : 3,
+            "max"  : 6
+        },
+        "kde_win" : {
+            "type" : "INT",
+            "size" : 1,
+            "min"  : 10,
+            "max"  : 30
+        }
+    },
+    "tasks" : {
+        "arws" : {
+            "type" : "OBJECTIVE",
+            "likelihood": "GAUSSIAN"
+        },
+        "max_area" : {
+            "type" : "CONSTRAINT",
+            "likelihood": "NOISELESS"
+        },
+        "min_area" : {
+            "type" : "CONSTRAINT",
+            "likelihood" : "NOISELESS"
+        }
+    }
+}
