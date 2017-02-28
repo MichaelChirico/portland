@@ -32,7 +32,7 @@ if (..testing) {
   # features=250;l1=1e-5;l2=1e-4;
   # kde.bw=500;kde.lags=6;kde.win = 3
   # crime.type='all';horizon='2m'
-  args = read.table(text = 'vehicle 3m 600 600 0 0.5 180 0 20 0 1e-05 500 3 45',
+  args = read.table(text = 'vehicle	3m	600	60	0	 0.5 180 0 20 0 1e-05 500 3 45',
                     sep = '\t', col.names = c('crime.type', 'horizon', 'delx', 'dely',
                                               'alpha', 'eta', 'lt',
                                               'theta', 'features', 'l1', 'l2', 
@@ -314,6 +314,6 @@ out.horizon = switch(horizon, '1w' = '1WK', '2w' = '2WK',
 out.crime.type = switch(crime.type, 'all' = 'ACFS', 'street' = 'SC',
                         'burglary' = 'Burg', 'vehicle' = 'TOA')
 out.dir = paste0('submission/', out.crime.type, '/', out.horizon)
-out.fn = paste0('TEAM_KERNEL_GLITCHES_', toupper(out.crime.type), '_', out.horizon)
+out.fn = paste0('TEAM_CFLP_', toupper(out.crime.type), '_', out.horizon)
 writeOGR(grdSPDF, dsn = out.dir, layer = out.fn, 
          driver = 'ESRI Shapefile', overwrite_layer = TRUE)
