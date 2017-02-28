@@ -314,6 +314,6 @@ out.horizon = switch(horizon, '1w' = '1WK', '2w' = '2WK',
 out.crime.type = switch(crime.type, 'all' = 'ACFS', 'street' = 'SC',
                         'burglary' = 'Burg', 'vehicle' = 'TOA')
 out.dir = paste0('submission/', out.crime.type, '/', out.horizon)
-out.fn = paste0('TEAM_CFLP_', toupper(out.crime.type), '_', out.horizon)
+out.fn = paste0('TEAM_KERNEL_GLITCHES_', toupper(out.crime.type), '_', out.horizon)
 writeOGR(grdSPDF, dsn = out.dir, layer = out.fn, 
          driver = 'ESRI Shapefile', overwrite_layer = TRUE)
