@@ -25,5 +25,6 @@ pei_pai_scripts/*.pdf
 #should tempfile these?
 output*
 delete_me
+3MO/
+test_submission/
 core
-
