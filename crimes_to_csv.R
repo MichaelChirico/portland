@@ -15,6 +15,15 @@ crimes = rbindlist(lapply(list.files(
   #  also, some missing data snuck in on one line
   read.dbf, as.is = TRUE))[!is.na(occ_date)]
 
+# ------------------------------------------------------------------------------------------
+# read in data from rss feed fro Feb 28, 2017
+feb28 = fread('data/rss_feed_Feb28.csv')
+feb28[, occ_date := as.IDate('2017-02-28')]
+# feb28[, occ_date := as.IDate('2017-02-28')]
+
+crimes = rbindlist(list(crimes, feb28), fill = TRUE)
+# ------------------------------------------------------------------------------------------
+
 #number of weeks before March 1, 2017
 crimes[ , week_no := unclass(as.IDate("2017-02-28") - 
                                as.IDate(occ_date)) %/% 7L + 1L]
