@@ -1,4 +1,5 @@
 #!/usr/bin/env Rscript
+#  Running a random search 
 library(data.table)
 
 n_scripts = 40L

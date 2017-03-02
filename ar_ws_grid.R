@@ -1,4 +1,5 @@
 #!/usr/bin/env Rscript
+#  Running a grid search 
 library(data.table)
 params =
   CJ(crime = c('all', 'burglary'),

@@ -1,4 +1,7 @@
 #!/usr/bin/env Rscript
+#  Running some parameters that did well
+#    with 2016 as holdout on alternative
+#    holdout periods
 library(data.table)
 params =
   data.table(crime = 
