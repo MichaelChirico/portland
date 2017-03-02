@@ -13,6 +13,9 @@
 # ****************************************
 # Michael Chirico, Seth Flaxman,
 # Charles Loeffler, Pau Pereira
+#** Alternative Model **
+#  KDE fixed effects &
+#    call group namespaces
 t0 = proc.time()["elapsed"]
 suppressMessages({
   library(spatstat, quietly = TRUE)

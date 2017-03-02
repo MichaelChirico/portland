@@ -3,6 +3,10 @@
 # Charles Loeffler, Pau Pereira
 # Michael Chirico, Seth Flaxman,
 # Charles Loeffler, Pau Pereira
+#** Alternative Model **
+#  Autoregressive/Winter-Spring
+#    model, testing one period 
+#    earlier as holdout
 t0 = proc.time()["elapsed"]
 suppressMessages({
   library(spatstat, quietly = TRUE)
@@ -156,8 +160,8 @@ n_pds = 4L*one_year
 crimes[ , occ_date_int := unclass(occ_date)]
 unq_crimes = crimes[ , unique(occ_date_int)]
 
-march117 = unclass(as.IDate('2017-03-01')) - 7L
-start = march117 - one_year*pd_length - (seq_len(n_pds) - 1L) * pd_length
+march117 = unclass(as.IDate('2017-03-01'))
+start = march117 - one_year*pd_length - (c(0L, seq_len(n_pds)) - 1L) * pd_length
 end = start + pd_length - 1L
 windows = data.table(start, end, key = 'start,end')
 
@@ -183,7 +187,7 @@ if (trimLHS) {
   start = X[ , unique(start_date)]
 }
 
-X[ , train := start_date != march117 - one_year*pd_length]
+X[ , train := start_date != march117 - one_year*pd_length + pd_length]
 
 # create sp object of crimes
 to.spdf = function(dt) {
@@ -387,5 +391,5 @@ invisible(file.remove(cache, test.vw))
 # WRITE RESULTS FILE AND TIMINGS
 # <><><><><><><><><><><><><><><><><><><><><><><><><><><><><><><><><><><><><><>=
 
-ff = paste0("scores/", 'ar_m7_',crime.type, "_", horizon, job_id, ".csv")
+ff = paste0("scores/", 'ar_p1_',crime.type, "_", horizon, job_id, ".csv")
 fwrite(scores, ff, append = file.exists(ff))

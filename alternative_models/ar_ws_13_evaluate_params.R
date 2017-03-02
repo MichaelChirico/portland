@@ -3,6 +3,9 @@
 # Charles Loeffler, Pau Pereira
 # Michael Chirico, Seth Flaxman,
 # Charles Loeffler, Pau Pereira
+#** Alternative Model **
+#  Autoregressive/Winter-Spring
+#    model, testing 2013 as holdout
 t0 = proc.time()["elapsed"]
 suppressMessages({
   library(spatstat, quietly = TRUE)
@@ -183,7 +186,7 @@ if (trimLHS) {
   start = X[ , unique(start_date)]
 }
 
-X[ , train := start_date != march117 - 2L*one_year*pd_length]
+X[ , train := start_date != march117 - 4L*one_year*pd_length]
 
 # create sp object of crimes
 to.spdf = function(dt) {
@@ -388,6 +391,5 @@ invisible(file.remove(cache, test.vw))
 # WRITE RESULTS FILE AND TIMINGS
 # <><><><><><><><><><><><><><><><><><><><><><><><><><><><><><><><><><><><><><>=
 
-ff = paste0("scores/", 'ar_15_',crime.type, "_", horizon, job_id, ".csv")
+ff = paste0("scores/", 'ar_13_',crime.type, "_", horizon, job_id, ".csv")
 fwrite(scores, ff, append = file.exists(ff))
-

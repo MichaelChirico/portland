@@ -1,5 +1,7 @@
 #Calculate top call groups by crime
 #  so this doesn't have to be done on each iteration
+#** Alternative Model **
+#  Used to create the call group KDE namespace
 library(data.table)
 
 fwrite(rbindlist(lapply(
