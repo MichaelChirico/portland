@@ -1,4 +1,0 @@
-#force git to incorporate this empty directory to help
-#  respect directory structure
-*
-!.gitignore
