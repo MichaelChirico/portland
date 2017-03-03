@@ -1,4 +1,5 @@
 #!/usr/bin/env Rscript
+#  A grid search
 library(data.table)
 params = CJ(
   delx = c(250,600,800),

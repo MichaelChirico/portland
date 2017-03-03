@@ -1,3 +1,6 @@
+#for facilitating running scripts on
+#  contributors' respective environments/clusters
+
 hostname = Sys.info()["nodename"]
 cat("running on ", hostname, "\n")
 
