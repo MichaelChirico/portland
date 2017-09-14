@@ -9,13 +9,12 @@ gc()
 library(rvest) 
 
 # Official Contest Data
-# **TO DO: No longer works now that contest is over**
-URL = paste0("http://www.nij.gov/funding/Pages/",
-             "fy16-crime-forecasting-challenge.aspx")
+URL = paste0('https://www.nij.gov/funding/Pages/',
+             'fy16-crime-forecasting-challenge-document.aspx')
 
 data_links = read_html(URL) %>% 
   #Get all <a href=...> tags, convert to text
-  html_nodes(xpath = "//a/@href") %>% html_text() %>%
+  html_nodes(xpath = "//a/@href") %>% html_text %>%
   #All data files end in .zip
   grep("Data.zip", ., fixed = TRUE, value = TRUE) %>% 
   #URLS are internal to the nij.gov site, so prepend
