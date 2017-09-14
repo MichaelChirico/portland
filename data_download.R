@@ -9,6 +9,7 @@ gc()
 library(rvest) 
 
 # Official Contest Data
+# **TO DO: No longer works now that contest is over**
 URL = paste0("http://www.nij.gov/funding/Pages/",
              "fy16-crime-forecasting-challenge.aspx")
 
