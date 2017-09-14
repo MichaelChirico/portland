@@ -2,3 +2,14 @@
 .Rhistory
 .Rproj.user
 *.Rproj
+
+#some folders for holding scores, etc.
+#  of various runs
+kde_baselines
+timings
+scores
+
+#tracking performance of
+#  baseline KDE in this
+#  output file
+*.pei
