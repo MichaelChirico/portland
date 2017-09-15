@@ -15,15 +15,6 @@ crimes = rbindlist(lapply(list.files(
   #  also, some missing data snuck in on one line
   read.dbf, as.is = TRUE))[!is.na(occ_date)]
 
-# ------------------------------------------------------------------------------------------
-# read in data from rss feed fro Feb 28, 2017
-feb28 = fread('data/rss_feed_Feb28.csv')
-feb28[, occ_date := as.IDate('2017-02-28')]
-# feb28[, occ_date := as.IDate('2017-02-28')]
-
-crimes = rbindlist(list(crimes, feb28), fill = TRUE)
-# ------------------------------------------------------------------------------------------
-
 #number of weeks before March 1, 2017
 crimes[ , week_no := unclass(as.IDate("2017-02-28") - 
                                as.IDate(occ_date)) %/% 7L + 1L]
@@ -32,18 +23,12 @@ crimes[ , week_no := unclass(as.IDate("2017-02-28") -
 crimes[, month_no := round((as.yearmon("2017-03-01") - as.yearmon(occ_date))*12)]
 
 # day of the month
-crimes[, day_mo := mday(occ_date)]
+crimes[ , day_mo := mday(occ_date)]
 
 # year
-crimes[, occ_year := year(occ_date)]
+crimes[ , occ_year := year(occ_date)]
 
-# day = 1 ==> March 1st 2017
-# crimes[, day_no := difftime(as.IDate(paste(occ_year,'03-01', sep='-')), 
-#                             occ_date, 
-#                             units = 'days')
-# ]
-
-crimes[, day_no := difftime(as.IDate('2017-03-01'), occ_date, units='days')]
+crimes[ , day_no := difftime(as.IDate('2017-03-01'), occ_date, units='days')]
 
 # numerate forecasting period years
 #  (sounds weird but it's useful to compute
