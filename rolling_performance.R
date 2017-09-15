@@ -11,6 +11,8 @@ library(foreach)
 library(maptools)
 library(zoo)
 
+source('utils.R')
+
 #make sure we use the same seed
 #  as evaluation_params.R
 set.seed(60251935)
@@ -55,14 +57,6 @@ crime.file = switch(crime.type,
 crimes = fread(crime.file)
 crimes[ , occ_date := as.IDate(occ_date)]
 
-rotate = function(x, y, theta, origin)
-  matrix(origin, nrow = length(x), 
-         ncol = 2L, byrow = TRUE) %*% (diag(2L) - RT(theta)) + 
-  cbind(x, y) %*% RT(theta)
-RT = function(theta) matrix(c(cos(theta), -sin(theta),
-                              sin(theta), cos(theta)),
-                            nrow = 2L, ncol = 2L)
-
 point0 = crimes[ , c(min(x_coordina), min(y_coordina))]
 crimes[ , paste0(c('x', 'y'), '_coordina') :=
           as.data.table(rotate(x_coordina, y_coordina, theta, point0))]
@@ -74,13 +68,6 @@ portland_r =
 xrng = range(portland_r[ , 1L])
 yrng = range(portland_r[ , 2L])
 
-getGTindices <- function(gt) {
-  dimx <- gt@cells.dim[1L]
-  dimy <- gt@cells.dim[2L]
-  c(matrix(seq_len(dimx*dimy), ncol = dimy, byrow = TRUE)[ , dimy:1L])
-}
-
-prj = CRS("+init=epsg:2913")
 grdtop <- as(as.SpatialGridDataFrame.im(
   pixellate(ppp(xrange=xrng, yrange=yrng), eps=c(delx, dely))), "GridTopology")
 grdSPDF = SpatialPolygonsDataFrame(
@@ -100,7 +87,6 @@ incl_ids =
   )[value > 0, which = TRUE]
 
 #join some missing crimes from unseen dates
-seq_rng = function(rng) seq.int(rng[1L], rng[2L])
 fake_crimes = 
   data.table(week_no = c(seq_rng(lag.range),
                          seq_rng(recent)))
@@ -233,9 +219,6 @@ fwrite(phi.dt[!crimes.grid.dt$train], test.vw,
 
 crimes.grid.dt = crimes.grid.dt[(!train)]
 rm(phi.dt)
-
-which.round = function(x)
-  if (x > 0) {if (x < 1) round else floor} else ceiling
 
 n.cells = as.integer(which.round(alpha)(6969600*(1+2*alpha)/aa))
 

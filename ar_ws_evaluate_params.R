@@ -7,6 +7,7 @@ suppressMessages({
   library(rgeos)
   library(data.table, warn.conflicts = FALSE, quietly = TRUE)
   library(maptools)
+  source('utils.R')
 })
 
 #from random.org
@@ -69,22 +70,6 @@ crimes[ , occ_date := as.IDate(occ_date)]
 # ROTATION ----
 # <><><><><><><><><><><><><><><><><><><><><><><><><><><><><><><><><><><><><><>=
 
-#rotation formula, relative to a point (x_0, y_0) that's not origin:
-#  [x_0, y_0] + R * [x - x_0, y - y_0]
-#  (i.e., rotate the distances from (x_0, y_0) about that point,
-#   then offset again by (x_0, y_0))
-#  Equivalently (implemented below):
-#  (I - R)[x_0, y_0] + R[x, y]
-rotate = function(x, y, theta, origin)
-  matrix(origin, nrow = length(x), 
-         ncol = 2L, byrow = TRUE) %*% (diag(2L) - RT(theta)) + 
-  cbind(x, y) %*% RT(theta)
-#use the transpose of the rotation matrix to multiply against
-#  column vectors of coordinates
-RT = function(theta) matrix(c(cos(theta), -sin(theta), 
-                              sin(theta), cos(theta)), 
-                            nrow = 2L, ncol = 2L)
-
 #use the lower-left corner of data as the origin
 #  through which to rotate
 #  (side-effect -- the same theta on different
@@ -111,17 +96,6 @@ yrng = range(portland[ , 2L])
 # <><><><><><><><><><><><><><><><><><><><><><><><><><><><><><><><><><><><><><>=
 # CREATE GRID ----
 # <><><><><><><><><><><><><><><><><><><><><><><><><><><><><><><><><><><><><><>=
-
-getGTindices <- function(gt) {
-  # Obtain indices to rearange data from image (eg. result frim pixellate)
-  # so that it conforms with data from GridTopology objects (eg. results
-  # from using spkernel2d).
-  # Input: gt is a grid topology.
-  # Returns an index.
-  dimx <- gt@cells.dim[1L]
-  dimy <- gt@cells.dim[2L]
-  c(matrix(seq_len(dimx*dimy), ncol = dimy, byrow = TRUE)[ , dimy:1L])
-}
 
 # from create GridTopology corresponding to pixel image used for crime counts
 #   (so that we're sure the output from spatstat & sp overlap properly)
@@ -234,13 +208,6 @@ for (ii in 1:4) {
 # Add lagged KDE covariates
 # <><><><><><><><><><><><><><><><><><><><><><><><><><><><><><><><><><><><><><>=
 
-# create sp object of crimes
-to.spdf = function(dt) {
-  SpatialPointsDataFrame(
-    coords = dt[ , cbind(x_coordina, y_coordina)],
-    data = dt[ , -c('x_coordina', 'y_coordina')],
-    proj4string = CRS("+init=epsg:2913"))
-}
 crimes.sp = to.spdf(crimes)
 #convert to DT to speed up repeated
 #  subsetting by sorting the data
@@ -381,14 +348,6 @@ train_variations = grep('^train', names(X), value = TRUE)
 #  creation to do so
 l1s = l2s = c(0, 1e-5, 5e-5, 1e-4, 5e-4, 1e-3)
 vw_variations = CJ(l1 = l1s, l2 = l2s)
-
-#when we're at the minimum forecast area, we must round up
-#  to be sure we don't undershoot; when at the max,
-#  we must round down; otherwise, just round
-# **TO DO: if we predict any boundary cells and are using the minimum
-#          forecast area, WE'LL FALL BELOW IT WHEN WE CLIP TO PORTLAND **
-which.round = function(x)
-  if (x > 0) {if (x < 1) round else floor} else ceiling
 
 #for storing the output, taking care to
 #  store things in the correct order
