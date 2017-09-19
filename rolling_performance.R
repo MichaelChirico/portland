@@ -30,7 +30,7 @@ attach(args)
 delx=683;dely=487;alpha=0.616;eta=.948;lt=5.12;theta=pi/4
 features=25;kde.bw=313;kde.lags=2;
 l1=1e-5;l2=1e-4;lambda=.5;delta=1;T0=0
-crime.type='all';horizon='1m';start=20170301
+crime.type='burglary';horizon='1w';start=20170301
 cat("**********************\n",
     "* TEST PARAMETERS ON *\n",
     "**********************\n")
@@ -68,12 +68,19 @@ portland_r =
 xrng = range(portland_r[ , 1L])
 yrng = range(portland_r[ , 2L])
 
+# cleaner version, need to confirm identical
+# library(magrittr)
+# grdtop = ppp(xrange = xrng, yrange = yrng) %>%
+#   pixellate(eps = c(delx, dely)) %>%
+#   as.SpatialGridDataFrame.im %>%
+#   as("GridTopology")
 grdtop <- as(as.SpatialGridDataFrame.im(
   pixellate(ppp(xrange=xrng, yrange=yrng), eps=c(delx, dely))), "GridTopology")
+grd_rn = sprintf('g%d', seq_len(prod(grdtop@cells.dim)))
 grdSPDF = SpatialPolygonsDataFrame(
   as.SpatialPolygons.GridTopology(grdtop, proj4string = prj),
   data = data.frame(I = seq_len(prod(grdtop@cells.dim)),
-                    row.names = sprintf('g%d', seq_len(prod(grdtop@cells.dim)))), 
+                    row.names = grd_rn), 
   match.ID = FALSE
 )
 
@@ -86,27 +93,7 @@ incl_ids =
     eps = c(delx, dely)))[idx.new, ]
   )[value > 0, which = TRUE]
 
-#join some missing crimes from unseen dates
-fake_crimes = 
-  data.table(week_no = c(seq_rng(lag.range),
-                         seq_rng(recent)))
-crimes = crimes[fake_crimes, on = 'week_no']
-#crimes.sp throws a hissy fit if fed NA coordinates
-real_crimes = crimes[!is.na(x_coordina), which = TRUE]
-
-#while we don't have the full data set, we're missing
-#  data from the end of February -- to avoid this
-#  mucking up the test process, we'll pad the
-#  current data with each cell's ancestor
-pad = crimes[is.na(x_coordina) & week_no > 0, 
-             week_no + 52L]
-
-crimes.sp =
-  SpatialPointsDataFrame(
-    coords = crimes[(real_crimes), cbind(x_coordina, y_coordina)],
-    data = crimes[(real_crimes), -c('x_coordina', 'y_coordina')],
-    proj4string = prj
-  )
+crimes.sp = to.spdf(crimes)
 
 crimes.grid.dt =
   crimes[week_no %between% recent, 
@@ -115,17 +102,6 @@ crimes.grid.dt =
            xrange = xrng, yrange = yrng, check = FALSE),
            eps = c(delx, dely)))[idx.new],
          by = week_no][ , I := rowid(week_no)][I %in% incl_ids]
-
-#if we have full data, this step will do nothing
-crimes.pad = 
-  crimes[week_no %in% pad,
-         as.data.table(pixellate(ppp(
-           x = x_coordina, y = y_coordina,
-           xrange = xrng, yrange = yrng, check = FALSE),
-           eps = c(delx, dely)))[idx.new],
-         by = .(week_no = week_no - 52L)
-         ][ , I := rowid(week_no)][I %in% incl_ids]
-crimes.grid.dt[crimes.pad, value := i.value, on = c('week_no', 'I')]
 
 compute.kde <- function(pts, month)
   spkernel2d(pts = pts[pts$month_no == month, ],
@@ -136,28 +112,11 @@ compute.lag = function(pts, week_no)
                          (week_no + c(50L, 54L)), ],
              poly = portland_r, h0 = kde.bw, grd = grdtop)
 
-compute.kde.list <- function (pts, months = seq_len(kde.lags) + 12L)
-  lapply(setNames(months, paste0('kde', months)),
-         function(month) compute.kde(pts, month))
+compute.kde.dt <- function (pts, months = seq_len(kde.lags) + 12L)
+  setDT(lapply(setNames(months, paste0('kde', months)),
+               function(month) compute.kde(pts, month)))
 
-kdes = setDT(compute.kde.list(crimes.sp))
-
-## **TO DO: deal with this properly
-callgroup.top = 
-  fread('top_callgroups_by_crime.csv')[crime == crime.type, cg]
-
-if (length(callgroup.top)) {
-  crimes.cgroup = lapply(callgroup.top, function(cg) 
-    crimes.sp[crimes.sp$call_group_type == cg, ])
-  
-  kdes.sub = setDT(sapply(crimes.cgroup, function(pts) 
-    compute.kde.list(pts, months = 13L)))
-  
-  setnames(kdes.sub, paste0('cg.kde', seq_len(ncol(kdes.sub))))
-  
-  # combine normal kdes and sub-kdes
-  kdes = cbind(kdes, kdes.sub)
-}
+kdes = compute.kde.dt(crimes.sp)
 
 kdes[ , I := .I]
 

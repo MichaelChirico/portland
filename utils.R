@@ -1,9 +1,9 @@
-# this file contains some meta files common
+# this file contains some meta objects common
 #   throughout the project; running source
 #   on this file is a way of treating the 
 #   project folder as a package locally,
 #   in the sense of having a set of functions
-#   available locally
+#   and constants available in scope
 
 ## the Portland CRS in units of feet:
 ##    NAD83(HARN) / Oregon North (ft)
