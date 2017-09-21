@@ -30,7 +30,7 @@ attach(args)
 delx=683;dely=487;alpha=0.616;eta=.948;lt=5.12;theta=pi/4
 features=25;kde.bw=313;kde.lags=2;
 l1=1e-5;l2=1e-4;lambda=.5;delta=1;T0=0
-crime.type='burglary';horizon='1w';start=20170301
+crime.type='burglary';horizon='1w';start='20170301'
 cat("**********************\n",
     "* TEST PARAMETERS ON *\n",
     "**********************\n")
@@ -39,14 +39,10 @@ aa = delx*dely
 lx = eta*delx
 ly = eta*dely
 
-week_0 = 0L
-lag.range = week_0 + 
-  c(switch(horizon, '1w' = 54L, '2w' = 53L,
-           '1m' = 50L, '2m' = 46L, '3m' = 42L), 80L)
+week_0 = unclass(as.IDate("2017-02-28") - 
+                   as.IDate(start, format = '%Y%m%d')) %/% 7L + 1L
 
-recent = week_0 + 
-  c(switch(horizon, '1w' = 0, '2w' = -1L,
-           '1m' = -4L, '2m' = -8L, '3m' = -12L), 26L)
+recent = week_0 + c(0L, 26L)
 
 crime.file = switch(crime.type,
                     all = "crimes_all.csv",
