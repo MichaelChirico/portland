@@ -23,14 +23,14 @@ args =
 names(args) = c('delx', 'dely', 'alpha', 'eta', 'lt', 'theta',
                 'features', 'kde.bw', 'kde.lags', 'l1', 'l2',
                 'lambda', 'delta', 'T0', 'pp',
-                'crime.type', 'horizon', 'start')
+                'crime.type', 'start')
 attach(args)
 
 # baselines for testing:
 delx=683;dely=487;alpha=0.616;eta=.948;lt=5.12;theta=pi/4
 features=25;kde.bw=313;kde.lags=2;
 l1=1e-5;l2=1e-4;lambda=.5;delta=1;T0=0
-crime.type='burglary';horizon='1w';start='20170301'
+crime.type='burglary';start='20170301'
 cat("**********************\n",
     "* TEST PARAMETERS ON *\n",
     "**********************\n")
@@ -231,15 +231,3 @@ grdSPDF =
     match.ID = FALSE
   )
 proj4string(grdSPDF) = prj
-
-#add area per contest guidelines
-grdSPDF$area = gArea(grdSPDF, byid = TRUE)
-
-out.horizon = switch(horizon, '1w' = '1WK', '2w' = '2WK',
-                     '1m' = '1MO', '2m' = '2MO', '3m' = '3MO')
-out.crime.type = switch(crime.type, 'all' = 'ACFS', 'street' = 'SC',
-                        'burglary' = 'Burg', 'vehicle' = 'TOA')
-out.dir = paste0('submission/', out.crime.type, '/', out.horizon)
-out.fn = paste0('TEAM_CFLP_', toupper(out.crime.type), '_', out.horizon)
-writeOGR(grdSPDF, dsn = out.dir, layer = out.fn, 
-         driver = 'ESRI Shapefile', overwrite_layer = TRUE)
