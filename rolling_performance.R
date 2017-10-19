@@ -17,22 +17,12 @@ source('utils.R')
 #  as evaluation_params.R
 set.seed(60251935)
 
-args = 
-  read.table(text = paste(commandArgs(trailingOnly = TRUE), collapse = '\t'),
-             sep = '\t', stringsAsFactors = FALSE)
-names(args) = c('delx', 'dely', 'alpha', 'eta', 'lt', 'theta',
-                'features', 'kde.bw', 'kde.lags', 'l1', 'l2',
-                'lambda', 'delta', 'T0', 'pp',
-                'crime.type', 'start')
-attach(args)
-
-# baselines for testing:
-delx=250;dely=250;alpha=.95;eta=3;lt=7;theta=0
-features=2;kde.bw=250;kde.lags=6;kde.win=10;l1=0;l2=0
-crime.type='burglary';start='20170308'
-cat("**********************\n",
-    "* TEST PARAMETERS ON *\n",
-    "**********************\n")
+start = commandArgs(trailingOnly = TRUE)[1L]
+#default for testing
+if (is.na(start)) start = '20170308'
+delx=250;dely=250;alpha=.95;eta=3;
+lt=7;theta=0;features=2;kde.bw=250;
+kde.lags=6;kde.win=10;l1=0;l2=0
 
 aa = delx*dely
 lx = eta*delx
@@ -43,13 +33,7 @@ week_0 = unclass(as.IDate("2017-02-28") -
 
 recent = week_0 + c(0L, 26L)
 
-crime.file = switch(crime.type,
-                    all = "crimes_all.csv",
-                    street = "crimes_str.csv",
-                    burglary = "crimes_bur.csv",
-                    vehicle = "crimes_veh.csv")
-
-crimes = fread(crime.file)
+crimes = fread("crimes_bur.csv")
 crimes[ , occ_date := as.IDate(occ_date)]
 
 point0 = crimes[ , c(min(x_coordina), min(y_coordina))]
@@ -58,7 +42,7 @@ crimes[ , paste0(c('x', 'y'), '_coordina') :=
 
 portland_r = 
   with(fread('data/portland_coords.csv'),
-       rotate(x, y, theta, point0))
+       rotate(x, y, theta, point0))"crimes_bur.csv"
 
 xrng = range(portland_r[ , 1L])
 yrng = range(portland_r[ , 2L])
@@ -82,7 +66,10 @@ grdSPDF = SpatialPolygonsDataFrame(
 idx.new <- getGTindices(grdtop)
 
 incl_ids =
-  with(crimes[occ_date < start], as.data.table(pixellate(ppp(
+  # for consistency with ex-ante training, 
+  #   base the ever-crime cell indices on the data that would have
+  #   been available in forecasting for the current period
+  with(crimes[week_no > week_0], as.data.table(pixellate(ppp(
     x = x_coordina, y = y_coordina,
     xrange = xrng, yrange = yrng, check = FALSE),
     eps = c(delx, dely)))[idx.new, ]
