@@ -27,9 +27,8 @@ attach(args)
 
 # baselines for testing:
 delx=250;dely=250;alpha=.95;eta=3;lt=7;theta=0
-features=2;kde.bw=250;kde.lags=6;
-kde.win=10;l1=0;l2=0
-crime.type='all';horizon='1w';start=20170308
+features=2;kde.bw=250;kde.lags=6;kde.win=10;l1=0;l2=0
+crime.type='burglary';horizon='1w';start=20170308
 cat("**********************\n",
     "* TEST PARAMETERS ON *\n",
     "**********************\n")
@@ -79,7 +78,7 @@ grdSPDF = SpatialPolygonsDataFrame(
 idx.new <- getGTindices(grdtop)
 
 incl_ids =
-  with(crimes, as.data.table(pixellate(ppp(
+  with(crimes[occ_date < start], as.data.table(pixellate(ppp(
     x = x_coordina, y = y_coordina,
     xrange = xrng, yrange = yrng, check = FALSE),
     eps = c(delx, dely)))[idx.new, ]
