@@ -22,15 +22,14 @@ args =
              sep = '\t', stringsAsFactors = FALSE)
 names(args) = c('delx', 'dely', 'alpha', 'eta', 'lt', 'theta',
                 'features', 'kde.bw', 'kde.lags', 'l1', 'l2',
-                'lambda', 'delta', 'T0', 'pp',
                 'crime.type', 'horizon', 'start')
 attach(args)
 
 # baselines for testing:
-delx=683;dely=487;alpha=0.616;eta=.948;lt=5.12;theta=pi/4
-features=25;kde.bw=313;kde.lags=2;
-l1=1e-5;l2=1e-4;lambda=.5;delta=1;T0=0
-crime.type='all';horizon='1m';start=20170301
+delx=250;dely=250;alpha=.95;eta=3;lt=7;theta=0
+features=2;kde.bw=250;kde.lags=6;
+kde.win=10;l1=0;l2=0
+crime.type='all';horizon='1w';start=20170308
 cat("**********************\n",
     "* TEST PARAMETERS ON *\n",
     "**********************\n")
@@ -224,10 +223,7 @@ n.cells = as.integer(which.round(alpha)(6969600*(1+2*alpha)/aa))
 
 model = tempfile(tmpdir = tdir, pattern = "model")
 system(paste(path_to_vw, '--loss_function poisson --l1', l1, '--l2', l2,
-             '--learning_rate', lambda,
-             '--decay_learning_rate', delta,
-             '--initial_t', T0, train.vw,
-             '--cache_file', cache, '--passes 200 -f', model))
+             train.vw, '--cache_file', cache, '--passes 200 -f', model))
 invisible(file.remove(train.vw))
 system(paste(path_to_vw, '-t -i', model, '-p', pred.vw,
              test.vw, '--loss_function poisson'))
