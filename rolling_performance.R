@@ -10,6 +10,7 @@ library(data.table)
 library(foreach)
 library(maptools)
 library(zoo)
+library(magrittr)
 
 source('utils.R')
 
@@ -23,7 +24,13 @@ if (is.na(start)) start = '20170308'
 delx=250;dely=250;alpha=.95;eta=3;
 lt=7;theta=0;features=2;kde.bw=250;
 kde.lags=6;kde.win=10;l1=0;l2=0
-
+compute.kde <- function(pts, start, lag.no) {
+  idx = pts@data[occ_date_int %between% 
+                   (start - kde.win*lag.no + c(0, kde.win - 1L)), which = TRUE]
+  if (!length(idx)) return(rep(0, length(incl_ids)))
+  kde = spkernel2d(pts = pts[idx, ],
+                   poly = portland_r, h0 = kde.bw, grd = grdtop)[incl_ids]
+}
 aa = delx*dely
 lx = eta*delx
 ly = eta*dely
@@ -42,19 +49,16 @@ crimes[ , paste0(c('x', 'y'), '_coordina') :=
 
 portland_r = 
   with(fread('data/portland_coords.csv'),
-       rotate(x, y, theta, point0))"crimes_bur.csv"
+       rotate(x, y, theta, point0))
 
 xrng = range(portland_r[ , 1L])
 yrng = range(portland_r[ , 2L])
 
-# cleaner version, need to confirm identical
-# library(magrittr)
-# grdtop = ppp(xrange = xrng, yrange = yrng) %>%
-#   pixellate(eps = c(delx, dely)) %>%
-#   as.SpatialGridDataFrame.im %>%
-#   as("GridTopology")
-grdtop <- as(as.SpatialGridDataFrame.im(
-  pixellate(ppp(xrange=xrng, yrange=yrng), eps=c(delx, dely))), "GridTopology")
+grdtop = ppp(xrange = xrng, yrange = yrng) %>%
+  pixellate(eps = c(delx, dely)) %>%
+  as.SpatialGridDataFrame.im %>%
+  as("GridTopology")
+
 grd_rn = sprintf('g%d', seq_len(prod(grdtop@cells.dim)))
 grdSPDF = SpatialPolygonsDataFrame(
   as.SpatialPolygons.GridTopology(grdtop, proj4string = prj),
