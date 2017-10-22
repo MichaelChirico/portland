@@ -151,9 +151,13 @@ crimes.pad =
          ][ , I := rowid(week_no)][I %in% incl_ids]
 crimes.grid.dt[crimes.pad, value := i.value, on = c('week_no', 'I')]
 
-compute.kde <- function(pts, month)
-  spkernel2d(pts = pts[pts$month_no == month, ],
-             poly = portland_r, h0 = kde.bw, grd = grdtop)
+compute.kde <- function(pts, start, lag.no) {
+  idx = pts@data[occ_date_int %between% 
+                   (start - kde.win*lag.no + c(0, kde.win - 1L)), which = TRUE]
+  if (!length(idx)) return(rep(0, length(incl_ids)))
+  kde = spkernel2d(pts = pts[idx, ],
+                   poly = portland_r, h0 = kde.bw, grd = grdtop)[incl_ids]
+}
 
 compute.lag = function(pts, week_no)
   spkernel2d(pts = pts[pts$week_no %between%
