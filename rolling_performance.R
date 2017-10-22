@@ -42,6 +42,7 @@ recent = week_0 + c(0L, 26L)
 
 crimes = fread("crimes_bur.csv")
 crimes[ , occ_date := as.IDate(occ_date)]
+crimes[ , occ_date_int := unclass(occ_date)]
 
 point0 = crimes[ , c(min(x_coordina), min(y_coordina))]
 crimes[ , paste0(c('x', 'y'), '_coordina') :=
@@ -93,8 +94,8 @@ compute.kde <- function(pts, start, lag.no) {
   idx = pts@data[occ_date_int %between% 
                    (start - kde.win*lag.no + c(0, kde.win - 1L)), which = TRUE]
   if (!length(idx)) return(rep(0, length(incl_ids)))
-  kde = spkernel2d(pts = pts[idx, ],
-                   poly = portland_r, h0 = kde.bw, grd = grdtop)[incl_ids]
+  spkernel2d(pts = pts[idx, ], poly = portland_r, 
+             h0 = kde.bw, grd = grdtop)[incl_ids]
 }
 
 compute.lag = function(pts, week_no)
@@ -102,9 +103,13 @@ compute.lag = function(pts, week_no)
                          (week_no + c(50L, 54L)), ],
              poly = portland_r, h0 = kde.bw, grd = grdtop)
 
-compute.kde.dt <- function (pts, months = seq_len(kde.lags) + 12L)
+compute.kde.dt <- function(pts, months = seq_len(kde.lags) + 12L) {
   setDT(lapply(setNames(months, paste0('kde', months)),
                function(month) compute.kde(pts, month)))
+}
+
+crimes.sp@data = setDT(crimes.sp@data)
+setkey(crimes.sp@data, occ_date_int)
 
 kdes = compute.kde.dt(crimes.sp)
 
