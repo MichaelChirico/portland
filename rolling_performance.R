@@ -13,7 +13,10 @@ library(magrittr)
 source('utils.R')
 
 #make sure we use the same seed
-#  as evaluation_params.R
+#  as evaluation_params.Rweek_0 = unclass(as.IDate("2017-02-28") - 
+                   as.IDate(start, format = '%Y%m%d')) %/% 7L + 1L
+
+recent = week_0 + c(0L, 26L)
 set.seed(60251935)
 
 start = commandArgs(trailingOnly = TRUE)[1L]
@@ -25,7 +28,19 @@ kde.lags=6;kde.win=10;l1=0;l2=0
 
 aa = delx*dely
 lx = eta*250
-ly = eta*250
+ly = eta*250week_0 = unclass(as.IDate("2017-02-28") - 
+                   as.IDate(start, format = '%Y%m%d')) %/% 7L + 1L
+
+recent = week_0 + c(0L, 26L)
+
+# copy definition of week numbering from crimes_to_csv.R
+week_0 = unclass(as.IDate("2017-02-28") - 
+                   as.IDate(start, format = '%Y%m%d')) %/% 7L + 1L
+
+# weeks between week_0 and recent[2L] are those in
+#   the past half-year (which was the originally
+#   intended purpose of the include_mos variable)
+recent = week_0 + c(0L, 26L)
 
 crimes = fread('crimes_bur.csv')
 crimes[ , occ_date := as.IDate(occ_date)]
@@ -41,19 +56,22 @@ portland_r =
 xrng = range(portland_r[ , 1L])
 yrng = range(portland_r[ , 2L])
 
-grdtop <- as(as.SpatialGridDataFrame.im(
-  pixellate(ppp(xrange=xrng, yrange=yrng), eps=c(delx, dely))), "GridTopology")
+grdtop = ppp(xrange = xrng, yrange = yrng) %>%
+  pixellate(eps = c(delx, dely)) %>% 
+  as.SpatialGridDataFrame.im %>%
+  as('GridTopology')
+
+rowids = seq_len(prod(grdtop@cells.dim))
 grdSPDF = SpatialPolygonsDataFrame(
   as.SpatialPolygons.GridTopology(grdtop, proj4string = prj),
-  data = data.frame(I = seq_len(prod(grdtop@cells.dim)),
-                    row.names = sprintf('g%d', seq_len(prod(grdtop@cells.dim)))), 
+  data = data.frame(I = rowid, row.names = sprintf('g%d', rowids)), 
   match.ID = FALSE
 )
 
-idx.new <- getGTindices(grdtop)
+idx.new = getGTindices(grdtop)
 
 incl_ids =
-  with(crimes, as.data.table(pixellate(ppp(
+  with(crimes[week_no > week_0], as.data.table(pixellate(ppp(
     x = x_coordina, y = y_coordina,
     xrange = xrng, yrange = yrng, check = FALSE),
     eps = c(delx, dely)))[idx.new, ]
