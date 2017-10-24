@@ -7,11 +7,9 @@ library(splancs)
 library(rgeos)
 library(rgdal)
 library(data.table)
-library(foreach)
 library(maptools)
-library(zoo)
 library(magrittr)
-
+#local "package" of functions
 source('utils.R')
 
 #make sure we use the same seed
@@ -21,28 +19,16 @@ set.seed(60251935)
 start = commandArgs(trailingOnly = TRUE)[1L]
 #default for testing
 if (is.na(start)) start = '20170308'
-delx=250;dely=250;alpha=.95;eta=3;
+delx=250;dely=250;alpha=.95;eta=3;"crimes_bur.csv"
 lt=7;theta=0;features=2;kde.bw=250;
 kde.lags=6;kde.win=10;l1=0;l2=0
-compute.kde <- function(pts, start, lag.no) {
-  idx = pts@data[occ_date_int %between% 
-                   (start - kde.win*lag.no + c(0, kde.win - 1L)), which = TRUE]
-  if (!length(idx)) return(rep(0, length(incl_ids)))
-  kde = spkernel2d(pts = pts[idx, ],
-                   poly = portland_r, h0 = kde.bw, grd = grdtop)[incl_ids]
-}
+
 aa = delx*dely
-lx = eta*delx
-ly = eta*dely
+lx = eta*250
+ly = eta*250
 
-week_0 = unclass(as.IDate("2017-02-28") - 
-                   as.IDate(start, format = '%Y%m%d')) %/% 7L + 1L
-
-recent = week_0 + c(0L, 26L)
-
-crimes = fread("crimes_bur.csv")
+crimes = fread('crimes_bur.csv')
 crimes[ , occ_date := as.IDate(occ_date)]
-crimes[ , occ_date_int := unclass(occ_date)]
 
 point0 = crimes[ , c(min(x_coordina), min(y_coordina))]
 crimes[ , paste0(c('x', 'y'), '_coordina') :=
@@ -55,97 +41,116 @@ portland_r =
 xrng = range(portland_r[ , 1L])
 yrng = range(portland_r[ , 2L])
 
-grdtop = ppp(xrange = xrng, yrange = yrng) %>%
-  pixellate(eps = c(delx, dely)) %>%
-  as.SpatialGridDataFrame.im %>%
-  as("GridTopology")
-
-grd_rn = sprintf('g%d', seq_len(prod(grdtop@cells.dim)))
+grdtop <- as(as.SpatialGridDataFrame.im(
+  pixellate(ppp(xrange=xrng, yrange=yrng), eps=c(delx, dely))), "GridTopology")
 grdSPDF = SpatialPolygonsDataFrame(
   as.SpatialPolygons.GridTopology(grdtop, proj4string = prj),
   data = data.frame(I = seq_len(prod(grdtop@cells.dim)),
-                    row.names = grd_rn), 
+                    row.names = sprintf('g%d', seq_len(prod(grdtop@cells.dim)))), 
   match.ID = FALSE
 )
 
 idx.new <- getGTindices(grdtop)
 
 incl_ids =
-  # for consistency with ex-ante training, 
-  #   base the ever-crime cell indices on the data that would have
-  #   been available in forecasting for the current period
-  with(crimes[week_no > week_0], as.data.table(pixellate(ppp(
+  with(crimes, as.data.table(pixellate(ppp(
     x = x_coordina, y = y_coordina,
     xrange = xrng, yrange = yrng, check = FALSE),
     eps = c(delx, dely)))[idx.new, ]
   )[value > 0, which = TRUE]
 
-crimes.sp = to.spdf(crimes)
+pd_length = switch(horizon, 
+                   '1w' = 7L, '2w' = 14L, '1m' = 31,
+                   '2m' = 61L, '3m' = 92L) 
+one_year = switch(horizon, 
+                  '1w' = 52L, '2w' = 26L, '1m' = 12L,
+                  '2m' = 6L, '3m' = 4L)
 
-crimes.grid.dt =
-  crimes[week_no %between% recent, 
-         as.data.table(pixellate(ppp(
-           x = x_coordina, y = y_coordina,
-           xrange = xrng, yrange = yrng, check = FALSE),
-           eps = c(delx, dely)))[idx.new],
-         by = week_no][ , I := rowid(week_no)][I %in% incl_ids]
+n_pds = 5L*one_year
+
+crimes[ , occ_date_int := unclass(occ_date)]
+unq_crimes = crimes[ , unique(occ_date_int)]
+
+march117 = unclass(as.IDate('2017-03-01'))
+start = march117 - (seq_len(n_pds) - 1L) * pd_length
+start = start[month(as.IDate(start, origin = '1970-01-01')) %in% incl_mos]
+end = start + pd_length - 1L
+windows = data.table(start, end, key = 'start,end')
+
+crime_start_map = data.table(occ_date_int = unq_crimes)
+crime_start_map[ , start_date := 
+                   foverlaps(data.table(start = occ_date_int, 
+                                        end = occ_date_int),
+                             windows)$start]
+
+crimes[crime_start_map, start_date := i.start_date,
+       on = 'occ_date_int']
+
+X = crimes[!is.na(start_date), as.data.table(pixellate(ppp(
+  x = x_coordina, y = y_coordina,
+  xrange = xrng, yrange = yrng, check = FALSE),
+  #reorder using GridTopology - im mapping
+  eps = c(x = delx, dely)))[idx.new],
+  #subset to eliminate never-crime cells
+  keyby = start_date][ , I := rowid(start_date)][I %in% incl_ids]
+
+crimes.sp =
+  SpatialPointsDataFrame(
+    coords = crimes[ , cbind(x_coordina, y_coordina)],
+    data = crimes[ , -c('x_coordina', 'y_coordina')],
+    proj4string = prj
+  )
+
+crimes.sp@data = setDT(crimes.sp@data)
+#for faster indexing
+setkey(crimes.sp@data, occ_date_int)
+
+future = 
+  #Add one missing row for each cell corresponding to start date March 1, 2017
+  unique(X, by = 'I')[ , c('start_date', 'value') := .(march117, NA_integer_)]
+X = rbind(X, future)
 
 compute.kde <- function(pts, start, lag.no) {
   idx = pts@data[occ_date_int %between% 
                    (start - kde.win*lag.no + c(0, kde.win - 1L)), which = TRUE]
   if (!length(idx)) return(rep(0, length(incl_ids)))
-  spkernel2d(pts = pts[idx, ], poly = portland_r, 
-             h0 = kde.bw, grd = grdtop)[incl_ids]
+  kde = spkernel2d(pts = pts[idx, ],
+                   poly = portland_r, h0 = kde.bw, grd = grdtop)[incl_ids]
 }
 
-compute.lag = function(pts, week_no)
-  spkernel2d(pts = pts[pts$week_no %between%
-                         (week_no + c(50L, 54L)), ],
-             poly = portland_r, h0 = kde.bw, grd = grdtop)
+start_lag = CJ(start = start, lag = seq_len(kde.lags))
 
-compute.kde.dt <- function(pts, months = seq_len(kde.lags) + 12L) {
-  setDT(lapply(setNames(months, paste0('kde', months)),
-               function(month) compute.kde(pts, month)))
-}
+RHS = start_lag[, c(I = list(incl_ids),
+                    lapply(setNames(lag, paste0('lag', lag)), compute.kde, 
+                           pts = crimes.sp, start = .BY$start)),
+                by = start]
 
-crimes.sp@data = setDT(crimes.sp@data)
-setkey(crimes.sp@data, occ_date_int)
+X = X[RHS, on = c(start_date = 'start', 'I')]
 
-kdes = compute.kde.dt(crimes.sp)
+X[ , train := start_date != march117]
 
-kdes[ , I := .I]
-
-crimes.grid.dt = kdes[crimes.grid.dt, on = 'I']
-
-crimes.grid.dt[ , lg.kde := {
-  kde = compute.lag(crimes.sp, .BY$week_no)
-  idx = data.table(kde, I = seq_len(length(kde)))[.SD, on = 'I', which = TRUE]
-  kde[idx]
-}, by = week_no]
-
-crimes.grid.dt[ , train := week_no > week_0]
-
-proj = crimes.grid.dt[ , cbind(x, y, week_no)] %*%
+proj = X[ , cbind(x, y, start_date)] %*% 
   (matrix(rt(3L*features, df = 2.5), nrow = 3L)/c(lx, ly, lt))
 
-nms = setNames(nm = names(crimes.grid.dt))
-incl.kde = grep("^kde", nms, value = TRUE)
-incl.cg = grep("^cg.", nms, value = TRUE)
+incl = setNames(nm = names(X))
+incl.kde = grep("^lag", incl, value = TRUE)
 
 phi.dt =
-  crimes.grid.dt[ , {
-    coln_to_vw = function(vn) {
+  X[ , {
+    coln_to_vw = function(vn) { 
       V = get(vn)
-      val = V * 10^(abs(round(mean(log10(V[V>0])))))
+      #to assure maximum comparability to the data model used
+      #  in training, be sure to multiply by the same factor
+      trainV = V[start_date <= march117 - one_year*pd_length & V > 0]
+      val = V * 10^(abs(round(mean(log10(trainV)))))
+      if (any(is.nan(val)))
+        stop('NaNs detected! Current parameters:',
+             paste(args, collapse = '/'))
       sprintf("%s:%.5f", vn, val)
     }
-    c(list(v = value,
-           l = paste0(I, "_", week_no, "|kdes")),
+    c(list(v = value, 
+           l = paste0(I, "_", start_date, "|kdes")), 
       lapply(incl.kde, coln_to_vw),
-      list(cg_namespace = if (length(incl.cg)) '|cgkde'),
-      lapply(incl.cg, coln_to_vw),
-      list(lag_namespace = '|lgkde',
-           kdel = coln_to_vw('lg.kde')),
       list(rff_namespace = '|rff'))
   }]
 
@@ -153,54 +158,63 @@ if (features > 500L) invisible(alloc.col(phi.dt, 3L*features))
 fkt = 1/sqrt(features)
 for (jj in 1L:features) {
   pj = proj[ , jj]
-  set(phi.dt, j = paste0(c("cos", "sin"), jj),
+  set(phi.dt, j = paste0(c("cos", "sin"), jj), 
       value = list(sprintf("cos%i:%.5f", jj, fkt*cos(pj)),
                    sprintf("sin%i:%.5f", jj, fkt*sin(pj))))
 }
 rm(proj)
 
 source("local_setup.R")
-train.vw = tempfile(tmpdir = tdir, pattern = "train")
-test.vw = tempfile(tmpdir = tdir, pattern = "test")
-cache = paste0(train.vw, '.cache')
-pred.vw = tempfile(tmpdir = tdir, pattern = "predict")
-fwrite(phi.dt[crimes.grid.dt$train], train.vw,
-       sep = " ", quote = FALSE, col.names = FALSE,
-       showProgress = FALSE)
-fwrite(phi.dt[!crimes.grid.dt$train], test.vw,
-       sep = " ", quote = FALSE, col.names = FALSE,
-       showProgress = FALSE)
-
-crimes.grid.dt = crimes.grid.dt[(!train)]
-rm(phi.dt)
-
+which.round = function(x)
+  if (x > 0) {if (x < 1) round else floor} else ceiling
 n.cells = as.integer(which.round(alpha)(6969600*(1+2*alpha)/aa))
 
+filename = paste('output',crime.type,horizon,sep = '_')
+train.vw = paste(paste0(tdir,'/train'), filename, sep='_')
+test.vw = paste(paste0(tdir,'/test'), filename, sep='_')
+cache = paste0(train.vw, '.cache')
+pred.vw = paste(paste0(tdir,'/pred'), filename, sep='_')
+fwrite(phi.dt[X$train], train.vw,
+       sep = " ", quote = FALSE, col.names = FALSE,
+       showProgress = FALSE)
+fwrite(phi.dt[!X$train], test.vw,
+       sep = " ", quote = FALSE, col.names = FALSE,
+       showProgress = FALSE)
+
 model = tempfile(tmpdir = tdir, pattern = "model")
-system(paste(path_to_vw, '--loss_function poisson --l1', l1, '--l2', l2,
-             train.vw, '--cache_file', cache, '--passes 200 -f', model))
+
+# call.vw = paste(path_to_vw, '--loss_function poisson --l1', l1, 
+#                 '--l2', l2, train.vw, '--cache_file', cache, 
+#                 '--passes 200 -f', model)
+call.vw = paste(path_to_vw, '--loss_function poisson --l1', l1,
+                '--random_seed 123456789',
+                '--l2', l2, train.vw, '--cache_file', cache,
+                '--passes 200 -f', model)
+system(call.vw)
 invisible(file.remove(train.vw))
+
 system(paste(path_to_vw, '-t -i', model, '-p', pred.vw,
              test.vw, '--loss_function poisson'))
-invisible(file.remove(model, test.vw))
+invisible(file.remove(model))
 
 preds =
-  fread(pred.vw, sep = " ", header = FALSE, col.names = c("pred", "I_wk"))
+  fread(pred.vw, sep = " ", header = FALSE, col.names = c("pred", "I_start"))
 invisible(file.remove(pred.vw))
-preds[ , c("I", "week_no", "I_wk") :=
-         c(lapply(tstrsplit(I_wk, split = "_"), as.integer),
+
+preds[ , c("I", "start_date", "I_start") :=
+         c(lapply(tstrsplit(I_start, split = "_"), as.integer),
            list(NULL))]
 
-crimes.grid.dt[preds, pred.count := exp(i.pred), on = c("I", "week_no")]
+X[preds, pred.count := exp(i.pred), on = c("I", "start_date")]
 rm(preds)
 
-hotspot.ids =
-  crimes.grid.dt[ , .(tot.pred = sum(pred.count)), by = I
-                  ][order(-tot.pred)[1L:n.cells], I]
+ranks = 
+  X[(!train), .(tot.pred = sum(pred.count)), by = I
+    ][order(-tot.pred), .(I, rank = .I)]
 
 #define hotspots on grid's SPDF
 #  +() to force integer per guidelines
-grdSPDF$hotspot = +(grdSPDF$I %in% hotspot.ids)
+grdSPDF$hotspot = +(grdSPDF$I %in% ranks[rank <= n.cells, I])
 
 #reverse rotation -- rotated points to
 #  fit grid, now rotate grid to fit
@@ -227,3 +241,21 @@ grdSPDF =
     match.ID = FALSE
   )
 proj4string(grdSPDF) = prj
+
+#add area per contest guidelines
+grdSPDF$area = gArea(grdSPDF, byid = TRUE)
+
+#be sure shapefiles fit contest guidelines
+stopifnot(gArea(grdSPDF[grdSPDF$hotspot == 1, ]) %between%
+            c(5280^2/4, 3*5280^2/4))
+stopifnot(gArea(grdSPDF) %between%
+            c(147.69*5280^2, 147.73*5280^2))
+
+out.horizon = switch(horizon, '1w' = '1WK', '2w' = '2WK',
+                     '1m' = '1MO', '2m' = '2MO', '3m' = '3MO')
+out.crime.type = switch(crime.type, 'all' = 'ACFS', 'street' = 'SC',
+                        'burglary' = 'Burg', 'vehicle' = 'TOA')
+out.dir = paste0('submission/', out.crime.type, '/', out.horizon)
+out.fn = paste0('TEAM_CFLP_', toupper(out.crime.type), '_', out.horizon)
+writeOGR(grdSPDF, dsn = out.dir, layer = out.fn, 
+         driver = 'ESRI Shapefile', overwrite_layer = TRUE)
