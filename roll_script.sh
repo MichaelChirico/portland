@@ -1,0 +1,13 @@
+Rscript rolling_performance.R 20170301
+Rscript rolling_performance.R 20170308
+Rscript rolling_performance.R 20170315
+Rscript rolling_performance.R 20170322
+Rscript rolling_performance.R 20170329
+Rscript rolling_performance.R 20170405
+Rscript rolling_performance.R 20170412
+Rscript rolling_performance.R 20170419
+Rscript rolling_performance.R 20170426
+Rscript rolling_performance.R 20170503
+Rscript rolling_performance.R 20170510
+Rscript rolling_performance.R 20170517
+Rscript rolling_performance.R 20170524

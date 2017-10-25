@@ -2,16 +2,17 @@
 # Forecasting Crime in Portland
 # Michael Chirico, Seth Flaxman,
 # Charles Loeffler, Pau Pereira
-library(spatstat)
-library(splancs)
-library(rgeos)
-library(rgdal)
-library(data.table)
-library(maptools)
-library(magrittr)
-#local "package" of functions
-source('utils.R')
-
+suppressMessages({
+  library(spatstat)
+  library(splancs)
+  library(rgeos)
+  library(rgdal)
+  library(data.table)
+  library(maptools)
+  library(magrittr)
+  #local "package" of functions
+  source('utils.R')
+})
 #make sure we use the same seed
 #  as evaluation_params.R
 set.seed(60251935)
@@ -19,7 +20,7 @@ set.seed(60251935)
 day0s = commandArgs(trailingOnly = TRUE)[1L]
 #default for testing
 if (is.na(day0s)) day0s = '20170308'
-delx=250;dely=250;alpha=.95;eta=3;"crimes_bur.csv"
+delx=250;dely=250;alpha=.95;eta=3;
 lt=7;theta=0;features=2;kde.bw=250;
 kde.lags=6;kde.win=10;l1=0;l2=0
 
@@ -59,7 +60,7 @@ rowids = seq_len(prod(grdtop@cells.dim))
 grdSPDF = SpatialPolygonsDataFrame(
   as.SpatialPolygons.GridTopology(grdtop, proj4string = prj),
   data = data.frame(I = rowids, row.names = sprintf('g%d', rowids)), 
-  match.ID = FALSEas.IDate(day0, format = '%Y%m%d')
+  match.ID = FALSE
 )
 
 idx.new = getGTindices(grdtop)
@@ -187,11 +188,12 @@ call.vw = paste(path_to_vw, '--loss_function poisson --l1', l1,
                 '--random_seed 123456789',
                 '--l2', l2, train.vw, '--cache_file', cache,
                 '--passes 200 -f', model)
-system(call.vw)
+system(call.vw, ignore.stderr = TRUE)
 invisible(file.remove(train.vw))
 
 system(paste(path_to_vw, '-t -i', model, '-p', pred.vw,
-             test.vw, '--loss_function poisson'))
+             test.vw, '--loss_function poisson'),
+       ignore.stderr = TRUE)
 invisible(file.remove(model))
 
 preds =
@@ -205,6 +207,12 @@ preds[ , c("I", "start_date", "I_start") :=
 X[preds, pred.count := exp(i.pred), on = c("I", "start_date")]
 rm(preds)
 
-ranks = 
-  X[(!train), .(tot.pred = sum(pred.count)), by = I
-    ][order(-tot.pred), .(I, rank = .I)]
+nn = X[(!train)][X[(!train), .(tot.pred = sum(pred.count)), by = I
+                   ][order(-tot.pred), .(I, rank = .I)][rank <= n.cells],
+                 sum(value), on = 'I']
+N_star = X[(!train)][order(-value)][1:n.cells, sum(value)]
+NN = X[(!train), sum(value)]
+AA = 4117777129
+
+cat('Week:', day0s, '// PEI:', nn/N_star,
+    '// PAI:', nn/NN/(aa * n.cells/AA), '\n')
