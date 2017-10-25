@@ -13,29 +13,23 @@ library(magrittr)
 source('utils.R')
 
 #make sure we use the same seed
-#  as evaluation_params.Rweek_0 = unclass(as.IDate("2017-02-28") - 
-                   as.IDate(start, format = '%Y%m%d')) %/% 7L + 1L
-
-recent = week_0 + c(0L, 26L)
+#  as evaluation_params.R
 set.seed(60251935)
 
-start = commandArgs(trailingOnly = TRUE)[1L]
+day0s = commandArgs(trailingOnly = TRUE)[1L]
 #default for testing
-if (is.na(start)) start = '20170308'
+if (is.na(day0s)) day0s = '20170308'
 delx=250;dely=250;alpha=.95;eta=3;"crimes_bur.csv"
 lt=7;theta=0;features=2;kde.bw=250;
 kde.lags=6;kde.win=10;l1=0;l2=0
 
 aa = delx*dely
 lx = eta*250
-ly = eta*250week_0 = unclass(as.IDate("2017-02-28") - 
-                   as.IDate(start, format = '%Y%m%d')) %/% 7L + 1L
-
-recent = week_0 + c(0L, 26L)
+ly = eta*250
 
 # copy definition of week numbering from crimes_to_csv.R
-week_0 = unclass(as.IDate("2017-02-28") - 
-                   as.IDate(start, format = '%Y%m%d')) %/% 7L + 1L
+day0 = as.IDate(day0s, format = '%Y%m%d')
+week_0 = unclass(as.IDate("2017-02-28") - day0) %/% 7L + 1L
 
 # weeks between week_0 and recent[2L] are those in
 #   the past half-year (which was the originally
@@ -64,8 +58,8 @@ grdtop = ppp(xrange = xrng, yrange = yrng) %>%
 rowids = seq_len(prod(grdtop@cells.dim))
 grdSPDF = SpatialPolygonsDataFrame(
   as.SpatialPolygons.GridTopology(grdtop, proj4string = prj),
-  data = data.frame(I = rowid, row.names = sprintf('g%d', rowids)), 
-  match.ID = FALSE
+  data = data.frame(I = rowids, row.names = sprintf('g%d', rowids)), 
+  match.ID = FALSEas.IDate(day0, format = '%Y%m%d')
 )
 
 idx.new = getGTindices(grdtop)
@@ -77,23 +71,18 @@ incl_ids =
     eps = c(delx, dely)))[idx.new, ]
   )[value > 0, which = TRUE]
 
-pd_length = switch(horizon, 
-                   '1w' = 7L, '2w' = 14L, '1m' = 31,
-                   '2m' = 61L, '3m' = 92L) 
-one_year = switch(horizon, 
-                  '1w' = 52L, '2w' = 26L, '1m' = 12L,
-                  '2m' = 6L, '3m' = 4L)
-
-n_pds = 5L*one_year
+pd_length = 7L
+half_year = 26L
+yr_length = 2L * half_year * pd_length
 
 crimes[ , occ_date_int := unclass(occ_date)]
 unq_crimes = crimes[ , unique(occ_date_int)]
 
-march117 = unclass(as.IDate('2017-03-01'))
-start = march117 - (seq_len(n_pds) - 1L) * pd_length
-start = start[month(as.IDate(start, origin = '1970-01-01')) %in% incl_mos]
-end = start + pd_length - 1L
-windows = data.table(start, end, key = 'start,end')
+day0_int = unclass(day0)
+start = c(sapply(day0_int - (seq_len(5L) - 1L) * yr_length,
+                 function(yr_start) yr_start - 
+                   (seq_len(half_year) - 1L) * pd_length))
+windows = data.table(start, end = start + pd_length - 1L, key = 'start,end')
 
 crime_start_map = data.table(occ_date_int = unq_crimes)
 crime_start_map[ , start_date := 
@@ -123,11 +112,6 @@ crimes.sp@data = setDT(crimes.sp@data)
 #for faster indexing
 setkey(crimes.sp@data, occ_date_int)
 
-future = 
-  #Add one missing row for each cell corresponding to start date March 1, 2017
-  unique(X, by = 'I')[ , c('start_date', 'value') := .(march117, NA_integer_)]
-X = rbind(X, future)
-
 compute.kde <- function(pts, start, lag.no) {
   idx = pts@data[occ_date_int %between% 
                    (start - kde.win*lag.no + c(0, kde.win - 1L)), which = TRUE]
@@ -145,7 +129,7 @@ RHS = start_lag[, c(I = list(incl_ids),
 
 X = X[RHS, on = c(start_date = 'start', 'I')]
 
-X[ , train := start_date != march117]
+X[ , train := start_date != day0_int]
 
 proj = X[ , cbind(x, y, start_date)] %*% 
   (matrix(rt(3L*features, df = 2.5), nrow = 3L)/c(lx, ly, lt))
@@ -159,7 +143,7 @@ phi.dt =
       V = get(vn)
       #to assure maximum comparability to the data model used
       #  in training, be sure to multiply by the same factor
-      trainV = V[start_date <= march117 - one_year*pd_length & V > 0]
+      trainV = V[start_date <= day0_int - yr_length & V > 0]
       val = V * 10^(abs(round(mean(log10(trainV)))))
       if (any(is.nan(val)))
         stop('NaNs detected! Current parameters:',
@@ -183,15 +167,13 @@ for (jj in 1L:features) {
 rm(proj)
 
 source("local_setup.R")
-which.round = function(x)
-  if (x > 0) {if (x < 1) round else floor} else ceiling
 n.cells = as.integer(which.round(alpha)(6969600*(1+2*alpha)/aa))
 
-filename = paste('output',crime.type,horizon,sep = '_')
-train.vw = paste(paste0(tdir,'/train'), filename, sep='_')
-test.vw = paste(paste0(tdir,'/test'), filename, sep='_')
+filename = paste('output', day0s, sep = '_')
+train.vw = paste(paste0(tdir, '/train'), filename, sep = '_')
+test.vw = paste(paste0(tdir, '/test'), filename, sep='_')
 cache = paste0(train.vw, '.cache')
-pred.vw = paste(paste0(tdir,'/pred'), filename, sep='_')
+pred.vw = paste(paste0(tdir, '/pred'), filename, sep='_')
 fwrite(phi.dt[X$train], train.vw,
        sep = " ", quote = FALSE, col.names = FALSE,
        showProgress = FALSE)
@@ -201,9 +183,6 @@ fwrite(phi.dt[!X$train], test.vw,
 
 model = tempfile(tmpdir = tdir, pattern = "model")
 
-# call.vw = paste(path_to_vw, '--loss_function poisson --l1', l1, 
-#                 '--l2', l2, train.vw, '--cache_file', cache, 
-#                 '--passes 200 -f', model)
 call.vw = paste(path_to_vw, '--loss_function poisson --l1', l1,
                 '--random_seed 123456789',
                 '--l2', l2, train.vw, '--cache_file', cache,
@@ -229,51 +208,3 @@ rm(preds)
 ranks = 
   X[(!train), .(tot.pred = sum(pred.count)), by = I
     ][order(-tot.pred), .(I, rank = .I)]
-
-#define hotspots on grid's SPDF
-#  +() to force integer per guidelines
-grdSPDF$hotspot = +(grdSPDF$I %in% ranks[rank <= n.cells, I])
-
-#reverse rotation -- rotated points to
-#  fit grid, now rotate grid to fit
-#  original orientation of points
-#  ** rotate expects angles in degrees CLOCKWISE**
-grdSPDF = elide(grdSPDF, rotate = 180/pi * theta,
-                center = point0)
-
-#load clipping polygon -- Police Districts shapefile
-police_districts = 
-  readShapeSpatial('data/Portland_Police_Districts.shp', 
-                   proj4string = prj)
-
-portland = gBuffer(gUnaryUnion(police_districts),
-                   width = 1e6*.Machine$double.eps)
-
-#clip to polygon; sadly gIntersection
-#  drops data, so need the gIntersects step to
-#  prevent this from happening
-grdSPDF = 
-  SpatialPolygonsDataFrame(
-    gIntersection(grdSPDF, portland, byid = TRUE),
-    data = grdSPDF@data[gIntersects(grdSPDF, portland, byid = TRUE), ],
-    match.ID = FALSE
-  )
-proj4string(grdSPDF) = prj
-
-#add area per contest guidelines
-grdSPDF$area = gArea(grdSPDF, byid = TRUE)
-
-#be sure shapefiles fit contest guidelines
-stopifnot(gArea(grdSPDF[grdSPDF$hotspot == 1, ]) %between%
-            c(5280^2/4, 3*5280^2/4))
-stopifnot(gArea(grdSPDF) %between%
-            c(147.69*5280^2, 147.73*5280^2))
-
-out.horizon = switch(horizon, '1w' = '1WK', '2w' = '2WK',
-                     '1m' = '1MO', '2m' = '2MO', '3m' = '3MO')
-out.crime.type = switch(crime.type, 'all' = 'ACFS', 'street' = 'SC',
-                        'burglary' = 'Burg', 'vehicle' = 'TOA')
-out.dir = paste0('submission/', out.crime.type, '/', out.horizon)
-out.fn = paste0('TEAM_CFLP_', toupper(out.crime.type), '_', out.horizon)
-writeOGR(grdSPDF, dsn = out.dir, layer = out.fn, 
-         driver = 'ESRI Shapefile', overwrite_layer = TRUE)
