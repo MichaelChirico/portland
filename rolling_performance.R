@@ -20,9 +20,9 @@ set.seed(60251935)
 day0s = commandArgs(trailingOnly = TRUE)[1L]
 #default for testing
 if (is.na(day0s)) day0s = '20170308'
-delx=250;dely=250;alpha=.95;eta=3;
-lt=7;theta=0;features=2;kde.bw=250;
-kde.lags=6;kde.win=10;l1=0;l2=0
+delx=250.1921;dely=250.1921;alpha=0.85;eta=1
+lt=7;theta=0;features=5;l1=0;l2=0;
+kde.bw=250;kde.lags=6;kde.win=10
 
 aa = delx*dely
 lx = eta*250
@@ -37,7 +37,7 @@ week_0 = unclass(as.IDate("2017-02-28") - day0) %/% 7L + 1L
 #   intended purpose of the include_mos variable)
 recent = week_0 + c(0L, 26L)
 
-crimes = fread('crimes_bur.csv')
+crimes = fread('crimes_veh.csv')
 crimes[ , occ_date := as.IDate(occ_date)]
 
 point0 = crimes[ , c(min(x_coordina), min(y_coordina))]

@@ -59,6 +59,10 @@ if (..testing) {
                                   'crime.type', 'horizon'))
   attach(args)
 }
+delx=250.1921;dely=250.1921;alpha=0.85;eta=1
+lt=7;theta=0;features=5;l1=0;l2=0;
+kde.bw=250;kde.lags=6;kde.win=10
+crime.type='vehicle';horizon='1w'
 
 incl_mos = c(10L, 11L, 12L, 1L, 2L, 3L)
 
@@ -73,6 +77,10 @@ crime.file = switch(crime.type,
                     vehicle = "crimes_veh.csv")
 
 crimes = fread(crime.file)
+# feb28 = fread('data/rss_feed_Feb28.csv')[ , occ_date := '2017-02-28']
+# crimes = rbind(crimes[occ_date != '2017-02-28'],
+#                feb28[CATEGORY == 'MOTOR VEHICLE THEFT',
+#                      .(x_coordina, y_coordina, occ_date)], fill = TRUE)
 crimes[ , occ_date := as.IDate(occ_date)]
 
 rotate = function(x, y, theta, origin)
@@ -133,7 +141,7 @@ unq_crimes = crimes[ , unique(occ_date_int)]
 
 march117 = unclass(as.IDate('2017-03-01'))
 start = march117 - (seq_len(n_pds) - 1L) * pd_length
-start = start[month(as.IDate(start, origin = '1970-01-01')) %in% incl_mos]
+start = start[month(as.Date(start, origin = '1970-01-01')) %in% incl_mos]
 end = start + pd_length - 1L
 windows = data.table(start, end, key = 'start,end')
 
@@ -164,11 +172,6 @@ crimes.sp =
 crimes.sp@data = setDT(crimes.sp@data)
 #for faster indexing
 setkey(crimes.sp@data, occ_date_int)
-
-future = 
-  #Add one missing row for each cell corresponding to start date March 1, 2017
-  unique(X, by = 'I')[ , c('start_date', 'value') := .(march117, NA_integer_)]
-X = rbind(X, future)
 
 compute.kde <- function(pts, start, lag.no) {
   idx = pts@data[occ_date_int %between% 
