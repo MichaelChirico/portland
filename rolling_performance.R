@@ -20,31 +20,21 @@ set.seed(60251935)
 arg = commandArgs(trailingOnly = TRUE)
 day0s = arg[1L]
 crime.type = arg[2L]
+use_scraped = arg[3L] == 'use_scraped'
+month_based = arg[4L] == 'month_based'
 #default for testing
 if (is.na(day0s)) day0s = '20170308'
-if (crime.type == 'all') {
-  # ALL CALLS FOR SERVICE // 1W COMPETITION PARAMETERS
-  delx=617.873419862008;dely=473.003288033856;
-  alpha=0.157894736842105;eta=1.82656577834859
-  lt=42.9340564443264;theta=0.247942496211614;
-  features=360;l1=0;l2=0;kde.bw=391.973806428723
-  kde.lags=9;kde.win=68.7276932410896
-} else if (crime.type == 'str') {
-  # STREET CRIMES // 1W COMPETITION PARAMETERS
-  delx=600;dely=600;alpha=0.1;eta=0.5
-  lt=3.5;theta=0;features=250;l1=0;l2=0
-  kde.bw=500;kde.lags=6;kde.win=7 
-} else if (crime.type == 'veh') {
-  # TOA // 1W COMPETITION PARAMETERS
-  delx=250.1921;dely=250.1921;alpha=0.85;eta=1
-  lt=7;theta=0;features=5;l1=0;l2=0;
-  kde.bw=250;kde.lags=6;kde.win=10
-} else { # (also default)
-  # BURGLARY // 1W COMPETITION PARAMETERS
-  delx=250.1921;dely=250.1921;alpha=.95;eta=3;
-  lt=7;theta=0;features=20;l1=0;l2=0
-  kde.bw=250;kde.lags=6;kde.win=10
-}
+params = grep(sprintf('%s.*1w', crime.type), 
+              readLines('final_parameters.rtf'), value = TRUE)
+attach(
+  setNames(tstrsplit(params, ' ')[4L:15L],
+           c('delx', 'dely', 'alpha', 'eta', 'lt',
+             'theta', 'features', 'l1' , 'l2',
+             'kde.bw', 'kde.lags', 'kde.win')),
+  name = 'params'
+)
+params[grepl(crime.type, crime) & period == '1w', 
+       attach(.SD, name = 'params'), .SDcols = !c(1L, 2L)]
 
 aa = delx*dely
 lx = eta*250
@@ -60,6 +50,16 @@ week_0 = unclass(as.IDate("2017-02-28") - day0) %/% 7L + 1L
 recent = week_0 + c(0L, 26L)
 
 crimes = fread(sprintf('crimes_%s.csv', crime.type))
+if (use_scraped) {
+  feb28 = fread('data/rss_feed_Feb28.csv')[ , occ_date := '2017-02-28']
+  categ = switch(crime.type, 'all' = expression(TRUE),
+                 'str' = expression(CATEGORY == 'STREET CRIMES'),
+                 'veh' = expression(CATEGORY == 'MOTOR VEHICLE THEFT'),
+                 'bur' = expression(CATEGORY == 'BURGLARY'))
+  crimes = rbind(crimes[occ_date != '2017-02-28'],
+                 feb28[eval(categ), 
+                       .(x_coordina, y_coordina, occ_date)], fill = TRUE)
+}
 crimes[ , occ_date := as.IDate(occ_date)]
 
 point0 = crimes[ , c(min(x_coordina), min(y_coordina))]
@@ -102,9 +102,16 @@ crimes[ , occ_date_int := unclass(occ_date)]
 unq_crimes = crimes[ , unique(occ_date_int)]
 
 day0_int = unclass(day0)
-start = c(sapply(day0_int - (seq_len(5L) - 1L) * yr_length,
-                 function(yr_start) yr_start - 
-                   (seq_len(half_year) - 1L) * pd_length))
+if (month_based) {
+  incl_mos = c(10L, 11L, 12L, 1L, 2L, 3L)
+  start = day0_int - (seq_len(n_pds) - 1L) * pd_length
+  start = start[month(as.Date(start, origin = '1970-01-01')) %in% incl_mos]
+} else {
+  start = c(sapply(day0_int - (seq_len(5L) - 1L) * yr_length,
+                   function(yr_start) yr_start - 
+                     (seq_len(half_year) - 1L) * pd_length))
+}
+
 windows = data.table(start, end = start + pd_length - 1L, key = 'start,end')
 
 crime_start_map = data.table(occ_date_int = unq_crimes)
