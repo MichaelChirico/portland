@@ -27,7 +27,7 @@ if (is.na(day0s)) day0s = '20170308'
 params = grep(sprintf('%s.*1w', crime.type), 
               readLines('final_parameters.rtf'), value = TRUE)
 attach(
-  setNames(tstrsplit(params, ' ')[4L:15L],
+  setNames(lapply(tstrsplit(params, ' ')[4L:15L], as.numeric),
            c('delx', 'dely', 'alpha', 'eta', 'lt',
              'theta', 'features', 'l1' , 'l2',
              'kde.bw', 'kde.lags', 'kde.win')),
