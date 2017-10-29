@@ -102,6 +102,9 @@ unq_crimes = crimes[ , unique(occ_date_int)]
 day0_int = unclass(day0)
 if (month_based) {
   incl_mos = c(10L, 11L, 12L, 1L, 2L, 3L)
+  pd_length = 7L
+  one_year = 52L
+  n_pds = 5L*one_year
   start = day0_int - (seq_len(n_pds) - 1L) * pd_length
   start = start[month(as.Date(start, origin = '1970-01-01')) %in% incl_mos]
 } else {
