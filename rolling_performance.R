@@ -258,12 +258,19 @@ preds[ , c("I", "start_date", "I_start") :=
 X[preds, pred.count := exp(i.pred), on = c("I", "start_date")]
 rm(preds)
 
-nn = X[(!train)][X[(!train), .(tot.pred = sum(pred.count)), by = I
-                   ][order(-tot.pred), .(I, rank = .I)][rank <= n.cells],
-                 sum(value), on = 'I']
-N_star = X[(!train)][order(-value)][1:n.cells, sum(value)]
+hotspots =
+  X[(!train)][X[(!train), .(tot.pred = sum(pred.count)), by = I
+                ][order(-tot.pred), .(I, rank = .I)][rank <= n.cells],
+              .(I, x, y, value, pred.count), on = 'I']
+nn = hotspots[ , sum(value)]
+
+top_cells = X[(!train)][order(-value)][1:n.cells, .(I, x, y, value, pred.count)]
+N_star = top_cells[ , sum(value)]
 NN = X[(!train), sum(value)]
 AA = 4117777129
+
+fwrite(rbind(actual = top_cells, predicted = hotspots, idcol = 'pred_v_actual'),
+       sprintf('top_cells_%s_%s_%s.csv', crime.type, arg[3L], arg[4L]))
 
 cat('Crime:', crime.type, 
     arg[3L], arg[4L],
