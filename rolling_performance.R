@@ -33,8 +33,6 @@ attach(
              'kde.bw', 'kde.lags', 'kde.win')),
   name = 'params'
 )
-params[grepl(crime.type, crime) & period == '1w', 
-       attach(.SD, name = 'params'), .SDcols = !c(1L, 2L)]
 
 aa = delx*dely
 lx = eta*250
@@ -265,6 +263,7 @@ NN = X[(!train), sum(value)]
 AA = 4117777129
 
 cat('Crime:', crime.type, 
+    arg[3L], arg[4L],
     'Week:', day0s, 
     '// PEI:', nn/N_star,
     '// PAI:', nn/NN/(aa * n.cells/AA), '\n')

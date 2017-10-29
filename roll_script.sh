@@ -1,13 +1,16 @@
-Rscript rolling_performance.R 20170301 $1
-Rscript rolling_performance.R 20170308 $1
-Rscript rolling_performance.R 20170315 $1
-Rscript rolling_performance.R 20170322 $1
-Rscript rolling_performance.R 20170329 $1
-Rscript rolling_performance.R 20170405 $1
-Rscript rolling_performance.R 20170412 $1
-Rscript rolling_performance.R 20170419 $1
-Rscript rolling_performance.R 20170426 $1
-Rscript rolling_performance.R 20170503 $1
-Rscript rolling_performance.R 20170510 $1
-Rscript rolling_performance.R 20170517 $1
-Rscript rolling_performance.R 20170524 $1
+Rscript rolling_performance.R 20170301 all use_scraped month_based
+Rscript rolling_performance.R 20170301 all use_scraped not_month_based
+Rscript rolling_performance.R 20170301 all not_use_scraped month_based
+Rscript rolling_performance.R 20170301 all not_use_scraped not_month_based
+Rscript rolling_performance.R 20170301 str use_scraped month_based
+Rscript rolling_performance.R 20170301 str use_scraped not_month_based
+Rscript rolling_performance.R 20170301 str not_use_scraped month_based
+Rscript rolling_performance.R 20170301 str not_use_scraped not_month_based
+Rscript rolling_performance.R 20170301 veh use_scraped month_based
+Rscript rolling_performance.R 20170301 veh use_scraped not_month_based
+Rscript rolling_performance.R 20170301 veh not_use_scraped month_based
+Rscript rolling_performance.R 20170301 veh not_use_scraped not_month_based
+Rscript rolling_performance.R 20170301 bur use_scraped month_based
+Rscript rolling_performance.R 20170301 bur use_scraped not_month_based
+Rscript rolling_performance.R 20170301 bur not_use_scraped month_based
+Rscript rolling_performance.R 20170301 bur not_use_scraped not_month_based
