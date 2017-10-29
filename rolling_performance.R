@@ -17,12 +17,34 @@ suppressMessages({
 #  as evaluation_params.R
 set.seed(60251935)
 
-day0s = commandArgs(trailingOnly = TRUE)[1L]
+arg = commandArgs(trailingOnly = TRUE)
+day0s = arg[1L]
+crime.type = arg[2L]
 #default for testing
 if (is.na(day0s)) day0s = '20170308'
-delx=250.1921;dely=250.1921;alpha=0.85;eta=1
-lt=7;theta=0;features=5;l1=0;l2=0;
-kde.bw=250;kde.lags=6;kde.win=10
+if (crime.type == 'all') {
+  # ALL CALLS FOR SERVICE // 1W COMPETITION PARAMETERS
+  delx=617.873419862008;dely=473.003288033856;
+  alpha=0.157894736842105;eta=1.82656577834859
+  lt=42.9340564443264;theta=0.247942496211614;
+  features=360;l1=0;l2=0;kde.bw=391.973806428723
+  kde.lags=9;kde.win=68.7276932410896
+} else if (crime.type == 'str') {
+  # STREET CRIMES // 1W COMPETITION PARAMETERS
+  delx=600;dely=600;alpha=0.1;eta=0.5
+  lt=3.5;theta=0;features=250;l1=0;l2=0
+  kde.bw=500;kde.lags=6;kde.win=7 
+} else if (crime.type == 'veh') {
+  # TOA // 1W COMPETITION PARAMETERS
+  delx=250.1921;dely=250.1921;alpha=0.85;eta=1
+  lt=7;theta=0;features=5;l1=0;l2=0;
+  kde.bw=250;kde.lags=6;kde.win=10
+} else { # (also default)
+  # BURGLARY // 1W COMPETITION PARAMETERS
+  delx=250.1921;dely=250.1921;alpha=.95;eta=3;
+  lt=7;theta=0;features=20;l1=0;l2=0
+  kde.bw=250;kde.lags=6;kde.win=10
+}
 
 aa = delx*dely
 lx = eta*250
@@ -37,7 +59,7 @@ week_0 = unclass(as.IDate("2017-02-28") - day0) %/% 7L + 1L
 #   intended purpose of the include_mos variable)
 recent = week_0 + c(0L, 26L)
 
-crimes = fread('crimes_veh.csv')
+crimes = fread(sprintf('crimes_%s.csv', crime.type))
 crimes[ , occ_date := as.IDate(occ_date)]
 
 point0 = crimes[ , c(min(x_coordina), min(y_coordina))]
@@ -235,5 +257,7 @@ N_star = X[(!train)][order(-value)][1:n.cells, sum(value)]
 NN = X[(!train), sum(value)]
 AA = 4117777129
 
-cat('Week:', day0s, '// PEI:', nn/N_star,
+cat('Crime:', crime.type, 
+    'Week:', day0s, 
+    '// PEI:', nn/N_star,
     '// PAI:', nn/NN/(aa * n.cells/AA), '\n')
