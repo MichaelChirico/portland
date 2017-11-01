@@ -130,7 +130,13 @@ X = crimes[!is.na(start_date), as.data.table(pixellate(ppp(
   #reorder using GridTopology - im mapping
   eps = c(x = delx, dely)))[idx.new],
   #subset to eliminate never-crime cells
-  keyby = start_date][ , I := rowid(start_date)][I %in% incl_ids]
+  keyby = start_date][ , I := rowid(start_date)]
+
+# calculate N*, N here before removing never-crime cells
+n.cells = as.integer(which.round(alpha)(6969600*(1+2*alpha)/aa))
+N_star = X[start_date == day0_int][order(-value)[1:n.cells], sum(value)]
+NN = X[start_date == day0_int, sum(value)]
+X = X[I %in% incl_ids]
 
 crimes.sp =
   SpatialPointsDataFrame(
@@ -219,8 +225,6 @@ if(grepl("ziz",hostname)) { # Seth's setup
   path_to_vw = "vw" 
 }
 
-n.cells = as.integer(which.round(alpha)(6969600*(1+2*alpha)/aa))
-
 filename = paste('output', day0s, sep = '_')
 train.vw = paste(paste0(tdir, '/train'), filename, sep = '_')
 test.vw = paste(paste0(tdir, '/test'), filename, sep='_')
@@ -265,8 +269,6 @@ hotspots =
 nn = hotspots[ , sum(value)]
 
 top_cells = X[(!train)][order(-value)][1:n.cells, .(I, x, y, value, pred.count)]
-N_star = top_cells[ , sum(value)]
-NN = X[(!train), sum(value)]
 AA = 4117777129
 
 fwrite(rbind(actual = top_cells, predicted = hotspots, idcol = 'pred_v_actual'),
