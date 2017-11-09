@@ -23,7 +23,10 @@ crime.type = arg[2L]
 use_scraped = arg[3L] == 'use_scraped'
 month_based = arg[4L] == 'month_based'
 #default for testing
-if (is.na(day0s)) day0s = '20170308'
+if (is.na(day0s)) {
+  day0s = '20170308';crime.type = 'bur'
+  use_scraped = FALSE;month_based=FALSE
+}
 params = grep(sprintf('%s.*1w', crime.type), 
               readLines('final_parameters.rtf'), value = TRUE)
 attach(
@@ -134,7 +137,9 @@ X = crimes[!is.na(start_date), as.data.table(pixellate(ppp(
 
 # calculate N*, N here before removing never-crime cells
 n.cells = as.integer(which.round(alpha)(6969600*(1+2*alpha)/aa))
-N_star = X[start_date == day0_int][order(-value)[1:n.cells], sum(value)]
+#force copy (don't risk copy-by-reference issues)
+actual = copy(X[start_date == day0_int][order(-value)[1:n.cells]])
+N_star = actual[ , sum(value)]
 NN = X[start_date == day0_int, sum(value)]
 X = X[I %in% incl_ids]
 
@@ -268,10 +273,10 @@ hotspots =
               .(I, x, y, value, pred.count), on = 'I']
 nn = hotspots[ , sum(value)]
 
-top_cells = X[(!train)][order(-value)][1:n.cells, .(I, x, y, value, pred.count)]
 AA = 4117777129
 
-fwrite(rbind(actual = top_cells, predicted = hotspots, idcol = 'pred_v_actual'),
+fwrite(rbind(actual = actual, predicted = hotspots, 
+             idcol = 'pred_v_actual', fill = TRUE),
        sprintf('top_cells_%s_%s_%s.csv', crime.type, arg[3L], arg[4L]))
 
 cat('Crime:', crime.type, 
