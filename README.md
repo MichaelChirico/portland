@@ -1,18 +1,14 @@
-Forecasting Crime in Portland
+# Overview of Directory
 
-* [Contest Guidelines](http://www.nij.gov/funding/Pages/fy16-crime-forecasting-challenge.aspx)
+ - `ar_ws_evaluate_params.R` - main script for taking hyperparameters, featurizing them, and running Vowpal Wabbit
+ - `competition_output.R` - main script for turning optimal hyperparameters into a contest submission
+ - `crimes_{all,bur,str,veh}.csv` - analysis historical data files
+ - `rss_data`, `feb28_calls_geocode.R`, `data/February 28th calls manual.xlsx`, `data/rss_feed_Feb28.csv` - supplementary data & scraping from February 28 (final contest day when no official crimes were given to contestants)
+ - `data/Portland_Police_Districts.{dbf,sbn,sbx,shp,shp.xml,shx}` - officially supplied shapefile for Portland
+ - `extract_portland_boundary_to_csv.R`, `data/portland_coords.csv` - script for converting Portland districts shapefile to a boundary polygon for Portland (with a small buffer), and the output of this script
+ - `utils.R` - some helper functions for other scripts
+ - `optimization_scripts` - some scripts used for hyperparameter optimization
 
-# Creating our analysis data sets
+ This reproduction archive is kept on the `submission_repro_archive` branch of the official GitHub-hosted repository:
 
-Required packages: `rvest`, `data.table`, `foreign`, `zoo`, `sp`, `rgeos`, `maptools`, `rgdal`
-
- 1. Run `data_download.R` to scrape the NIJ website for links to all .zip files and download them into `./data`.
- 
- 2. Run `crimes_to_csv.R` to convert these shapefiles' .dbf databases into our analysis .csv files: `crimes_all.csv`, `crimes_bur.csv`, `crimes_str.csv` and `crimes_veh.csv`.
- 
- 3. Make sure you have the provided `Portland_Police_Districts.shp` shapefile of police districts in Portland in `./data`, then run `extract_portland_boundary_to_csv.R` to create a text file containing all x-y coordinates of the (500-ft-buffered) vertices of the outer boundary of Portland into `./data/portland_coords.csv`.
-
-# Converting chosen parameters into output shapefiles
-
- * `competition_output.R` takes all the parameters as input and outputs one shapefile (.shp, .dbf, .prj, and .shx) in the appropriate place in the `submissions` folder (one crime type/horizon combination per run of `competition_output.R`).
- 
+ https://github.com/MichaelChirico/portland/blob/submission_repro_archive/README.md
